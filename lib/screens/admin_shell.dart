@@ -11,7 +11,7 @@ import 'finance_screen.dart';
 import 'payments_screen.dart';
 import 'payouts_screen.dart';
 import 'reviews_screen.dart';
-import 'complaints_screen.dart';
+import 'complaints_screen.dart' hide AdminsScreen;
 import 'support_screen.dart';
 import 'notifications_screen.dart';
 import 'admins_screen.dart';
@@ -121,11 +121,6 @@ class _AdminShellState extends State<AdminShell> {
   bool mobileMenuOpen = false;
 
   String get pageTitle {
-    if (selectedIndex < 0 ||
-        selectedIndex >= adminMenuItems.length) {
-      return 'Dashboard';
-    }
-
     return adminMenuItems[selectedIndex].title;
   }
 
@@ -365,7 +360,9 @@ class _AdminShellState extends State<AdminShell> {
             color: active ? dojoOrange : dojoDark,
           ),
         ),
-        onTap: () => selectPage(index),
+        onTap: () {
+          selectPage(index);
+        },
       ),
     );
   }
@@ -440,7 +437,9 @@ class _AdminShellState extends State<AdminShell> {
           const Spacer(),
           IconButton(
             tooltip: 'Notifications',
-            onPressed: () => selectPage(13),
+            onPressed: () {
+              selectPage(13);
+            },
             icon: const Icon(
               Icons.notifications_none_outlined,
               color: dojoGrey,
@@ -537,7 +536,9 @@ class _AdminShellState extends State<AdminShell> {
         actions: [
           IconButton(
             tooltip: 'Notifications',
-            onPressed: () => selectPage(13),
+            onPressed: () {
+              selectPage(13);
+            },
             icon: const Icon(
               Icons.notifications_none_outlined,
               color: dojoGrey,
@@ -560,7 +561,7 @@ class _AdminShellState extends State<AdminShell> {
   Widget mobileDrawer() {
     return Positioned.fill(
       child: Material(
-        color: Colors.black.withOpacity(.18),
+        color: Colors.black.withValues(alpha: 0.18),
         child: Row(
           children: [
             Container(
