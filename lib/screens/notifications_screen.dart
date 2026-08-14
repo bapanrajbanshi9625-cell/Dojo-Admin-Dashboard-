@@ -5,6 +5,7 @@ const Color dojoOrange = Color(0xFFD35435);
 const Color dojoBlue = Color(0xFF3F6FA5);
 const Color dojoGreen = Color(0xFF3F8F68);
 const Color dojoRed = Color(0xFFC94A4A);
+const Color dojoPurple = Color(0xFF7567A8);
 const Color dojoBlack = Color(0xFF263238);
 const Color dojoGrey = Color(0xFF6B7280);
 const Color dojoBorder = Color(0xFFE7E9ED);
@@ -46,13 +47,14 @@ class _NotificationsScreenState
           return _loadingState();
         }
 
-        final notifications = snapshot.data?.docs
-                .map(
-                  (doc) =>
-                      NotificationData.fromFirestore(doc),
-                )
-                .toList() ??
-            [];
+        final notifications =
+            snapshot.data?.docs
+                    .map(
+                      (doc) =>
+                          NotificationData.fromFirestore(doc),
+                    )
+                    .toList() ??
+                [];
 
         final unread =
             notifications.where((n) => !n.read).length;
@@ -61,7 +63,8 @@ class _NotificationsScreenState
             _filterNotifications(notifications);
 
         return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment:
+              CrossAxisAlignment.start,
           children: [
             _header(unread),
             const SizedBox(height: 20),
@@ -80,7 +83,8 @@ class _NotificationsScreenState
 
   Widget _header(int unread) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
       children: [
         const Expanded(
           child: Column(
@@ -108,7 +112,8 @@ class _NotificationsScreenState
         ),
         if (unread > 0)
           Container(
-            padding: const EdgeInsets.symmetric(
+            padding:
+                const EdgeInsets.symmetric(
               horizontal: 11,
               vertical: 8,
             ),
@@ -201,7 +206,7 @@ class _NotificationsScreenState
   }
 
   // ============================================================
-  // FILTER LOGIC
+  // FILTER
   // ============================================================
 
   List<NotificationData>
@@ -240,7 +245,9 @@ class _NotificationsScreenState
       children: list.map((notification) {
         return Padding(
           padding:
-              const EdgeInsets.only(bottom: 10),
+              const EdgeInsets.only(
+            bottom: 10,
+          ),
           child: _notificationCard(
             notification,
           ),
@@ -320,15 +327,12 @@ class _NotificationsScreenState
           color,
         ),
         const SizedBox(width: 14),
-
         Expanded(
           child: _notificationContent(
             notification,
           ),
         ),
-
         const SizedBox(width: 15),
-
         Column(
           crossAxisAlignment:
               CrossAxisAlignment.end,
@@ -365,17 +369,13 @@ class _NotificationsScreenState
           notification.type,
           color,
         ),
-
         const SizedBox(width: 12),
-
         Expanded(
           child: _notificationContent(
             notification,
           ),
         ),
-
         const SizedBox(width: 8),
-
         if (!notification.read)
           _unreadDot(color),
       ],
@@ -435,9 +435,7 @@ class _NotificationsScreenState
                 ),
               ),
             ),
-
             const SizedBox(width: 8),
-
             _typeBadge(
               notification.type,
             ),
@@ -458,7 +456,7 @@ class _NotificationsScreenState
           ),
         ),
 
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
 
         _detailsRow(
           icon: Icons.pets_outlined,
@@ -466,15 +464,11 @@ class _NotificationsScreenState
           value: notification.petName,
         ),
 
-        const SizedBox(height: 5),
-
         _detailsRow(
           icon: Icons.person_outline,
           label: 'Owner',
           value: notification.ownerName,
         ),
-
-        const SizedBox(height: 5),
 
         _detailsRow(
           icon: Icons.badge_outlined,
@@ -482,15 +476,13 @@ class _NotificationsScreenState
           value: notification.walkerName,
         ),
 
-        const SizedBox(height: 5),
-
         _detailsRow(
           icon: Icons.tag,
           label: 'Walk ID',
           value: notification.walkId,
         ),
 
-        const SizedBox(height: 6),
+        const SizedBox(height: 5),
 
         Text(
           notification.time,
@@ -512,40 +504,44 @@ class _NotificationsScreenState
     required String label,
     required String value,
   }) {
-    if (value.isEmpty || value == '-') {
+    if (value.isEmpty) {
       return const SizedBox.shrink();
     }
 
-    return Row(
-      children: [
-        Icon(
-          icon,
-          size: 15,
-          color: dojoGrey,
-        ),
-        const SizedBox(width: 6),
-        Text(
-          '$label:',
-          style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            color: dojoBlack,
+    return Padding(
+      padding:
+          const EdgeInsets.only(bottom: 5),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 15,
+            color: dojoGrey,
           ),
-        ),
-        const SizedBox(width: 5),
-        Expanded(
-          child: Text(
-            value,
-            maxLines: 1,
-            overflow:
-                TextOverflow.ellipsis,
+          const SizedBox(width: 6),
+          Text(
+            '$label:',
             style: const TextStyle(
               fontSize: 11,
-              color: dojoGrey,
+              fontWeight: FontWeight.w700,
+              color: dojoBlack,
             ),
           ),
-        ),
-      ],
+          const SizedBox(width: 5),
+          Expanded(
+            child: Text(
+              value,
+              maxLines: 1,
+              overflow:
+                  TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 11,
+                color: dojoGrey,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -554,7 +550,8 @@ class _NotificationsScreenState
   // ============================================================
 
   Widget _typeBadge(String type) {
-    final color = _typeColor(type);
+    final color =
+        _typeColor(type);
 
     return Container(
       padding:
@@ -590,7 +587,7 @@ class _NotificationsScreenState
   }
 
   // ============================================================
-  // DETAILS BOTTOM SHEET
+  // FULL DETAILS
   // ============================================================
 
   Future<void> _showNotificationDetails(
@@ -618,7 +615,8 @@ class _NotificationsScreenState
             20,
             25,
           ),
-          decoration: const BoxDecoration(
+          decoration:
+              const BoxDecoration(
             color: Colors.white,
             borderRadius:
                 BorderRadius.vertical(
@@ -627,7 +625,8 @@ class _NotificationsScreenState
           ),
           child: SafeArea(
             child: Column(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisSize:
+                  MainAxisSize.min,
               crossAxisAlignment:
                   CrossAxisAlignment.start,
               children: [
@@ -635,10 +634,13 @@ class _NotificationsScreenState
                   child: Container(
                     width: 42,
                     height: 4,
-                    decoration: BoxDecoration(
+                    decoration:
+                        BoxDecoration(
                       color: dojoBorder,
                       borderRadius:
-                          BorderRadius.circular(10),
+                          BorderRadius.circular(
+                        10,
+                      ),
                     ),
                   ),
                 ),
@@ -650,11 +652,14 @@ class _NotificationsScreenState
                     Container(
                       width: 48,
                       height: 48,
-                      decoration: BoxDecoration(
+                      decoration:
+                          BoxDecoration(
                         color:
                             color.withOpacity(.10),
                         borderRadius:
-                            BorderRadius.circular(13),
+                            BorderRadius.circular(
+                          13,
+                        ),
                       ),
                       child: Icon(
                         _typeIcon(
@@ -664,13 +669,12 @@ class _NotificationsScreenState
                         size: 24,
                       ),
                     ),
-
                     const SizedBox(width: 12),
-
                     Expanded(
                       child: Text(
                         notification.title,
-                        style: const TextStyle(
+                        style:
+                            const TextStyle(
                           fontSize: 18,
                           fontWeight:
                               FontWeight.w900,
@@ -685,7 +689,8 @@ class _NotificationsScreenState
 
                 Text(
                   notification.message,
-                  style: const TextStyle(
+                  style:
+                      const TextStyle(
                     fontSize: 13,
                     color: dojoGrey,
                     height: 1.4,
@@ -742,13 +747,15 @@ class _NotificationsScreenState
     String label,
     String value,
   ) {
-    if (value.isEmpty || value == '-') {
+    if (value.isEmpty) {
       return const SizedBox.shrink();
     }
 
     return Padding(
       padding:
-          const EdgeInsets.only(bottom: 12),
+          const EdgeInsets.only(
+        bottom: 12,
+      ),
       child: Row(
         children: [
           Icon(
@@ -761,9 +768,11 @@ class _NotificationsScreenState
             width: 65,
             child: Text(
               label,
-              style: const TextStyle(
+              style:
+                  const TextStyle(
                 fontSize: 12,
-                fontWeight: FontWeight.w800,
+                fontWeight:
+                    FontWeight.w800,
                 color: dojoBlack,
               ),
             ),
@@ -771,7 +780,8 @@ class _NotificationsScreenState
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(
+              style:
+                  const TextStyle(
                 fontSize: 12,
                 color: dojoGrey,
               ),
@@ -783,7 +793,7 @@ class _NotificationsScreenState
   }
 
   // ============================================================
-  // MARK AS READ
+  // MARK READ
   // ============================================================
 
   Future<void> _markAsRead(
@@ -940,7 +950,7 @@ class _NotificationsScreenState
         return dojoOrange;
 
       case 'Payment':
-        return const Color(0xFF7567A8);
+        return dojoPurple;
 
       default:
         return dojoGrey;
@@ -979,29 +989,31 @@ class NotificationData {
   final String id;
   final String title;
   final String message;
-  final String time;
   final String type;
   final bool read;
   final DateTime? createdAt;
 
+  final String walkId;
   final String ownerName;
   final String walkerName;
   final String petName;
-  final String walkId;
 
   const NotificationData({
     required this.id,
     required this.title,
     required this.message,
-    required this.time,
     required this.type,
     required this.read,
+    required this.walkId,
     required this.ownerName,
     required this.walkerName,
     required this.petName,
-    required this.walkId,
     this.createdAt,
   });
+
+  String get time {
+    return _formatTime(createdAt);
+  }
 
   factory NotificationData.fromFirestore(
     DocumentSnapshot<Map<String, dynamic>> doc,
@@ -1027,16 +1039,16 @@ class NotificationData {
           data['message']?.toString() ??
               '',
 
-      time: _formatTime(
-        createdDate,
-        data['time'],
-      ),
-
       type:
           data['type']?.toString() ??
               'General',
 
-      read: data['read'] == true,
+      read:
+          data['read'] == true,
+
+      walkId:
+          data['walkId']?.toString() ??
+              '',
 
       ownerName:
           data['ownerName']?.toString() ??
@@ -1050,41 +1062,47 @@ class NotificationData {
           data['petName']?.toString() ??
               '',
 
-      walkId:
-          data['walkId']?.toString() ??
-              '',
-
       createdAt: createdDate,
     );
   }
 
   static String _formatTime(
     DateTime? date,
-    dynamic fallback,
   ) {
     if (date == null) {
-      return fallback?.toString() ?? '';
+      return '';
     }
 
     final now = DateTime.now();
     final difference =
         now.difference(date);
 
+    if (difference.isNegative) {
+      return 'Just now';
+    }
+
     if (difference.inSeconds < 60) {
       return 'Just now';
     }
 
     if (difference.inMinutes < 60) {
-      return '${difference.inMinutes} min ago';
+      final minutes =
+          difference.inMinutes;
+
+      return '$minutes ${minutes == 1 ? 'min' : 'mins'} ago';
     }
 
     if (difference.inHours < 24) {
-      final hours = difference.inHours;
+      final hours =
+          difference.inHours;
+
       return '$hours ${hours == 1 ? 'hour' : 'hours'} ago';
     }
 
     if (difference.inDays < 7) {
-      final days = difference.inDays;
+      final days =
+          difference.inDays;
+
       return '$days ${days == 1 ? 'day' : 'days'} ago';
     }
 
