@@ -1,4 +1,10 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+
+import '../features/owners/owner_card.dart';
+import '../features/owners/owner_data.dart';
+import '../features/owners/owner_dialogs.dart';
+import '../features/owners/owner_summary_card.dart';
 
 const Color dojoOrange = Color(0xFFD35435);
 const Color dojoBlue = Color(0xFF3F6FA5);
@@ -15,49 +21,16 @@ class OwnersScreen extends StatefulWidget {
 }
 
 class _OwnersScreenState extends State<OwnersScreen> {
+  final FirebaseFirestore _firestore =
+      FirebaseFirestore.instance;
+
   final TextEditingController searchController =
       TextEditingController();
 
   String selectedFilter = 'All';
 
-  final List<OwnerData> owners = const [
-    OwnerData(
-      id: 'OWN-001',
-      name: 'Owner 01',
-      phone: '+91 90000 00001',
-      email: 'owner01@example.com',
-      pets: 2,
-      walks: 18,
-      status: 'Active',
-    ),
-    OwnerData(
-      id: 'OWN-002',
-      name: 'Owner 02',
-      phone: '+91 90000 00002',
-      email: 'owner02@example.com',
-      pets: 1,
-      walks: 12,
-      status: 'Active',
-    ),
-    OwnerData(
-      id: 'OWN-003',
-      name: 'Owner 03',
-      phone: '+91 90000 00003',
-      email: 'owner03@example.com',
-      pets: 3,
-      walks: 27,
-      status: 'Active',
-    ),
-    OwnerData(
-      id: 'OWN-004',
-      name: 'Owner 04',
-      phone: '+91 90000 00004',
-      email: 'owner04@example.com',
-      pets: 1,
-      walks: 4,
-      status: 'Inactive',
-    ),
-  ];
+  CollectionReference<Map<String, dynamic>> get _ownersRef =>
+      _firestore.collection('owners');
 
   @override
   void dispose() {
@@ -65,66 +38,93 @@ class _OwnersScreenState extends State<OwnersScreen> {
     super.dispose();
   }
 
-  List<OwnerData> get filteredOwners {
-    final query =
-        searchController.text.trim().toLowerCase();
+  List<OwnerData> _filterOwners(List<OwnerData> owners) {
+    final query = searchController.text.trim().toLowerCase();
 
     return owners.where((owner) {
       final matchesSearch =
           query.isEmpty ||
-          owner.id.toLowerCase().contains(query) ||
+          owner.uid.toLowerCase().contains(query) ||
           owner.name.toLowerCase().contains(query) ||
           owner.phone.toLowerCase().contains(query) ||
           owner.email.toLowerCase().contains(query);
 
-      final matchesFilter =
+      final matchesStatus =
           selectedFilter == 'All' ||
           owner.status == selectedFilter;
 
-      return matchesSearch && matchesFilter;
+      return matchesSearch && matchesStatus;
     }).toList();
   }
 
   @override
   Widget build(BuildContext context) {
-    final active = owners
-        .where((owner) => owner.status == 'Active')
-        .length;
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: _ownersRef.snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SizedBox(
+            height: 350,
+            child: Center(
+              child: CircularProgressIndicator(
+                color: dojoOrange,
+              ),
+            ),
+          );
+        }
 
-    final inactive = owners
-        .where((owner) => owner.status == 'Inactive')
-        .length;
+        if (snapshot.hasError) {
+          return _errorState(snapshot.error.toString());
+        }
 
-    final totalPets =
-        owners.fold<int>(0, (sum, owner) => sum + owner.pets);
+        final owners = snapshot.data?.docs.map((doc) {
+              return OwnerData.fromFirestore(
+                doc.id,
+                doc.data(),
+              );
+            }).toList() ??
+            [];
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _header(),
+        final filteredOwners = _filterOwners(owners);
 
-        const SizedBox(height: 20),
+        final active = owners
+            .where((owner) => owner.status == 'Active')
+            .length;
 
-        _summaryCards(
-          active,
-          inactive,
-          totalPets,
-        ),
+        final inactive = owners
+            .where((owner) => owner.status == 'Inactive')
+            .length;
 
-        const SizedBox(height: 20),
+        final totalPets = owners.fold<int>(
+          0,
+          (sum, owner) => sum + owner.pets,
+        );
 
-        _toolbar(),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _header(),
 
-        const SizedBox(height: 16),
+            const SizedBox(height: 20),
 
-        _ownerList(),
-      ],
+            _summary(
+              active,
+              inactive,
+              totalPets,
+            ),
+
+            const SizedBox(height: 20),
+
+            _toolbar(),
+
+            const SizedBox(height: 16),
+
+            _ownerList(filteredOwners),
+          ],
+        );
+      },
     );
   }
-
-  // ==========================================================
-  // HEADER
-  // ==========================================================
 
   Widget _header() {
     return const Column(
@@ -150,47 +150,40 @@ class _OwnersScreenState extends State<OwnersScreen> {
     );
   }
 
-  // ==========================================================
-  // SUMMARY
-  // ==========================================================
-
-  Widget _summaryCards(
+  Widget _summary(
     int active,
     int inactive,
     int totalPets,
   ) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final columns =
-            constraints.maxWidth >= 900
-                ? 3
-                : constraints.maxWidth >= 550
-                    ? 2
-                    : 1;
+        final columns = constraints.maxWidth >= 900
+            ? 3
+            : constraints.maxWidth >= 550
+                ? 2
+                : 1;
 
         return GridView.count(
           crossAxisCount: columns,
           shrinkWrap: true,
-          physics:
-              const NeverScrollableScrollPhysics(),
+          physics: const NeverScrollableScrollPhysics(),
           crossAxisSpacing: 14,
           mainAxisSpacing: 14,
-          childAspectRatio:
-              columns == 1 ? 3.2 : 2.5,
+          childAspectRatio: columns == 1 ? 3.2 : 2.5,
           children: [
-            _SummaryCard(
+            OwnerSummaryCard(
               title: 'Active Owners',
               value: '$active',
               icon: Icons.people_outline,
               color: dojoGreen,
             ),
-            _SummaryCard(
+            OwnerSummaryCard(
               title: 'Inactive Owners',
               value: '$inactive',
               icon: Icons.person_off_outlined,
               color: dojoOrange,
             ),
-            _SummaryCard(
+            OwnerSummaryCard(
               title: 'Total Pets',
               value: '$totalPets',
               icon: Icons.pets_outlined,
@@ -201,10 +194,6 @@ class _OwnersScreenState extends State<OwnersScreen> {
       },
     );
   }
-
-  // ==========================================================
-  // TOOLBAR
-  // ==========================================================
 
   Widget _toolbar() {
     return Container(
@@ -243,8 +232,7 @@ class _OwnersScreenState extends State<OwnersScreen> {
       controller: searchController,
       onChanged: (_) => setState(() {}),
       decoration: InputDecoration(
-        hintText:
-            'Search owner, phone or email...',
+        hintText: 'Search owner, phone or email...',
         hintStyle: const TextStyle(
           color: dojoGrey,
           fontSize: 12,
@@ -254,35 +242,28 @@ class _OwnersScreenState extends State<OwnersScreen> {
           size: 20,
           color: dojoGrey,
         ),
-        suffixIcon:
-            searchController.text.isNotEmpty
-                ? IconButton(
-                    onPressed: () {
-                      searchController.clear();
-                      setState(() {});
-                    },
-                    icon: const Icon(
-                      Icons.close,
-                      size: 18,
-                    ),
-                  )
-                : null,
+        suffixIcon: searchController.text.isNotEmpty
+            ? IconButton(
+                onPressed: () {
+                  searchController.clear();
+                  setState(() {});
+                },
+                icon: const Icon(Icons.close, size: 18),
+              )
+            : null,
         filled: true,
         fillColor: const Color(0xFFF8F9FA),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(11),
-          borderSide:
-              const BorderSide(color: dojoBorder),
+          borderSide: const BorderSide(color: dojoBorder),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(11),
-          borderSide:
-              const BorderSide(color: dojoBorder),
+          borderSide: const BorderSide(color: dojoBorder),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(11),
-          borderSide:
-              const BorderSide(color: dojoOrange),
+          borderSide: const BorderSide(color: dojoOrange),
         ),
       ),
     );
@@ -321,462 +302,44 @@ class _OwnersScreenState extends State<OwnersScreen> {
               : const Color(0xFFF8F9FA),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: selected
-                ? dojoOrange
-                : dojoBorder,
+            color: selected ? dojoOrange : dojoBorder,
           ),
         ),
         child: Text(
           title,
           style: TextStyle(
-            color: selected
-                ? Colors.white
-                : dojoDark,
+            color: selected ? Colors.white : dojoDark,
             fontSize: 12,
-            fontWeight: selected
-                ? FontWeight.w800
-                : FontWeight.w600,
+            fontWeight:
+                selected ? FontWeight.w800 : FontWeight.w600,
           ),
         ),
       ),
     );
   }
 
-  // ==========================================================
-  // OWNER LIST
-  // ==========================================================
-
-  Widget _ownerList() {
-    final list = filteredOwners;
-
-    if (list.isEmpty) {
+  Widget _ownerList(List<OwnerData> owners) {
+    if (owners.isEmpty) {
       return _emptyState();
     }
 
     return Column(
-      children: list.map((owner) {
+      children: owners.map((owner) {
         return Padding(
-          padding:
-              const EdgeInsets.only(bottom: 12),
-          child: _ownerCard(owner),
+          padding: const EdgeInsets.only(bottom: 12),
+          child: OwnerCard(
+            owner: owner,
+            onView: () {
+              showOwnerDetailsDialog(
+                context,
+                owner,
+              );
+            },
+          ),
         );
       }).toList(),
     );
   }
-
-  // ==========================================================
-  // OWNER CARD
-  // ==========================================================
-
-  Widget _ownerCard(OwnerData owner) {
-    final active = owner.status == 'Active';
-
-    final statusColor =
-        active ? dojoGreen : dojoOrange;
-
-    return Container(
-      padding: const EdgeInsets.all(17),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(17),
-        border: Border.all(
-          color: dojoBorder,
-        ),
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          if (constraints.maxWidth < 650) {
-            return _mobileCard(
-              owner,
-              statusColor,
-            );
-          }
-
-          return _desktopCard(
-            owner,
-            statusColor,
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _desktopCard(
-    OwnerData owner,
-    Color statusColor,
-  ) {
-    return Row(
-      children: [
-        _avatar(),
-
-        const SizedBox(width: 14),
-
-        Expanded(
-          flex: 3,
-          child: _mainInfo(owner),
-        ),
-
-        Expanded(
-          child: _info(
-            Icons.phone_outlined,
-            'Phone',
-            owner.phone,
-          ),
-        ),
-
-        Expanded(
-          child: _info(
-            Icons.pets_outlined,
-            'Pets',
-            '${owner.pets}',
-          ),
-        ),
-
-        Expanded(
-          child: _info(
-            Icons.directions_walk_outlined,
-            'Walks',
-            '${owner.walks}',
-          ),
-        ),
-
-        _statusChip(
-          owner.status,
-          statusColor,
-        ),
-
-        const SizedBox(width: 12),
-
-        _viewButton(owner),
-      ],
-    );
-  }
-
-  Widget _mobileCard(
-    OwnerData owner,
-    Color statusColor,
-  ) {
-    return Column(
-      crossAxisAlignment:
-          CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            _avatar(),
-
-            const SizedBox(width: 12),
-
-            Expanded(
-              child: _mainInfo(owner),
-            ),
-
-            _statusChip(
-              owner.status,
-              statusColor,
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 16),
-
-        Row(
-          children: [
-            Expanded(
-              child: _info(
-                Icons.phone_outlined,
-                'Phone',
-                owner.phone,
-              ),
-            ),
-            Expanded(
-              child: _info(
-                Icons.pets_outlined,
-                'Pets',
-                '${owner.pets}',
-              ),
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 14),
-
-        Row(
-          children: [
-            Expanded(
-              child: _info(
-                Icons.directions_walk_outlined,
-                'Walks',
-                '${owner.walks}',
-              ),
-            ),
-            Expanded(
-              child: _info(
-                Icons.email_outlined,
-                'Email',
-                owner.email,
-              ),
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 14),
-
-        SizedBox(
-          width: double.infinity,
-          child: _viewButton(owner),
-        ),
-      ],
-    );
-  }
-
-  Widget _avatar() {
-    return Container(
-      width: 52,
-      height: 52,
-      decoration: BoxDecoration(
-        color: const Color(0xFFEAF0F7),
-        borderRadius: BorderRadius.circular(15),
-      ),
-      child: const Icon(
-        Icons.person_outline,
-        color: dojoBlue,
-        size: 26,
-      ),
-    );
-  }
-
-  Widget _mainInfo(OwnerData owner) {
-    return Column(
-      crossAxisAlignment:
-          CrossAxisAlignment.start,
-      children: [
-        Text(
-          owner.id,
-          style: const TextStyle(
-            fontSize: 11,
-            color: dojoGrey,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(height: 3),
-        Text(
-          owner.name,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w900,
-            color: dojoDark,
-          ),
-        ),
-        const SizedBox(height: 3),
-        Text(
-          owner.email,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            fontSize: 11,
-            color: dojoGrey,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _info(
-    IconData icon,
-    String label,
-    String value,
-  ) {
-    return Row(
-      children: [
-        Icon(
-          icon,
-          size: 18,
-          color: dojoBlue,
-        ),
-        const SizedBox(width: 7),
-        Flexible(
-          child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 10,
-                  color: dojoGrey,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                value,
-                maxLines: 1,
-                overflow:
-                    TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _statusChip(
-    String status,
-    Color color,
-  ) {
-    return Container(
-      padding:
-          const EdgeInsets.symmetric(
-        horizontal: 9,
-        vertical: 6,
-      ),
-      decoration: BoxDecoration(
-        color: color.withOpacity(.09),
-        borderRadius:
-            BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.circle,
-            size: 7,
-            color: color,
-          ),
-          const SizedBox(width: 5),
-          Text(
-            status,
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w900,
-              color: color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _viewButton(OwnerData owner) {
-    return OutlinedButton.icon(
-      onPressed: () {
-        _showOwnerDetails(owner);
-      },
-      icon: const Icon(
-        Icons.visibility_outlined,
-        size: 17,
-      ),
-      label: const Text('View'),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: dojoOrange,
-        side: const BorderSide(
-          color: dojoOrange,
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius:
-              BorderRadius.circular(10),
-        ),
-        padding:
-            const EdgeInsets.symmetric(
-          horizontal: 13,
-          vertical: 11,
-        ),
-      ),
-    );
-  }
-
-  // ==========================================================
-  // OWNER DETAILS
-  // ==========================================================
-
-  void _showOwnerDetails(OwnerData owner) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Row(
-            children: [
-              const Icon(
-                Icons.person_outline,
-                color: dojoBlue,
-              ),
-              const SizedBox(width: 9),
-              Expanded(
-                child: Text(
-                  owner.name,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
-            children: [
-              _detailRow('Owner ID', owner.id),
-              _detailRow('Phone', owner.phone),
-              _detailRow('Email', owner.email),
-              _detailRow('Pets', '${owner.pets}'),
-              _detailRow('Walks', '${owner.walks}'),
-              _detailRow('Status', owner.status),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text('Close'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _detailRow(
-    String title,
-    String value,
-  ) {
-    return Padding(
-      padding:
-          const EdgeInsets.only(bottom: 9),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 70,
-            child: Text(
-              title,
-              style: const TextStyle(
-                color: dojoGrey,
-                fontSize: 12,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ==========================================================
-  // EMPTY
-  // ==========================================================
 
   Widget _emptyState() {
     return Container(
@@ -784,11 +347,8 @@ class _OwnersScreenState extends State<OwnersScreen> {
       height: 300,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius:
-            BorderRadius.circular(17),
-        border: Border.all(
-          color: dojoBorder,
-        ),
+        borderRadius: BorderRadius.circular(17),
+        border: Border.all(color: dojoBorder),
       ),
       child: const Center(
         child: Column(
@@ -820,103 +380,38 @@ class _OwnersScreenState extends State<OwnersScreen> {
       ),
     );
   }
-}
 
-// ============================================================
-// MODEL
-// ============================================================
-
-class OwnerData {
-  final String id;
-  final String name;
-  final String phone;
-  final String email;
-  final int pets;
-  final int walks;
-  final String status;
-
-  const OwnerData({
-    required this.id,
-    required this.name,
-    required this.phone,
-    required this.email,
-    required this.pets,
-    required this.walks,
-    required this.status,
-  });
-}
-
-// ============================================================
-// SUMMARY CARD
-// ============================================================
-
-class _SummaryCard extends StatelessWidget {
-  final String title;
-  final String value;
-  final IconData icon;
-  final Color color;
-
-  const _SummaryCard({
-    required this.title,
-    required this.value,
-    required this.icon,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _errorState(String error) {
     return Container(
-      padding: const EdgeInsets.all(17),
+      width: double.infinity,
+      padding: const EdgeInsets.all(25),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius:
-            BorderRadius.circular(16),
-        border: Border.all(
-          color: dojoBorder,
-        ),
+        borderRadius: BorderRadius.circular(17),
+        border: Border.all(color: dojoBorder),
       ),
-      child: Row(
+      child: Column(
         children: [
-          Container(
-            width: 47,
-            height: 47,
-            decoration: BoxDecoration(
-              color:
-                  color.withOpacity(.10),
-              borderRadius:
-                  BorderRadius.circular(13),
-            ),
-            child: Icon(
-              icon,
-              color: color,
+          const Icon(
+            Icons.error_outline,
+            color: Colors.red,
+            size: 48,
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Unable to load owners',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
             ),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              mainAxisAlignment:
-                  MainAxisAlignment.center,
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: dojoGrey,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 23,
-                    fontWeight:
-                        FontWeight.w900,
-                    color: dojoDark,
-                  ),
-                ),
-              ],
+          const SizedBox(height: 8),
+          Text(
+            error,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 11,
+              color: dojoGrey,
             ),
           ),
         ],
