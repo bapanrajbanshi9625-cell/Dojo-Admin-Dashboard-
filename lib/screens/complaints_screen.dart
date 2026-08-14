@@ -1,3 +1,5 @@
+// lib/screens/admins_screen.dart
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
@@ -9,95 +11,60 @@ const Color dojoBlack = Color(0xFF263238);
 const Color dojoGrey = Color(0xFF6B7280);
 const Color dojoBorder = Color(0xFFE7E9ED);
 
-class ComplaintsScreen extends StatefulWidget {
-  const ComplaintsScreen({super.key});
+class AdminsScreen extends StatefulWidget {
+  const AdminsScreen({super.key});
 
   @override
-  State<ComplaintsScreen> createState() =>
-      _ComplaintsScreenState();
+  State<AdminsScreen> createState() => _AdminsScreenState();
 }
 
-class _ComplaintsScreenState extends State<ComplaintsScreen> {
-  String selectedFilter = 'All';
-
+class _AdminsScreenState extends State<AdminsScreen> {
   final FirebaseFirestore _firestore =
       FirebaseFirestore.instance;
 
-  Stream<List<ComplaintData>> get _complaintsStream {
-    return _firestore
-        .collection('complaints')
-        .snapshots()
-        .map(
-          (snapshot) => snapshot.docs
-              .map(
-                (doc) => ComplaintData.fromFirestore(
-                  doc.id,
-                  doc.data(),
-                ),
-              )
-              .toList(),
-        );
-  }
+  String selectedFilter = 'All';
 
-  List<ComplaintData> _filterComplaints(
-    List<ComplaintData> complaints,
-  ) {
-    if (selectedFilter == 'All') {
-      return complaints;
-    }
-
-    return complaints
-        .where(
-          (item) => item.status == selectedFilter,
-        )
-        .toList();
-  }
+  CollectionReference<Map<String, dynamic>> get _adminsRef =>
+      _firestore.collection('admins');
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<List<ComplaintData>>(
-      stream: _complaintsStream,
+    return StreamBuilder<
+        QuerySnapshot<Map<String, dynamic>>>(
+      stream: _adminsRef
+          .orderBy('createdAt', descending: true)
+          .snapshots(),
       builder: (context, snapshot) {
+        if (snapshot.connectionState ==
+            ConnectionState.waiting) {
+          return _loadingState();
+        }
+
         if (snapshot.hasError) {
           return _errorState(
             snapshot.error.toString(),
           );
         }
 
-        if (snapshot.connectionState ==
-            ConnectionState.waiting) {
-          return const Center(
-            child: Padding(
-              padding: EdgeInsets.all(50),
-              child: CircularProgressIndicator(
-                color: dojoOrange,
-              ),
-            ),
-          );
-        }
+        final admins = snapshot.data?.docs
+                .map(
+                  (doc) => AdminData.fromFirestore(
+                    doc.id,
+                    doc.data(),
+                  ),
+                )
+                .toList() ??
+            [];
 
-        final complaints = snapshot.data ?? [];
+        final filteredAdmins = _filterAdmins(admins);
 
-        final open = complaints
-            .where(
-              (c) => c.status == 'Open',
-            )
+        final active = admins
+            .where((admin) => admin.status == 'Active')
             .length;
 
-        final progress = complaints
-            .where(
-              (c) => c.status == 'In Progress',
-            )
+        final inactive = admins
+            .where((admin) => admin.status == 'Inactive')
             .length;
-
-        final resolved = complaints
-            .where(
-              (c) => c.status == 'Resolved',
-            )
-            .length;
-
-        final filtered =
-            _filterComplaints(complaints);
 
         return Column(
           crossAxisAlignment:
@@ -106,27 +73,58 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
             _header(),
             const SizedBox(height: 20),
             _summary(
-              open,
-              progress,
-              resolved,
+              admins.length,
+              active,
+              inactive,
             ),
             const SizedBox(height: 20),
-            _filters(),
+            _toolbar(),
             const SizedBox(height: 16),
-            _complaintList(filtered),
+            _adminList(filteredAdmins),
           ],
         );
       },
     );
   }
 
+  // ==========================================================
+  // HEADER
+  // ==========================================================
+
   Widget _header() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 500) {
+          return Column(
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
+            children: [
+              _title(),
+              const SizedBox(height: 14),
+              _addButton(),
+            ],
+          );
+        }
+
+        return Row(
+          children: [
+            Expanded(
+              child: _title(),
+            ),
+            _addButton(),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _title() {
     return const Column(
       crossAxisAlignment:
           CrossAxisAlignment.start,
       children: [
         Text(
-          'Complaints',
+          'Admins',
           style: TextStyle(
             fontSize: 29,
             fontWeight: FontWeight.w900,
@@ -135,7 +133,7 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
         ),
         SizedBox(height: 5),
         Text(
-          'Review and manage DOJO user complaints',
+          'Manage DOJO administrator accounts and access',
           style: TextStyle(
             color: dojoGrey,
             fontSize: 14,
@@ -145,10 +143,36 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
     );
   }
 
+  Widget _addButton() {
+    return FilledButton.icon(
+      onPressed: _addAdmin,
+      icon: const Icon(
+        Icons.person_add_alt_1_outlined,
+      ),
+      label: const Text('Add Admin'),
+      style: FilledButton.styleFrom(
+        backgroundColor: dojoOrange,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 13,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius:
+              BorderRadius.circular(11),
+        ),
+      ),
+    );
+  }
+
+  // ==========================================================
+  // SUMMARY
+  // ==========================================================
+
   Widget _summary(
-    int open,
-    int progress,
-    int resolved,
+    int total,
+    int active,
+    int inactive,
   ) {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -170,24 +194,25 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
               columns == 1 ? 3.2 : 2.4,
           children: [
             _SummaryCard(
-              title: 'Open',
-              value: '$open',
-              icon: Icons.error_outline,
-              color: dojoRed,
-            ),
-            _SummaryCard(
-              title: 'In Progress',
-              value: '$progress',
+              title: 'Total Admins',
+              value: '$total',
               icon:
-                  Icons.pending_actions_outlined,
-              color: dojoOrange,
+                  Icons.admin_panel_settings_outlined,
+              color: dojoBlue,
             ),
             _SummaryCard(
-              title: 'Resolved',
-              value: '$resolved',
+              title: 'Active Admins',
+              value: '$active',
               icon:
                   Icons.check_circle_outline,
               color: dojoGreen,
+            ),
+            _SummaryCard(
+              title: 'Inactive Admins',
+              value: '$inactive',
+              icon:
+                  Icons.person_off_outlined,
+              color: dojoRed,
             ),
           ],
         );
@@ -195,7 +220,11 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
     );
   }
 
-  Widget _filters() {
+  // ==========================================================
+  // FILTER
+  // ==========================================================
+
+  Widget _toolbar() {
     return Container(
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
@@ -211,9 +240,8 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
         runSpacing: 5,
         children: [
           _filterButton('All'),
-          _filterButton('Open'),
-          _filterButton('In Progress'),
-          _filterButton('Resolved'),
+          _filterButton('Active'),
+          _filterButton('Inactive'),
         ],
       ),
     );
@@ -234,7 +262,7 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
       child: Container(
         padding:
             const EdgeInsets.symmetric(
-          horizontal: 14,
+          horizontal: 15,
           vertical: 10,
         ),
         decoration: BoxDecoration(
@@ -258,39 +286,64 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
     );
   }
 
-  Widget _complaintList(
-    List<ComplaintData> list,
+  List<AdminData> _filterAdmins(
+    List<AdminData> admins,
   ) {
-    if (list.isEmpty) {
+    if (selectedFilter == 'All') {
+      return admins;
+    }
+
+    return admins
+        .where(
+          (admin) =>
+              admin.status ==
+              selectedFilter,
+        )
+        .toList();
+  }
+
+  // ==========================================================
+  // ADMIN LIST
+  // ==========================================================
+
+  Widget _adminList(
+    List<AdminData> admins,
+  ) {
+    if (admins.isEmpty) {
       return _emptyState();
     }
 
     return Column(
-      children: list.map((complaint) {
+      children: admins.map((admin) {
         return Padding(
           padding:
               const EdgeInsets.only(
             bottom: 12,
           ),
-          child:
-              _complaintCard(complaint),
+          child: _adminCard(admin),
         );
       }).toList(),
     );
   }
 
-  Widget _complaintCard(
-    ComplaintData complaint,
-  ) {
-    final statusColor =
-        _statusColor(complaint.status);
+  // ==========================================================
+  // ADMIN CARD
+  // ==========================================================
 
-    final priorityColor =
-        _priorityColor(complaint.priority);
+  Widget _adminCard(AdminData admin) {
+    final active =
+        admin.status == 'Active';
+
+    final statusColor =
+        active ? dojoGreen : dojoRed;
+
+    final roleColor =
+        _roleColor(admin.role);
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding:
+          const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius:
@@ -300,19 +353,21 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
         ),
       ),
       child: LayoutBuilder(
-        builder: (context, constraints) {
-          if (constraints.maxWidth < 650) {
+        builder:
+            (context, constraints) {
+          if (constraints.maxWidth <
+              600) {
             return _mobileCard(
-              complaint,
+              admin,
               statusColor,
-              priorityColor,
+              roleColor,
             );
           }
 
           return _desktopCard(
-            complaint,
+            admin,
             statusColor,
-            priorityColor,
+            roleColor,
           );
         },
       ),
@@ -320,46 +375,38 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
   }
 
   Widget _desktopCard(
-    ComplaintData complaint,
+    AdminData admin,
     Color statusColor,
-    Color priorityColor,
+    Color roleColor,
   ) {
     return Row(
       children: [
-        _complaintIcon(
-          complaint.priority,
-        ),
+        _avatar(admin),
         const SizedBox(width: 14),
         Expanded(
           flex: 3,
-          child: _mainInfo(complaint),
+          child: _adminInfo(admin),
         ),
         Expanded(
-          child: _info(
-            Icons.person_outline,
-            'User',
-            complaint.user,
+          child: _roleChip(
+            admin.role,
+            roleColor,
           ),
         ),
-        _priorityChip(
-          complaint.priority,
-          priorityColor,
-        ),
-        const SizedBox(width: 10),
         _statusChip(
-          complaint.status,
+          admin.status,
           statusColor,
         ),
-        const SizedBox(width: 12),
-        _viewButton(complaint),
+        const SizedBox(width: 14),
+        _actionButton(admin),
       ],
     );
   }
 
   Widget _mobileCard(
-    ComplaintData complaint,
+    AdminData admin,
     Color statusColor,
-    Color priorityColor,
+    Color roleColor,
   ) {
     return Column(
       crossAxisAlignment:
@@ -367,43 +414,30 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
       children: [
         Row(
           children: [
-            _complaintIcon(
-              complaint.priority,
-            ),
+            _avatar(admin),
             const SizedBox(width: 12),
             Expanded(
-              child: _mainInfo(complaint),
+              child: _adminInfo(admin),
             ),
           ],
         ),
         const SizedBox(height: 15),
-        Row(
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
           children: [
-            Expanded(
-              child: _info(
-                Icons.person_outline,
-                'User',
-                complaint.user,
-              ),
+            _roleChip(
+              admin.role,
+              roleColor,
             ),
-            _priorityChip(
-              complaint.priority,
-              priorityColor,
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
             _statusChip(
-              complaint.status,
+              admin.status,
               statusColor,
             ),
-            const Spacer(),
             Text(
-              complaint.date,
+              'Last active: ${admin.lastActive}',
               style: const TextStyle(
-                fontSize: 11,
+                fontSize: 10,
                 color: dojoGrey,
               ),
             ),
@@ -412,63 +446,49 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
         const SizedBox(height: 14),
         SizedBox(
           width: double.infinity,
-          child: _viewButton(complaint),
+          child: _actionButton(admin),
         ),
       ],
     );
   }
 
-  Widget _complaintIcon(String priority) {
-    final color =
-        _priorityColor(priority);
-
+  Widget _avatar(AdminData admin) {
     return Container(
       width: 52,
       height: 52,
       decoration: BoxDecoration(
-        color: color.withOpacity(.10),
+        color:
+            const Color(0xFFFFEEE9),
         borderRadius:
             BorderRadius.circular(15),
       ),
-      child: Icon(
-        Icons.report_problem_outlined,
-        color: color,
-        size: 26,
+      child: const Icon(
+        Icons.person_outline,
+        color: dojoOrange,
+        size: 27,
       ),
     );
   }
 
-  Widget _mainInfo(
-    ComplaintData complaint,
-  ) {
+  Widget _adminInfo(AdminData admin) {
     return Column(
       crossAxisAlignment:
           CrossAxisAlignment.start,
       children: [
         Text(
-          complaint.id,
-          style: const TextStyle(
-            fontSize: 11,
-            color: dojoGrey,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(height: 3),
-        Text(
-          complaint.subject,
+          admin.name,
           maxLines: 1,
           overflow:
               TextOverflow.ellipsis,
           style: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w900,
-            color: dojoBlack,
           ),
         ),
         const SizedBox(height: 4),
         Text(
-          complaint.description,
-          maxLines: 2,
+          admin.email,
+          maxLines: 1,
           overflow:
               TextOverflow.ellipsis,
           style: const TextStyle(
@@ -476,70 +496,36 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
             color: dojoGrey,
           ),
         ),
-      ],
-    );
-  }
-
-  Widget _info(
-    IconData icon,
-    String label,
-    String value,
-  ) {
-    return Row(
-      children: [
-        Icon(
-          icon,
-          size: 18,
-          color: dojoBlue,
-        ),
-        const SizedBox(width: 7),
-        Flexible(
-          child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 10,
-                  color: dojoGrey,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                value,
-                maxLines: 1,
-                overflow:
-                    TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
+        const SizedBox(height: 4),
+        Text(
+          'Last active: ${admin.lastActive}',
+          style: const TextStyle(
+            fontSize: 10,
+            color: dojoGrey,
           ),
         ),
       ],
     );
   }
 
-  Widget _priorityChip(
-    String priority,
+  Widget _roleChip(
+    String role,
     Color color,
   ) {
     return Container(
       padding:
           const EdgeInsets.symmetric(
-        horizontal: 9,
-        vertical: 6,
+        horizontal: 10,
+        vertical: 7,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(.09),
+        color:
+            color.withOpacity(.09),
         borderRadius:
-            BorderRadius.circular(8),
+            BorderRadius.circular(9),
       ),
       child: Text(
-        priority,
+        role,
         style: TextStyle(
           fontSize: 10,
           fontWeight: FontWeight.w900,
@@ -556,13 +542,14 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
     return Container(
       padding:
           const EdgeInsets.symmetric(
-        horizontal: 9,
-        vertical: 6,
+        horizontal: 10,
+        vertical: 7,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(.09),
+        color:
+            color.withOpacity(.09),
         borderRadius:
-            BorderRadius.circular(8),
+            BorderRadius.circular(9),
       ),
       child: Row(
         mainAxisSize:
@@ -588,20 +575,21 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
     );
   }
 
-  Widget _viewButton(
-    ComplaintData complaint,
+  Widget _actionButton(
+    AdminData admin,
   ) {
     return OutlinedButton.icon(
-      onPressed: () {
-        _showDetails(complaint);
-      },
+      onPressed: () =>
+          _showAdmin(admin),
       icon: const Icon(
         Icons.visibility_outlined,
         size: 17,
       ),
       label: const Text('View'),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: dojoOrange,
+      style:
+          OutlinedButton.styleFrom(
+        foregroundColor:
+            dojoOrange,
         side: const BorderSide(
           color: dojoOrange,
         ),
@@ -619,93 +607,66 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
     );
   }
 
-  void _showDetails(
-    ComplaintData complaint,
-  ) {
+  // ==========================================================
+  // VIEW ADMIN
+  // ==========================================================
+
+  void _showAdmin(AdminData admin) {
     showDialog(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
           title: const Text(
-            'Complaint Details',
+            'Admin Details',
             style: TextStyle(
               fontWeight: FontWeight.w800,
             ),
           ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize:
-                  MainAxisSize.min,
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
-              children: [
-                _detailRow(
-                  'Complaint ID',
-                  complaint.id,
-                ),
-                _detailRow(
-                  'User',
-                  complaint.user,
-                ),
-                _detailRow(
-                  'Subject',
-                  complaint.subject,
-                ),
-                _detailRow(
-                  'Priority',
-                  complaint.priority,
-                ),
-                _detailRow(
-                  'Status',
-                  complaint.status,
-                ),
-                _detailRow(
-                  'Date',
-                  complaint.date,
-                ),
-                if (complaint.walkId.isNotEmpty)
-                  _detailRow(
-                    'Walk ID',
-                    complaint.walkId,
-                  ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Description',
-                  style: TextStyle(
-                    color: dojoGrey,
-                    fontSize: 11,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  complaint.description,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    height: 1.4,
-                  ),
-                ),
-              ],
-            ),
+          content: Column(
+            mainAxisSize:
+                MainAxisSize.min,
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
+            children: [
+              _detail('Name', admin.name),
+              _detail('Email', admin.email),
+              _detail('Role', admin.role),
+              _detail('Status', admin.status),
+              _detail(
+                'Last Active',
+                admin.lastActive,
+              ),
+              _detail('UID', admin.uid),
+            ],
           ),
           actions: [
-            if (complaint.status !=
-                'Resolved')
-              FilledButton(
+            if (admin.role !=
+                'Super Admin')
+              TextButton(
                 onPressed: () {
                   Navigator.pop(
                     dialogContext,
                   );
-                  _showUpdateDialog(
-                    complaint,
-                  );
+                  _editAdmin(admin);
                 },
-                style:
-                    FilledButton.styleFrom(
-                  backgroundColor:
-                      dojoOrange,
-                ),
                 child:
-                    const Text('Update'),
+                    const Text('Edit'),
+              ),
+            if (admin.role !=
+                'Super Admin')
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(
+                    dialogContext,
+                  );
+                  _deleteAdmin(admin);
+                },
+                child: const Text(
+                  'Delete',
+                  style: TextStyle(
+                    color: dojoRed,
+                  ),
+                ),
               ),
             TextButton(
               onPressed: () =>
@@ -721,11 +682,58 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
     );
   }
 
-  void _showUpdateDialog(
-    ComplaintData complaint,
+  Widget _detail(
+    String title,
+    String value,
   ) {
-    String selectedStatus =
-        complaint.status;
+    return Padding(
+      padding:
+          const EdgeInsets.only(
+        bottom: 9,
+      ),
+      child: Row(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 85,
+            child: Text(
+              title,
+              style: const TextStyle(
+                fontSize: 11,
+                color: dojoGrey,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value.isEmpty
+                  ? '-'
+                  : value,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight:
+                    FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================================
+  // ADD ADMIN
+  // ==========================================================
+
+  void _addAdmin() {
+    final nameController =
+        TextEditingController();
+
+    final emailController =
+        TextEditingController();
+
+    String selectedRole = 'Admin';
 
     showDialog(
       context: context,
@@ -735,47 +743,378 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
               (context, setDialogState) {
             return AlertDialog(
               title: const Text(
-                'Update Complaint',
+                'Add Admin',
                 style: TextStyle(
                   fontWeight:
                       FontWeight.w800,
                 ),
               ),
-              content:
-                  DropdownButtonFormField<
-                      String>(
-                initialValue:
-                    selectedStatus,
-                decoration:
-                    const InputDecoration(
-                  labelText: 'Status',
-                ),
-                items: const [
-                  DropdownMenuItem(
-                    value: 'Open',
-                    child:
-                        Text('Open'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'In Progress',
-                    child: Text(
-                      'In Progress',
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize:
+                      MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller:
+                          nameController,
+                      textCapitalization:
+                          TextCapitalization
+                              .words,
+                      decoration:
+                          const InputDecoration(
+                        labelText:
+                            'Admin name',
+                        prefixIcon:
+                            Icon(
+                          Icons
+                              .person_outline,
+                        ),
+                      ),
                     ),
+                    const SizedBox(
+                      height: 12,
+                    ),
+                    TextField(
+                      controller:
+                          emailController,
+                      keyboardType:
+                          TextInputType
+                              .emailAddress,
+                      decoration:
+                          const InputDecoration(
+                        labelText:
+                            'Email',
+                        prefixIcon:
+                            Icon(
+                          Icons
+                              .email_outlined,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(
+                      height: 12,
+                    ),
+                    DropdownButtonFormField<
+                        String>(
+                      value:
+                          selectedRole,
+                      decoration:
+                          const InputDecoration(
+                        labelText:
+                            'Role',
+                        prefixIcon:
+                            Icon(
+                          Icons
+                              .admin_panel_settings_outlined,
+                        ),
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'Admin',
+                          child:
+                              Text('Admin'),
+                        ),
+                        DropdownMenuItem(
+                          value:
+                              'Support',
+                          child: Text(
+                            'Support',
+                          ),
+                        ),
+                        DropdownMenuItem(
+                          value:
+                              'Finance',
+                          child: Text(
+                            'Finance',
+                          ),
+                        ),
+                      ],
+                      onChanged:
+                          (value) {
+                        if (value !=
+                            null) {
+                          setDialogState(
+                            () {
+                              selectedRole =
+                                  value;
+                            },
+                          );
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(
+                      dialogContext,
+                    );
+                  },
+                  child:
+                      const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () async {
+                    final name =
+                        nameController.text
+                            .trim();
+
+                    final email =
+                        emailController.text
+                            .trim();
+
+                    if (name.isEmpty ||
+                        email.isEmpty) {
+                      ScaffoldMessenger
+                          .of(context)
+                          .showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Please enter name and email.',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+
+                    Navigator.pop(
+                      dialogContext,
+                    );
+
+                    await _saveAdmin(
+                      name: name,
+                      email: email,
+                      role: selectedRole,
+                    );
+                  },
+                  style:
+                      FilledButton.styleFrom(
+                    backgroundColor:
+                        dojoOrange,
                   ),
-                  DropdownMenuItem(
-                    value: 'Resolved',
-                    child:
-                        Text('Resolved'),
-                  ),
-                ],
-                onChanged: (value) {
-                  if (value != null) {
-                    setDialogState(() {
-                      selectedStatus =
-                          value;
-                    });
-                  }
-                },
+                  child:
+                      const Text('Add'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _saveAdmin({
+    required String name,
+    required String email,
+    required String role,
+  }) async {
+    try {
+      await _adminsRef.add({
+        'name': name,
+        'email': email,
+        'role': role,
+        'status': 'Active',
+        'lastActive': 'Now',
+        'createdAt':
+            FieldValue.serverTimestamp(),
+        'updatedAt':
+            FieldValue.serverTimestamp(),
+      });
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Admin added successfully.',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        SnackBar(
+          content: Text(
+            'Failed to add admin: $e',
+          ),
+        ),
+      );
+    }
+  }
+
+  // ==========================================================
+  // EDIT ADMIN
+  // ==========================================================
+
+  void _editAdmin(AdminData admin) {
+    final nameController =
+        TextEditingController(
+      text: admin.name,
+    );
+
+    final emailController =
+        TextEditingController(
+      text: admin.email,
+    );
+
+    String selectedRole = admin.role;
+    String selectedStatus = admin.status;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder:
+              (context, setDialogState) {
+            return AlertDialog(
+              title: const Text(
+                'Edit Admin',
+                style: TextStyle(
+                  fontWeight:
+                      FontWeight.w800,
+                ),
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize:
+                      MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller:
+                          nameController,
+                      decoration:
+                          const InputDecoration(
+                        labelText:
+                            'Admin name',
+                        prefixIcon:
+                            Icon(
+                          Icons
+                              .person_outline,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(
+                      height: 12,
+                    ),
+                    TextField(
+                      controller:
+                          emailController,
+                      keyboardType:
+                          TextInputType
+                              .emailAddress,
+                      decoration:
+                          const InputDecoration(
+                        labelText:
+                            'Email',
+                        prefixIcon:
+                            Icon(
+                          Icons
+                              .email_outlined,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(
+                      height: 12,
+                    ),
+                    DropdownButtonFormField<
+                        String>(
+                      value:
+                          selectedRole,
+                      decoration:
+                          const InputDecoration(
+                        labelText:
+                            'Role',
+                        prefixIcon:
+                            Icon(
+                          Icons
+                              .admin_panel_settings_outlined,
+                        ),
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'Admin',
+                          child:
+                              Text('Admin'),
+                        ),
+                        DropdownMenuItem(
+                          value:
+                              'Support',
+                          child: Text(
+                            'Support',
+                          ),
+                        ),
+                        DropdownMenuItem(
+                          value:
+                              'Finance',
+                          child: Text(
+                            'Finance',
+                          ),
+                        ),
+                      ],
+                      onChanged:
+                          (value) {
+                        if (value !=
+                            null) {
+                          setDialogState(
+                            () {
+                              selectedRole =
+                                  value;
+                            },
+                          );
+                        }
+                      },
+                    ),
+                    const SizedBox(
+                      height: 12,
+                    ),
+                    DropdownButtonFormField<
+                        String>(
+                      value:
+                          selectedStatus,
+                      decoration:
+                          const InputDecoration(
+                        labelText:
+                            'Status',
+                        prefixIcon:
+                            Icon(
+                          Icons
+                              .toggle_on_outlined,
+                        ),
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'Active',
+                          child:
+                              Text('Active'),
+                        ),
+                        DropdownMenuItem(
+                          value:
+                              'Inactive',
+                          child: Text(
+                            'Inactive',
+                          ),
+                        ),
+                      ],
+                      onChanged:
+                          (value) {
+                        if (value !=
+                            null) {
+                          setDialogState(
+                            () {
+                              selectedStatus =
+                                  value;
+                            },
+                          );
+                        }
+                      },
+                    ),
+                  ],
+                ),
               ),
               actions: [
                 TextButton(
@@ -788,55 +1127,30 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
                 ),
                 FilledButton(
                   onPressed: () async {
-                    try {
-                      await _firestore
-                          .collection(
-                            'complaints',
-                          )
-                          .doc(
-                            complaint
-                                .documentId,
-                          )
-                          .update({
-                        'status':
-                            selectedStatus,
-                        'updatedAt':
-                            FieldValue
-                                .serverTimestamp(),
-                      });
+                    final name =
+                        nameController.text
+                            .trim();
 
-                      if (!mounted) {
-                        return;
-                      }
+                    final email =
+                        emailController.text
+                            .trim();
 
-                      Navigator.pop(
-                        dialogContext,
-                      );
-
-                      ScaffoldMessenger
-                              .of(context)
-                          .showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Complaint updated successfully.',
-                          ),
-                        ),
-                      );
-                    } catch (e) {
-                      if (!mounted) {
-                        return;
-                      }
-
-                      ScaffoldMessenger
-                              .of(context)
-                          .showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            'Failed to update complaint: $e',
-                          ),
-                        ),
-                      );
+                    if (name.isEmpty ||
+                        email.isEmpty) {
+                      return;
                     }
+
+                    Navigator.pop(
+                      dialogContext,
+                    );
+
+                    await _updateAdmin(
+                      admin,
+                      name,
+                      email,
+                      selectedRole,
+                      selectedStatus,
+                    );
                   },
                   style:
                       FilledButton.styleFrom(
@@ -854,37 +1168,187 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
     );
   }
 
-  Widget _detailRow(
-    String title,
-    String value,
-  ) {
-    return Padding(
-      padding:
-          const EdgeInsets.only(
-        bottom: 9,
-      ),
-      child: Row(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 90,
-            child: Text(
-              title,
-              style: const TextStyle(
-                color: dojoGrey,
-                fontSize: 12,
-              ),
+  Future<void> _updateAdmin(
+    AdminData admin,
+    String name,
+    String email,
+    String role,
+    String status,
+  ) async {
+    try {
+      await _adminsRef
+          .doc(admin.uid)
+          .update({
+        'name': name,
+        'email': email,
+        'role': role,
+        'status': status,
+        'updatedAt':
+            FieldValue.serverTimestamp(),
+      });
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Admin updated successfully.',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        SnackBar(
+          content: Text(
+            'Failed to update admin: $e',
+          ),
+        ),
+      );
+    }
+  }
+
+  // ==========================================================
+  // DELETE ADMIN
+  // ==========================================================
+
+  Future<void> _deleteAdmin(
+    AdminData admin,
+  ) async {
+    final confirmed =
+        await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text(
+            'Delete Admin?',
+            style: TextStyle(
+              fontWeight:
+                  FontWeight.w800,
             ),
           ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight:
-                    FontWeight.w700,
+          content: Text(
+            'Are you sure you want to delete ${admin.name}?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () =>
+                  Navigator.pop(
+                context,
+                false,
               ),
+              child:
+                  const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () =>
+                  Navigator.pop(
+                context,
+                true,
+              ),
+              style:
+                  FilledButton.styleFrom(
+                backgroundColor:
+                    dojoRed,
+              ),
+              child:
+                  const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) {
+      return;
+    }
+
+    try {
+      await _adminsRef
+          .doc(admin.uid)
+          .delete();
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Admin deleted successfully.',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        SnackBar(
+          content: Text(
+            'Failed to delete admin: $e',
+          ),
+        ),
+      );
+    }
+  }
+
+  // ==========================================================
+  // LOADING
+  // ==========================================================
+
+  Widget _loadingState() {
+    return const SizedBox(
+      height: 350,
+      child: Center(
+        child: CircularProgressIndicator(
+          color: dojoOrange,
+        ),
+      ),
+    );
+  }
+
+  // ==========================================================
+  // ERROR
+  // ==========================================================
+
+  Widget _errorState(String error) {
+    return Container(
+      width: double.infinity,
+      padding:
+          const EdgeInsets.all(25),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius:
+            BorderRadius.circular(17),
+        border: Border.all(
+          color: dojoBorder,
+        ),
+      ),
+      child: Column(
+        children: [
+          const Icon(
+            Icons.error_outline,
+            color: dojoRed,
+            size: 48,
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Unable to load admins',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            error,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 11,
+              color: dojoGrey,
             ),
           ),
         ],
@@ -892,10 +1356,14 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
     );
   }
 
+  // ==========================================================
+  // EMPTY
+  // ==========================================================
+
   Widget _emptyState() {
     return Container(
       width: double.infinity,
-      height: 300,
+      height: 280,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius:
@@ -911,13 +1379,13 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
           children: [
             Icon(
               Icons
-                  .report_problem_outlined,
-              size: 50,
+                  .admin_panel_settings_outlined,
+              size: 52,
               color: dojoGrey,
             ),
             SizedBox(height: 12),
             Text(
-              'No complaints found',
+              'No admins found',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight:
@@ -926,10 +1394,10 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
             ),
             SizedBox(height: 5),
             Text(
-              'Complaints will appear here.',
+              'Administrator accounts will appear here.',
               style: TextStyle(
-                color: dojoGrey,
                 fontSize: 12,
+                color: dojoGrey,
               ),
             ),
           ],
@@ -938,180 +1406,75 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
     );
   }
 
-  Widget _errorState(String error) {
-    return Container(
-      width: double.infinity,
-      padding:
-          const EdgeInsets.all(30),
-      child: Column(
-        mainAxisSize:
-            MainAxisSize.min,
-        children: [
-          const Icon(
-            Icons.error_outline,
-            color: dojoRed,
-            size: 48,
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            'Unable to load complaints',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight:
-                  FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            error,
-            textAlign:
-                TextAlign.center,
-            style: const TextStyle(
-              color: dojoGrey,
-              fontSize: 11,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  // ==========================================================
+  // ROLE COLOR
+  // ==========================================================
 
-  Color _statusColor(
-    String status,
-  ) {
-    switch (status) {
-      case 'Open':
-        return dojoRed;
-      case 'In Progress':
+  Color _roleColor(String role) {
+    switch (role) {
+      case 'Super Admin':
         return dojoOrange;
-      case 'Resolved':
+      case 'Admin':
+        return dojoBlue;
+      case 'Support':
         return dojoGreen;
-      default:
-        return dojoGrey;
-    }
-  }
-
-  Color _priorityColor(
-    String priority,
-  ) {
-    switch (priority) {
-      case 'High':
-        return dojoRed;
-      case 'Medium':
-        return dojoOrange;
-      case 'Low':
-        return dojoGreen;
+      case 'Finance':
+        return const Color(
+          0xFF7567A8,
+        );
       default:
         return dojoGrey;
     }
   }
 }
 
-class ComplaintData {
-  final String documentId;
-  final String id;
-  final String user;
-  final String subject;
-  final String description;
-  final String date;
-  final String status;
-  final String priority;
-  final String walkId;
+// ============================================================
+// ADMIN DATA
+// ============================================================
 
-  const ComplaintData({
-    required this.documentId,
-    required this.id,
-    required this.user,
-    required this.subject,
-    required this.description,
-    required this.date,
+class AdminData {
+  final String uid;
+  final String name;
+  final String email;
+  final String role;
+  final String status;
+  final String lastActive;
+
+  const AdminData({
+    required this.uid,
+    required this.name,
+    required this.email,
+    required this.role,
     required this.status,
-    required this.priority,
-    required this.walkId,
+    required this.lastActive,
   });
 
-  factory ComplaintData.fromFirestore(
-    String documentId,
+  factory AdminData.fromFirestore(
+    String uid,
     Map<String, dynamic> data,
   ) {
-    String date = '';
-
-    final dateValue = data['date'];
-
-    if (dateValue is Timestamp) {
-      final d = dateValue.toDate();
-
-      date =
-          '${d.day.toString().padLeft(2, '0')} '
-          '${_monthName(d.month)} '
-          '${d.year}';
-    } else if (dateValue is String) {
-      date = dateValue;
-    } else {
-      final createdAt =
-          data['createdAt'];
-
-      if (createdAt is Timestamp) {
-        final d = createdAt.toDate();
-
-        date =
-            '${d.day.toString().padLeft(2, '0')} '
-            '${_monthName(d.month)} '
-            '${d.year}';
-      }
-    }
-
-    return ComplaintData(
-      documentId: documentId,
-      id:
-          data['id']?.toString() ??
-              documentId,
-      user:
-          data['user']?.toString() ??
-              data['userName']?.toString() ??
-              'Unknown User',
-      subject:
-          data['subject']?.toString() ??
-              'No subject',
-      description:
-          data['description']?.toString() ??
-              '',
-      date: date.isEmpty
-          ? 'Unknown date'
-          : date,
+    return AdminData(
+      uid: uid,
+      name: data['name']?.toString() ?? '',
+      email:
+          data['email']?.toString() ?? '',
+      role:
+          data['role']?.toString() ??
+              'Admin',
       status:
           data['status']?.toString() ??
-              'Open',
-      priority:
-          data['priority']?.toString() ??
-              'Medium',
-      walkId:
-          data['walkId']?.toString() ??
-              '',
+              'Active',
+      lastActive:
+          data['lastActive']
+                  ?.toString() ??
+              'Unknown',
     );
   }
-
-  static String _monthName(
-    int month,
-  ) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-
-    return months[month - 1];
-  }
 }
+
+// ============================================================
+// SUMMARY CARD
+// ============================================================
 
 class _SummaryCard
     extends StatelessWidget {
@@ -1128,9 +1491,7 @@ class _SummaryCard
   });
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Container(
       padding:
           const EdgeInsets.all(17),
@@ -1147,8 +1508,7 @@ class _SummaryCard
           Container(
             width: 47,
             height: 47,
-            decoration:
-                BoxDecoration(
+            decoration: BoxDecoration(
               color:
                   color.withOpacity(.10),
               borderRadius:
