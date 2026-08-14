@@ -1,6 +1,7 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-import '../../services/admin_profile_service.dart';
 import 'dashboard_components.dart';
 
 class DashboardHeader extends StatefulWidget {
@@ -16,10 +17,11 @@ class DashboardHeader extends StatefulWidget {
       _DashboardHeaderState();
 }
 
-class _DashboardHeaderState
-    extends State<DashboardHeader> {
-  final AdminProfileService _profileService =
-      AdminProfileService();
+class _DashboardHeaderState extends State<DashboardHeader> {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  final FirebaseFirestore _firestore =
+      FirebaseFirestore.instance;
 
   Map<String, dynamic>? _profile;
   bool _loading = true;
@@ -30,22 +32,100 @@ class _DashboardHeaderState
     _loadProfile();
   }
 
+  // ============================================================
+  // LOAD ADMIN PROFILE
+  // ============================================================
+
   Future<void> _loadProfile() async {
-    final profile =
-        await _profileService.getProfile();
+    try {
+      final user = _auth.currentUser;
 
-    if (!mounted) return;
+      if (user == null) {
+        if (!mounted) return;
 
-    setState(() {
-      _profile = profile;
-      _loading = false;
-    });
+        setState(() {
+          _profile = null;
+          _loading = false;
+        });
+
+        return;
+      }
+
+      final doc = await _firestore
+          .collection('admins')
+          .doc(user.uid)
+          .get();
+
+      Map<String, dynamic> profile = {};
+
+      if (doc.exists) {
+        profile = doc.data() ?? {};
+      }
+
+      // Firebase Auth data fallback
+      profile['email'] ??= user.email;
+      profile['displayName'] ??= user.displayName;
+      profile['photoUrl'] ??= user.photoURL;
+      profile['uid'] ??= user.uid;
+
+      if (!mounted) return;
+
+      setState(() {
+        _profile = profile;
+        _loading = false;
+      });
+    } catch (e) {
+      debugPrint('Dashboard admin profile error: $e');
+
+      final user = _auth.currentUser;
+
+      if (!mounted) return;
+
+      setState(() {
+        _profile = {
+          'uid': user?.uid,
+          'email': user?.email,
+          'displayName': user?.displayName,
+          'photoUrl': user?.photoURL,
+        };
+
+        _loading = false;
+      });
+    }
   }
+
+  // ============================================================
+  // LOGOUT
+  // ============================================================
+
+  Future<void> _logout() async {
+    Navigator.of(context).pop();
+
+    try {
+      await _auth.signOut();
+
+      widget.onLogout?.call();
+    } catch (e) {
+      debugPrint('Admin logout error: $e');
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Logout failed. Please try again.'),
+        ),
+      );
+    }
+  }
+
+  // ============================================================
+  // PROFILE MENU
+  // ============================================================
 
   void _showProfileMenu() {
     showDialog(
       context: context,
-      barrierColor: Colors.black.withOpacity(.25),
+      barrierColor: Colors.black.withValues(alpha: .25),
       builder: (context) {
         return Dialog(
           backgroundColor: Colors.white,
@@ -76,7 +156,9 @@ class _DashboardHeaderState
                 const SizedBox(height: 5),
 
                 Text(
-                  _profileEmail,
+                  _profileEmail.isEmpty
+                      ? 'Admin account'
+                      : _profileEmail,
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     fontSize: 13,
@@ -92,13 +174,7 @@ class _DashboardHeaderState
 
                 InkWell(
                   borderRadius: BorderRadius.circular(12),
-                  onTap: () async {
-                    Navigator.of(context).pop();
-
-                    await _profileService.logout();
-
-                    widget.onLogout?.call();
-                  },
+                  onTap: _logout,
                   child: Container(
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(
@@ -106,9 +182,8 @@ class _DashboardHeaderState
                       vertical: 13,
                     ),
                     decoration: BoxDecoration(
-                      color: orange.withOpacity(.08),
-                      borderRadius:
-                          BorderRadius.circular(12),
+                      color: orange.withValues(alpha: .08),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Row(
                       children: [
@@ -138,19 +213,35 @@ class _DashboardHeaderState
     );
   }
 
+  // ============================================================
+  // PROFILE DATA
+  // ============================================================
+
   String get _profileName {
-    return (_profile?['name'] ??
-            _profile?['displayName'] ??
-            'Admin')
-        .toString();
+    final name =
+        _profile?['name'] ??
+        _profile?['displayName'] ??
+        'Admin';
+
+    final text = name.toString().trim();
+
+    return text.isEmpty ? 'Admin' : text;
   }
 
   String get _profileEmail {
-    return (_profile?['email'] ?? '').toString();
+    final email = _profile?['email'];
+
+    if (email == null) return '';
+
+    return email.toString().trim();
   }
 
   String? get _photoUrl {
-    final value = _profile?['photoUrl'];
+    final value =
+        _profile?['photoUrl'] ??
+        _profile?['photoURL'] ??
+        _profile?['profileImage'] ??
+        _profile?['imageUrl'];
 
     if (value == null) return null;
 
@@ -158,6 +249,10 @@ class _DashboardHeaderState
 
     return text.isEmpty ? null : text;
   }
+
+  // ============================================================
+  // PROFILE AVATAR
+  // ============================================================
 
   Widget _profileAvatar({
     required double size,
@@ -170,9 +265,9 @@ class _DashboardHeaderState
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: orange.withOpacity(.10),
+        color: orange.withValues(alpha: .10),
         border: Border.all(
-          color: orange.withOpacity(.20),
+          color: orange.withValues(alpha: .20),
           width: 2,
         ),
       ),
@@ -195,6 +290,10 @@ class _DashboardHeaderState
             ),
     );
   }
+
+  // ============================================================
+  // HEADER
+  // ============================================================
 
   @override
   Widget build(BuildContext context) {
@@ -245,7 +344,9 @@ class _DashboardHeaderState
                       ),
                     ),
                   )
-                : _profileAvatar(size: 48),
+                : _profileAvatar(
+                    size: 48,
+                  ),
           ),
         ),
       ],
