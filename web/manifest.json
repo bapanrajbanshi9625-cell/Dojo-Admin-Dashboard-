@@ -1,0 +1,10 @@
+{
+  "name": "DOJO Admin",
+  "short_name": "DOJO Admin",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#F7F8FA",
+  "theme_color": "#D35435",
+  "description": "DOJO Admin Platform Management Dashboard",
+  "orientation": "any"
+}
