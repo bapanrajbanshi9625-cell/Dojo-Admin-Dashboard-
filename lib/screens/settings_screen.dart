@@ -139,9 +139,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         fontWeight: active
                             ? FontWeight.w800
                             : FontWeight.w600,
-                        color: active
-                            ? dojoOrange
-                            : dojoBlack,
+                        color: active ? dojoOrange : dojoBlack,
                       ),
                     ),
                   ],
@@ -210,6 +208,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             });
           },
           color: dojoOrange,
+          icon: Icons.notifications_none_outlined,
         ),
         _divider(),
         _switchTile(
@@ -222,6 +221,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             });
           },
           color: dojoBlue,
+          icon: Icons.email_outlined,
         ),
         _divider(),
         _switchTile(
@@ -234,6 +234,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             });
           },
           color: dojoGreen,
+          icon: Icons.directions_walk_outlined,
         ),
         _divider(),
         _switchTile(
@@ -246,6 +247,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             });
           },
           color: const Color(0xFF7567A8),
+          icon: Icons.payments_outlined,
         ),
       ],
     );
@@ -320,6 +322,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             });
           },
           color: dojoRed,
+          icon: Icons.build_outlined,
         ),
         _divider(),
         _securityTile(
@@ -424,6 +427,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required bool value,
     required ValueChanged<bool> onChanged,
     required Color color,
+    required IconData icon,
   }) {
     return Row(
       children: [
@@ -431,11 +435,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
           width: 42,
           height: 42,
           decoration: BoxDecoration(
-            color: color.withOpacity(.10),
+            color: color.withValues(alpha: 0.10),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(
-            Icons.notifications_none_outlined,
+            icon,
             color: color,
             size: 20,
           ),
@@ -443,8 +447,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         const SizedBox(width: 12),
         Expanded(
           child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 title,
@@ -466,8 +469,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
         Switch(
           value: value,
-          activeThumbColor: color,
           onChanged: onChanged,
+          thumbColor: WidgetStateProperty.resolveWith<Color?>(
+            (states) {
+              if (states.contains(WidgetState.selected)) {
+                return color;
+              }
+              return null;
+            },
+          ),
         ),
       ],
     );
@@ -485,7 +495,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           width: 42,
           height: 42,
           decoration: BoxDecoration(
-            color: color.withOpacity(.10),
+            color: color.withValues(alpha: 0.10),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(
@@ -497,8 +507,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         const SizedBox(width: 12),
         Expanded(
           child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 title,
