@@ -61,6 +61,19 @@ jobs:
         run: flutter build web --release
 
       # --------------------------------------------------
+      # Check Firebase Hosting Configuration
+      # --------------------------------------------------
+      - name: Check Firebase configuration
+        run: |
+          if [ ! -f firebase.json ]; then
+            echo "ERROR: firebase.json was not found in the repository root."
+            exit 1
+          fi
+
+          echo "firebase.json found."
+          cat firebase.json
+
+      # --------------------------------------------------
       # Upload Build Artifact
       # --------------------------------------------------
       - name: Upload Web Build
@@ -78,13 +91,21 @@ jobs:
           firebase --version
 
       # --------------------------------------------------
-      # Create Firebase Service Account File
+      # Create Firebase Service Account
       # --------------------------------------------------
       - name: Create Firebase Service Account
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: |
-          echo "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/firebase-service-account.json"
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "ERROR: FIREBASE_SERVICE_ACCOUNT secret is missing."
+            exit 1
+          fi
+
+          echo "$FIREBASE_SERVICE_ACCOUNT" \
+            > "$RUNNER_TEMP/firebase-service-account.json"
+
+          echo "Firebase service account file created."
 
       # --------------------------------------------------
       # Deploy to Firebase Hosting
@@ -96,3 +117,12 @@ jobs:
           firebase deploy \
             --only hosting \
             --project dojo-platform-a5dc8
+
+      # --------------------------------------------------
+      # Remove Service Account
+      # --------------------------------------------------
+      - name: Cleanup Firebase Service Account
+        if: always()
+        run: |
+          rm -f "$RUNNER_TEMP/firebase-service-account.json"
+          echo "Firebase service account file removed."
