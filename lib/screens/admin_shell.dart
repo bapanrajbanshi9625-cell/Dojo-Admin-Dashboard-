@@ -11,10 +11,10 @@ import 'finance_screen.dart';
 import 'payments_screen.dart';
 import 'payouts_screen.dart';
 import 'reviews_screen.dart';
-import 'complaints_screen.dart' hide AdminsScreen;
+import 'complaints_screen.dart' as complaints;
 import 'support_screen.dart';
 import 'notifications_screen.dart';
-import 'admins_screen.dart';
+import 'admins_screen.dart' as admins;
 import 'activity_logs_screen.dart';
 import 'settings_screen.dart';
 
@@ -173,7 +173,7 @@ class _AdminShellState extends State<AdminShell> {
         return const ReviewsScreen();
 
       case 11:
-        return const ComplaintsScreen();
+        return const complaints.ComplaintsScreen();
 
       case 12:
         return const SupportScreen();
@@ -182,7 +182,7 @@ class _AdminShellState extends State<AdminShell> {
         return const NotificationsScreen();
 
       case 14:
-        return const AdminsScreen();
+        return const admins.AdminsScreen();
 
       case 15:
         return const ActivityLogsScreen();
