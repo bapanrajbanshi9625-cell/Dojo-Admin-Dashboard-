@@ -1,0 +1,14 @@
+{
+  "projects": {
+    "default": "dojo-platform-a5dc8"
+  },
+  "targets": {
+    "dojo-platform-a5dc8": {
+      "hosting": {
+        "admin": [
+          "dojo-platform-a5dc8"
+        ]
+      }
+    }
+  }
+}
