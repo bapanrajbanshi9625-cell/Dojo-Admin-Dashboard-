@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 const Color dojoOrange = Color(0xFFD35435);
@@ -16,57 +17,11 @@ class ActivityLogsScreen extends StatefulWidget {
       _ActivityLogsScreenState();
 }
 
-class _ActivityLogsScreenState
-    extends State<ActivityLogsScreen> {
+class _ActivityLogsScreenState extends State<ActivityLogsScreen> {
   String selectedFilter = 'All';
 
-  final List<ActivityLog> logs = [
-    ActivityLog(
-      title: 'Owner profile created',
-      description: 'A new owner account was created.',
-      user: 'Super Admin',
-      category: 'Owner',
-      time: '2 min ago',
-    ),
-    ActivityLog(
-      title: 'Walker profile updated',
-      description: 'Walker information was updated.',
-      user: 'Admin 01',
-      category: 'Walker',
-      time: '15 min ago',
-    ),
-    ActivityLog(
-      title: 'Walk completed',
-      description: 'A walk was marked as completed.',
-      user: 'System',
-      category: 'Walk',
-      time: '32 min ago',
-    ),
-    ActivityLog(
-      title: 'Payment recorded',
-      description: 'A payment transaction was recorded.',
-      user: 'Finance Admin',
-      category: 'Payment',
-      time: '1 hour ago',
-    ),
-    ActivityLog(
-      title: 'Admin login',
-      description: 'Administrator signed into the dashboard.',
-      user: 'Super Admin',
-      category: 'Admin',
-      time: '2 hours ago',
-    ),
-  ];
-
-  List<ActivityLog> get filteredLogs {
-    if (selectedFilter == 'All') {
-      return logs;
-    }
-
-    return logs
-        .where((log) => log.category == selectedFilter)
-        .toList();
-  }
+  final CollectionReference<Map<String, dynamic>> _logsRef =
+      FirebaseFirestore.instance.collection('activity_logs');
 
   @override
   Widget build(BuildContext context) {
@@ -81,6 +36,10 @@ class _ActivityLogsScreenState
       ],
     );
   }
+
+  // ==========================================================
+  // HEADER
+  // ==========================================================
 
   Widget _header() {
     return const Column(
@@ -106,6 +65,10 @@ class _ActivityLogsScreenState
     );
   }
 
+  // ==========================================================
+  // FILTERS
+  // ==========================================================
+
   Widget _filters() {
     return Container(
       padding: const EdgeInsets.all(6),
@@ -130,7 +93,7 @@ class _ActivityLogsScreenState
   }
 
   Widget _filter(String title) {
-    final active = selectedFilter == title;
+    final bool active = selectedFilter == title;
 
     return InkWell(
       borderRadius: BorderRadius.circular(10),
@@ -160,25 +123,65 @@ class _ActivityLogsScreenState
     );
   }
 
-  Widget _logs() {
-    final list = filteredLogs;
+  // ==========================================================
+  // FIREBASE LOGS
+  // ==========================================================
 
-    if (list.isEmpty) {
-      return _empty();
+  Widget _logs() {
+    Query<Map<String, dynamic>> query = _logsRef;
+
+    if (selectedFilter != 'All') {
+      query = query.where(
+        'category',
+        isEqualTo: selectedFilter,
+      );
     }
 
-    return Column(
-      children: list.map((log) {
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: _logCard(log),
+    query = query.orderBy(
+      'timestamp',
+      descending: true,
+    );
+
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: query.snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return _loading();
+        }
+
+        if (snapshot.hasError) {
+          return _error(snapshot.error.toString());
+        }
+
+        final documents = snapshot.data?.docs ?? [];
+
+        if (documents.isEmpty) {
+          return _empty();
+        }
+
+        return Column(
+          children: documents.map((doc) {
+            final log = ActivityLog.fromFirestore(
+              doc.id,
+              doc.data(),
+            );
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _logCard(log),
+            );
+          }).toList(),
         );
-      }).toList(),
+      },
     );
   }
 
+  // ==========================================================
+  // LOG CARD
+  // ==========================================================
+
   Widget _logCard(ActivityLog log) {
-    final color = _categoryColor(log.category);
+    final Color color = _categoryColor(log.category);
 
     return Container(
       width: double.infinity,
@@ -200,6 +203,10 @@ class _ActivityLogsScreenState
     );
   }
 
+  // ==========================================================
+  // DESKTOP
+  // ==========================================================
+
   Widget _desktopLog(
     ActivityLog log,
     Color color,
@@ -215,7 +222,7 @@ class _ActivityLogsScreenState
         _categoryChip(log.category, color),
         const SizedBox(width: 15),
         Text(
-          log.time,
+          _formatTime(log.timestamp),
           style: const TextStyle(
             fontSize: 10,
             color: dojoGrey,
@@ -224,6 +231,10 @@ class _ActivityLogsScreenState
       ],
     );
   }
+
+  // ==========================================================
+  // MOBILE
+  // ==========================================================
 
   Widget _mobileLog(
     ActivityLog log,
@@ -236,8 +247,7 @@ class _ActivityLogsScreenState
         const SizedBox(width: 12),
         Expanded(
           child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _content(log),
               const SizedBox(height: 9),
@@ -245,11 +255,14 @@ class _ActivityLogsScreenState
                 children: [
                   _categoryChip(log.category, color),
                   const SizedBox(width: 8),
-                  Text(
-                    log.time,
-                    style: const TextStyle(
-                      fontSize: 10,
-                      color: dojoGrey,
+                  Flexible(
+                    child: Text(
+                      _formatTime(log.timestamp),
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: dojoGrey,
+                      ),
                     ),
                   ),
                 ],
@@ -261,7 +274,14 @@ class _ActivityLogsScreenState
     );
   }
 
-  Widget _icon(String category, Color color) {
+  // ==========================================================
+  // ICON
+  // ==========================================================
+
+  Widget _icon(
+    String category,
+    Color color,
+  ) {
     return Container(
       width: 46,
       height: 46,
@@ -276,6 +296,10 @@ class _ActivityLogsScreenState
       ),
     );
   }
+
+  // ==========================================================
+  // CONTENT
+  // ==========================================================
 
   Widget _content(ActivityLog log) {
     return Column(
@@ -313,7 +337,9 @@ class _ActivityLogsScreenState
             const SizedBox(width: 4),
             Flexible(
               child: Text(
-                log.user,
+                log.userName.isEmpty
+                    ? 'System'
+                    : log.userName,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontSize: 10,
@@ -327,6 +353,10 @@ class _ActivityLogsScreenState
       ],
     );
   }
+
+  // ==========================================================
+  // CATEGORY CHIP
+  // ==========================================================
 
   Widget _categoryChip(
     String category,
@@ -351,6 +381,74 @@ class _ActivityLogsScreenState
       ),
     );
   }
+
+  // ==========================================================
+  // LOADING
+  // ==========================================================
+
+  Widget _loading() {
+    return Container(
+      width: double.infinity,
+      height: 280,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(17),
+        border: Border.all(color: dojoBorder),
+      ),
+      child: const Center(
+        child: CircularProgressIndicator(
+          color: dojoOrange,
+        ),
+      ),
+    );
+  }
+
+  // ==========================================================
+  // ERROR
+  // ==========================================================
+
+  Widget _error(String error) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(17),
+        border: Border.all(color: dojoBorder),
+      ),
+      child: Column(
+        children: [
+          const Icon(
+            Icons.error_outline,
+            size: 48,
+            color: dojoRed,
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Unable to load activity logs',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: dojoBlack,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            error,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 11,
+              color: dojoGrey,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================================
+  // EMPTY
+  // ==========================================================
 
   Widget _empty() {
     return Container(
@@ -392,53 +490,140 @@ class _ActivityLogsScreenState
     );
   }
 
+  // ==========================================================
+  // CATEGORY COLOR
+  // ==========================================================
+
   Color _categoryColor(String category) {
     switch (category) {
       case 'Owner':
         return dojoBlue;
+
       case 'Walker':
         return dojoGreen;
+
       case 'Walk':
         return dojoOrange;
+
       case 'Payment':
         return const Color(0xFF7567A8);
+
       case 'Admin':
         return dojoRed;
+
       default:
         return dojoGrey;
     }
   }
 
+  // ==========================================================
+  // CATEGORY ICON
+  // ==========================================================
+
   IconData _categoryIcon(String category) {
     switch (category) {
       case 'Owner':
         return Icons.person_outline;
+
       case 'Walker':
         return Icons.badge_outlined;
+
       case 'Walk':
         return Icons.directions_walk_outlined;
+
       case 'Payment':
         return Icons.payments_outlined;
+
       case 'Admin':
         return Icons.admin_panel_settings_outlined;
+
       default:
         return Icons.receipt_long_outlined;
     }
   }
+
+  // ==========================================================
+  // TIME FORMAT
+  // ==========================================================
+
+  String _formatTime(Timestamp? timestamp) {
+    if (timestamp == null) {
+      return 'Unknown time';
+    }
+
+    final date = timestamp.toDate();
+    final now = DateTime.now();
+
+    final difference = now.difference(date);
+
+    if (difference.inSeconds < 60) {
+      return 'Just now';
+    }
+
+    if (difference.inMinutes < 60) {
+      return '${difference.inMinutes} min ago';
+    }
+
+    if (difference.inHours < 24) {
+      return '${difference.inHours} hour'
+          '${difference.inHours == 1 ? '' : 's'} ago';
+    }
+
+    if (difference.inDays < 7) {
+      return '${difference.inDays} day'
+          '${difference.inDays == 1 ? '' : 's'} ago';
+    }
+
+    return '${date.day}/${date.month}/${date.year}';
+  }
 }
 
+// ============================================================
+// FIRESTORE MODEL
+// ============================================================
+
 class ActivityLog {
+  final String id;
   final String title;
   final String description;
-  final String user;
+  final String userId;
+  final String userName;
   final String category;
-  final String time;
+  final Timestamp? timestamp;
+  final String walkId;
+  final String ownerId;
+  final String walkeruid;
 
   const ActivityLog({
+    required this.id,
     required this.title,
     required this.description,
-    required this.user,
+    required this.userId,
+    required this.userName,
     required this.category,
-    required this.time,
+    required this.timestamp,
+    required this.walkId,
+    required this.ownerId,
+    required this.walkeruid,
   });
+
+  factory ActivityLog.fromFirestore(
+    String id,
+    Map<String, dynamic> data,
+  ) {
+    return ActivityLog(
+      id: id,
+      title: data['title']?.toString() ?? '',
+      description: data['description']?.toString() ?? '',
+      userId: data['userId']?.toString() ?? '',
+      userName: data['userName']?.toString() ?? '',
+      category: data['category']?.toString() ?? 'Admin',
+      timestamp: data['timestamp'] is Timestamp
+          ? data['timestamp'] as Timestamp
+          : null,
+      walkId: data['walkId']?.toString() ?? '',
+      ownerId: data['ownerId']?.toString() ?? '',
+      walkeruid: data['walkeruid']?.toString() ?? '',
+    );
+  }
 }
