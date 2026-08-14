@@ -17,16 +17,16 @@ class AdminsScreen extends StatefulWidget {
 }
 
 class _AdminsScreenState extends State<AdminsScreen> {
-  String selectedFilter = 'All';
-
   final FirebaseFirestore _firestore =
       FirebaseFirestore.instance;
 
+  String selectedFilter = 'All';
+
+  CollectionReference<Map<String, dynamic>> get _adminsRef =>
+      _firestore.collection('admins');
+
   Stream<List<AdminData>> get _adminsStream {
-    return _firestore
-        .collection('admins')
-        .snapshots()
-        .map(
+    return _adminsRef.snapshots().map(
           (snapshot) => snapshot.docs
               .map(
                 (doc) => AdminData.fromFirestore(
@@ -47,8 +47,7 @@ class _AdminsScreenState extends State<AdminsScreen> {
 
     return admins
         .where(
-          (admin) =>
-              admin.status == selectedFilter,
+          (admin) => admin.status == selectedFilter,
         )
         .toList();
   }
@@ -86,8 +85,7 @@ class _AdminsScreenState extends State<AdminsScreen> {
 
         final inactive = admins
             .where(
-              (admin) =>
-                  admin.status == 'Inactive',
+              (admin) => admin.status == 'Inactive',
             )
             .length;
 
@@ -95,8 +93,7 @@ class _AdminsScreenState extends State<AdminsScreen> {
             _filterAdmins(admins);
 
         return Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _header(),
             const SizedBox(height: 20),
@@ -115,13 +112,16 @@ class _AdminsScreenState extends State<AdminsScreen> {
     );
   }
 
+  // ==========================================================
+  // HEADER
+  // ==========================================================
+
   Widget _header() {
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth < 500) {
           return Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _title(),
               const SizedBox(height: 14),
@@ -132,7 +132,9 @@ class _AdminsScreenState extends State<AdminsScreen> {
 
         return Row(
           children: [
-            Expanded(child: _title()),
+            Expanded(
+              child: _title(),
+            ),
             _addButton(),
           ],
         );
@@ -142,8 +144,7 @@ class _AdminsScreenState extends State<AdminsScreen> {
 
   Widget _title() {
     return const Column(
-      crossAxisAlignment:
-          CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Admins',
@@ -180,12 +181,15 @@ class _AdminsScreenState extends State<AdminsScreen> {
           vertical: 13,
         ),
         shape: RoundedRectangleBorder(
-          borderRadius:
-              BorderRadius.circular(11),
+          borderRadius: BorderRadius.circular(11),
         ),
       ),
     );
   }
+
+  // ==========================================================
+  // SUMMARY
+  // ==========================================================
 
   Widget _summary(
     int total,
@@ -238,6 +242,10 @@ class _AdminsScreenState extends State<AdminsScreen> {
     );
   }
 
+  // ==========================================================
+  // FILTER
+  // ==========================================================
+
   Widget _toolbar() {
     return Container(
       padding: const EdgeInsets.all(6),
@@ -274,8 +282,7 @@ class _AdminsScreenState extends State<AdminsScreen> {
         });
       },
       child: Container(
-        padding:
-            const EdgeInsets.symmetric(
+        padding: const EdgeInsets.symmetric(
           horizontal: 15,
           vertical: 10,
         ),
@@ -300,6 +307,10 @@ class _AdminsScreenState extends State<AdminsScreen> {
     );
   }
 
+  // ==========================================================
+  // ADMIN LIST
+  // ==========================================================
+
   Widget _adminList(
     List<AdminData> list,
   ) {
@@ -320,6 +331,10 @@ class _AdminsScreenState extends State<AdminsScreen> {
     );
   }
 
+  // ==========================================================
+  // ADMIN CARD
+  // ==========================================================
+
   Widget _adminCard(AdminData admin) {
     final active =
         admin.status == 'Active';
@@ -332,7 +347,8 @@ class _AdminsScreenState extends State<AdminsScreen> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding:
+          const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius:
@@ -409,26 +425,27 @@ class _AdminsScreenState extends State<AdminsScreen> {
           ],
         ),
         const SizedBox(height: 15),
-        Row(
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
           children: [
             _roleChip(
               admin.role,
               roleColor,
             ),
-            const SizedBox(width: 8),
             _statusChip(
               admin.status,
               statusColor,
             ),
-            const Spacer(),
-            Text(
-              admin.lastActive,
-              style: const TextStyle(
-                fontSize: 10,
-                color: dojoGrey,
-              ),
-            ),
           ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Last active: ${admin.lastActive}',
+          style: const TextStyle(
+            fontSize: 10,
+            color: dojoGrey,
+          ),
         ),
         const SizedBox(height: 14),
         SizedBox(
@@ -479,14 +496,6 @@ class _AdminsScreenState extends State<AdminsScreen> {
               TextOverflow.ellipsis,
           style: const TextStyle(
             fontSize: 11,
-            color: dojoGrey,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Last active: ${admin.lastActive}',
-          style: const TextStyle(
-            fontSize: 10,
             color: dojoGrey,
           ),
         ),
@@ -568,12 +577,15 @@ class _AdminsScreenState extends State<AdminsScreen> {
         size: 17,
       ),
       label: const Text('View'),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: dojoOrange,
+      style:
+          OutlinedButton.styleFrom(
+        foregroundColor:
+            dojoOrange,
         side: const BorderSide(
           color: dojoOrange,
         ),
-        shape: RoundedRectangleBorder(
+        shape:
+            RoundedRectangleBorder(
           borderRadius:
               BorderRadius.circular(10),
         ),
@@ -586,6 +598,10 @@ class _AdminsScreenState extends State<AdminsScreen> {
     );
   }
 
+  // ==========================================================
+  // VIEW ADMIN
+  // ==========================================================
+
   void _showAdmin(AdminData admin) {
     showDialog(
       context: context,
@@ -597,28 +613,39 @@ class _AdminsScreenState extends State<AdminsScreen> {
               fontWeight: FontWeight.w800,
             ),
           ),
-          content: Column(
-            mainAxisSize:
-                MainAxisSize.min,
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
-            children: [
-              _detail('Name', admin.name),
-              _detail('Email', admin.email),
-              _detail('Role', admin.role),
-              _detail(
-                'Status',
-                admin.status,
-              ),
-              _detail(
-                'Last Active',
-                admin.lastActive,
-              ),
-              _detail(
-                'UID',
-                admin.uid,
-              ),
-            ],
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize:
+                  MainAxisSize.min,
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: [
+                _detail(
+                  'Name',
+                  admin.name,
+                ),
+                _detail(
+                  'Email',
+                  admin.email,
+                ),
+                _detail(
+                  'Role',
+                  admin.role,
+                ),
+                _detail(
+                  'Status',
+                  admin.status,
+                ),
+                _detail(
+                  'Last Active',
+                  admin.lastActive,
+                ),
+                _detail(
+                  'UID',
+                  admin.uid,
+                ),
+              ],
+            ),
           ),
           actions: [
             if (admin.role != 'Super Admin')
@@ -671,8 +698,10 @@ class _AdminsScreenState extends State<AdminsScreen> {
             ),
           ),
           Expanded(
-            child: Text(
-              value,
+            child: SelectableText(
+              value.isEmpty
+                  ? '-'
+                  : value,
               style: const TextStyle(
                 fontSize: 12,
                 fontWeight:
@@ -685,7 +714,14 @@ class _AdminsScreenState extends State<AdminsScreen> {
     );
   }
 
+  // ==========================================================
+  // ADD ADMIN
+  // ==========================================================
+
   void _addAdmin() {
+    final uidController =
+        TextEditingController();
+
     final nameController =
         TextEditingController();
 
@@ -708,7 +744,311 @@ class _AdminsScreenState extends State<AdminsScreen> {
                       FontWeight.w800,
                 ),
               ),
-              content: SingleChildScrollView(
+              content:
+                  SingleChildScrollView(
+                child: Column(
+                  mainAxisSize:
+                      MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller:
+                          uidController,
+                      decoration:
+                          const InputDecoration(
+                        labelText:
+                            'Firebase Auth UID',
+                        hintText:
+                            'Enter Firebase user UID',
+                        prefixIcon:
+                            Icon(
+                          Icons
+                              .fingerprint_outlined,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(
+                      height: 6,
+                    ),
+                    const Align(
+                      alignment:
+                          Alignment.centerLeft,
+                      child: Text(
+                        'Use the UID of the Firebase Authentication user.',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: dojoGrey,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(
+                      height: 12,
+                    ),
+                    TextField(
+                      controller:
+                          nameController,
+                      textCapitalization:
+                          TextCapitalization
+                              .words,
+                      decoration:
+                          const InputDecoration(
+                        labelText:
+                            'Admin name',
+                        prefixIcon:
+                            Icon(
+                          Icons
+                              .person_outline,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(
+                      height: 12,
+                    ),
+                    TextField(
+                      controller:
+                          emailController,
+                      keyboardType:
+                          TextInputType
+                              .emailAddress,
+                      decoration:
+                          const InputDecoration(
+                        labelText:
+                            'Email',
+                        prefixIcon:
+                            Icon(
+                          Icons
+                              .email_outlined,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(
+                      height: 12,
+                    ),
+                    DropdownButtonFormField<
+                        String>(
+                      initialValue:
+                          selectedRole,
+                      decoration:
+                          const InputDecoration(
+                        labelText:
+                            'Role',
+                        prefixIcon:
+                            Icon(
+                          Icons
+                              .admin_panel_settings_outlined,
+                        ),
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'Admin',
+                          child:
+                              Text('Admin'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Support',
+                          child:
+                              Text('Support'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Finance',
+                          child:
+                              Text('Finance'),
+                        ),
+                      ],
+                      onChanged:
+                          (value) {
+                        if (value !=
+                            null) {
+                          setDialogState(
+                            () {
+                              selectedRole =
+                                  value;
+                            },
+                          );
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    uidController.dispose();
+                    nameController.dispose();
+                    emailController.dispose();
+
+                    Navigator.pop(
+                      dialogContext,
+                    );
+                  },
+                  child:
+                      const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () async {
+                    final uid =
+                        uidController.text
+                            .trim();
+
+                    final name =
+                        nameController.text
+                            .trim();
+
+                    final email =
+                        emailController.text
+                            .trim();
+
+                    if (uid.isEmpty ||
+                        name.isEmpty ||
+                        email.isEmpty) {
+                      ScaffoldMessenger
+                              .of(context)
+                          .showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Please enter UID, name and email.',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+
+                    try {
+                      final existing =
+                          await _adminsRef
+                              .doc(uid)
+                              .get();
+
+                      if (existing.exists) {
+                        if (!context.mounted) {
+                          return;
+                        }
+
+                        ScaffoldMessenger
+                                .of(context)
+                            .showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'This UID is already an admin.',
+                            ),
+                          ),
+                        );
+                        return;
+                      }
+
+                      await _adminsRef
+                          .doc(uid)
+                          .set({
+                        'uid': uid,
+                        'name': name,
+                        'email': email,
+                        'role':
+                            selectedRole,
+                        'status':
+                            'Active',
+                        'lastActive':
+                            FieldValue
+                                .serverTimestamp(),
+                        'createdAt':
+                            FieldValue
+                                .serverTimestamp(),
+                        'updatedAt':
+                            FieldValue
+                                .serverTimestamp(),
+                      });
+
+                      uidController.dispose();
+                      nameController.dispose();
+                      emailController.dispose();
+
+                      if (!context.mounted) {
+                        return;
+                      }
+
+                      Navigator.pop(
+                        dialogContext,
+                      );
+
+                      ScaffoldMessenger
+                              .of(context)
+                          .showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Admin added successfully.',
+                          ),
+                        ),
+                      );
+                    } catch (e) {
+                      if (!context.mounted) {
+                        return;
+                      }
+
+                      ScaffoldMessenger
+                              .of(context)
+                          .showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Failed to add admin: $e',
+                          ),
+                        ),
+                      );
+                    }
+                  },
+                  style:
+                      FilledButton.styleFrom(
+                    backgroundColor:
+                        dojoOrange,
+                  ),
+                  child:
+                      const Text('Add'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // ==========================================================
+  // EDIT ADMIN
+  // ==========================================================
+
+  void _showEditAdmin(
+    AdminData admin,
+  ) {
+    final nameController =
+        TextEditingController(
+      text: admin.name,
+    );
+
+    final emailController =
+        TextEditingController(
+      text: admin.email,
+    );
+
+    String selectedStatus =
+        admin.status;
+
+    String selectedRole =
+        admin.role;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder:
+              (context, setDialogState) {
+            return AlertDialog(
+              title: const Text(
+                'Edit Admin',
+                style: TextStyle(
+                  fontWeight:
+                      FontWeight.w800,
+                ),
+              ),
+              content:
+                  SingleChildScrollView(
                 child: Column(
                   mainAxisSize:
                       MainAxisSize.min,
@@ -794,225 +1134,94 @@ class _AdminsScreenState extends State<AdminsScreen> {
                         }
                       },
                     ),
+                    const SizedBox(
+                      height: 12,
+                    ),
+                    DropdownButtonFormField<
+                        String>(
+                      initialValue:
+                          selectedStatus,
+                      decoration:
+                          const InputDecoration(
+                        labelText:
+                            'Status',
+                        prefixIcon:
+                            Icon(
+                          Icons
+                              .toggle_on_outlined,
+                        ),
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'Active',
+                          child:
+                              Text('Active'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Inactive',
+                          child:
+                              Text('Inactive'),
+                        ),
+                      ],
+                      onChanged:
+                          (value) {
+                        if (value !=
+                            null) {
+                          setDialogState(
+                            () {
+                              selectedStatus =
+                                  value;
+                            },
+                          );
+                        }
+                      },
+                    ),
                   ],
                 ),
               ),
               actions: [
                 TextButton(
-                  onPressed: () =>
-                      Navigator.pop(
-                    dialogContext,
-                  ),
+                  onPressed: () {
+                    nameController.dispose();
+                    emailController.dispose();
+
+                    Navigator.pop(
+                      dialogContext,
+                    );
+                  },
                   child:
                       const Text('Cancel'),
                 ),
                 FilledButton(
                   onPressed: () async {
                     final name =
-                        nameController
-                            .text
+                        nameController.text
                             .trim();
 
                     final email =
-                        emailController
-                            .text
+                        emailController.text
                             .trim();
 
                     if (name.isEmpty ||
                         email.isEmpty) {
+                      ScaffoldMessenger
+                              .of(context)
+                          .showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Name and email are required.',
+                          ),
+                        ),
+                      );
                       return;
                     }
 
                     try {
-                      await _firestore
-                          .collection(
-                              'admins')
-                          .add({
-                        'name': name,
-                        'email': email,
-                        'role':
-                            selectedRole,
-                        'status':
-                            'Active',
-                        'lastActive':
-                            'Now',
-                        'createdAt':
-                            FieldValue
-                                .serverTimestamp(),
-                      });
-
-                      if (!mounted) {
-                        return;
-                      }
-
-                      Navigator.pop(
-                        dialogContext,
-                      );
-
-                      ScaffoldMessenger
-                              .of(
-                                  context)
-                          .showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Admin added successfully.',
-                          ),
-                        ),
-                      );
-                    } catch (e) {
-                      if (!mounted) {
-                        return;
-                      }
-
-                      ScaffoldMessenger
-                              .of(
-                                  context)
-                          .showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            'Failed to add admin: $e',
-                          ),
-                        ),
-                      );
-                    }
-                  },
-                  style:
-                      FilledButton.styleFrom(
-                    backgroundColor:
-                        dojoOrange,
-                  ),
-                  child:
-                      const Text('Add'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  void _showEditAdmin(
-    AdminData admin,
-  ) {
-    String selectedStatus =
-        admin.status;
-
-    String selectedRole =
-        admin.role;
-
-    showDialog(
-      context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder:
-              (context, setDialogState) {
-            return AlertDialog(
-              title: const Text(
-                'Edit Admin',
-                style: TextStyle(
-                  fontWeight:
-                      FontWeight.w800,
-                ),
-              ),
-              content: Column(
-                mainAxisSize:
-                    MainAxisSize.min,
-                children: [
-                  DropdownButtonFormField<
-                      String>(
-                    initialValue:
-                        selectedRole,
-                    decoration:
-                        const InputDecoration(
-                      labelText: 'Role',
-                    ),
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'Admin',
-                        child:
-                            Text('Admin'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'Support',
-                        child:
-                            Text('Support'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'Finance',
-                        child:
-                            Text('Finance'),
-                      ),
-                    ],
-                    onChanged:
-                        (value) {
-                      if (value !=
-                          null) {
-                        setDialogState(
-                          () {
-                            selectedRole =
-                                value;
-                          },
-                        );
-                      }
-                    },
-                  ),
-                  const SizedBox(
-                    height: 12,
-                  ),
-                  DropdownButtonFormField<
-                      String>(
-                    initialValue:
-                        selectedStatus,
-                    decoration:
-                        const InputDecoration(
-                      labelText:
-                          'Status',
-                    ),
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'Active',
-                        child:
-                            Text('Active'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'Inactive',
-                        child:
-                            Text('Inactive'),
-                      ),
-                    ],
-                    onChanged:
-                        (value) {
-                      if (value !=
-                          null) {
-                        setDialogState(
-                          () {
-                            selectedStatus =
-                                value;
-                          },
-                        );
-                      }
-                    },
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () =>
-                      Navigator.pop(
-                    dialogContext,
-                  ),
-                  child:
-                      const Text('Cancel'),
-                ),
-                FilledButton(
-                  onPressed: () async {
-                    try {
-                      await _firestore
-                          .collection(
-                              'admins')
+                      await _adminsRef
                           .doc(admin.uid)
                           .update({
+                        'name': name,
+                        'email': email,
                         'role':
                             selectedRole,
                         'status':
@@ -1020,9 +1229,15 @@ class _AdminsScreenState extends State<AdminsScreen> {
                         'lastActive':
                             FieldValue
                                 .serverTimestamp(),
+                        'updatedAt':
+                            FieldValue
+                                .serverTimestamp(),
                       });
 
-                      if (!mounted) {
+                      nameController.dispose();
+                      emailController.dispose();
+
+                      if (!context.mounted) {
                         return;
                       }
 
@@ -1031,8 +1246,7 @@ class _AdminsScreenState extends State<AdminsScreen> {
                       );
 
                       ScaffoldMessenger
-                              .of(
-                                  context)
+                              .of(context)
                           .showSnackBar(
                         const SnackBar(
                           content: Text(
@@ -1041,13 +1255,12 @@ class _AdminsScreenState extends State<AdminsScreen> {
                         ),
                       );
                     } catch (e) {
-                      if (!mounted) {
+                      if (!context.mounted) {
                         return;
                       }
 
                       ScaffoldMessenger
-                              .of(
-                                  context)
+                              .of(context)
                           .showSnackBar(
                         SnackBar(
                           content: Text(
@@ -1072,6 +1285,10 @@ class _AdminsScreenState extends State<AdminsScreen> {
       },
     );
   }
+
+  // ==========================================================
+  // EMPTY
+  // ==========================================================
 
   Widget _emptyState() {
     return Container(
@@ -1119,10 +1336,15 @@ class _AdminsScreenState extends State<AdminsScreen> {
     );
   }
 
+  // ==========================================================
+  // ERROR
+  // ==========================================================
+
   Widget _errorState(String error) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(30),
+      padding:
+          const EdgeInsets.all(30),
       child: Column(
         mainAxisSize:
             MainAxisSize.min,
@@ -1155,23 +1377,33 @@ class _AdminsScreenState extends State<AdminsScreen> {
     );
   }
 
+  // ==========================================================
+  // ROLE COLOR
+  // ==========================================================
+
   Color _roleColor(String role) {
     switch (role) {
       case 'Super Admin':
         return dojoOrange;
+
       case 'Admin':
         return dojoBlue;
+
       case 'Support':
         return dojoGreen;
+
       case 'Finance':
-        return const Color(
-          0xFF7567A8,
-        );
+        return const Color(0xFF7567A8);
+
       default:
         return dojoGrey;
     }
   }
 }
+
+// ============================================================
+// ADMIN DATA
+// ============================================================
 
 class AdminData {
   final String uid;
@@ -1199,15 +1431,12 @@ class AdminData {
 
     String lastActive = 'Unknown';
 
-    if (lastActiveValue
-        is Timestamp) {
-      lastActiveValue
-          .toDate();
-
+    if (lastActiveValue is Timestamp) {
       lastActive =
-          'Recently active';
-    } else if (lastActiveValue
-        is String) {
+          _formatTimestamp(
+        lastActiveValue,
+      );
+    } else if (lastActiveValue is String) {
       lastActive =
           lastActiveValue;
     }
@@ -1226,10 +1455,42 @@ class AdminData {
       status:
           data['status']?.toString() ??
               'Inactive',
-      lastActive: lastActive,
+      lastActive:
+          lastActive,
     );
   }
+
+  static String _formatTimestamp(
+    Timestamp timestamp,
+  ) {
+    final date =
+        timestamp.toDate();
+
+    final hour =
+        date.hour > 12
+            ? date.hour - 12
+            : date.hour == 0
+                ? 12
+                : date.hour;
+
+    final minute =
+        date.minute
+            .toString()
+            .padLeft(2, '0');
+
+    final period =
+        date.hour >= 12
+            ? 'PM'
+            : 'AM';
+
+    return '${date.day}/${date.month}/${date.year} '
+        '$hour:$minute $period';
+  }
 }
+
+// ============================================================
+// SUMMARY CARD
+// ============================================================
 
 class _SummaryCard
     extends StatelessWidget {
@@ -1271,7 +1532,8 @@ class _SummaryCard
                   color.withOpacity(.10),
               borderRadius:
                   BorderRadius.circular(
-                      13),
+                13,
+              ),
             ),
             child: Icon(
               icon,
