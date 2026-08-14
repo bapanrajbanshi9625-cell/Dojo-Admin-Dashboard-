@@ -17,21 +17,23 @@ Future<void> showAddAdminDialog({
     context: context,
     builder: (dialogContext) {
       return StatefulBuilder(
-        builder: (context, setState) {
-          Future<void> save() async {
+        builder: (context, setDialogState) {
+          Future<void> saveAdmin() async {
             final name = nameController.text.trim();
             final email = emailController.text.trim();
 
             if (name.isEmpty || email.isEmpty) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('Please enter name and email.'),
+                  content: Text(
+                    'Please enter name and email.',
+                  ),
                 ),
               );
               return;
             }
 
-            setState(() {
+            setDialogState(() {
               saving = true;
             });
 
@@ -46,29 +48,31 @@ Future<void> showAddAdminDialog({
                 'updatedAt': FieldValue.serverTimestamp(),
               });
 
-              if (dialogContext.mounted) {
-                Navigator.pop(dialogContext);
-              }
+              if (!dialogContext.mounted) return;
 
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Admin added successfully.'),
+              Navigator.pop(dialogContext);
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Admin added successfully.',
                   ),
-                );
-              }
+                ),
+              );
             } catch (e) {
-              setState(() {
+              if (!context.mounted) return;
+
+              setDialogState(() {
                 saving = false;
               });
 
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Failed to add admin: $e'),
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'Failed to add admin: $e',
                   ),
-                );
-              }
+                ),
+              );
             }
           }
 
@@ -87,7 +91,8 @@ Future<void> showAddAdminDialog({
                   children: [
                     TextField(
                       controller: nameController,
-                      textCapitalization: TextCapitalization.words,
+                      textCapitalization:
+                          TextCapitalization.words,
                       decoration: const InputDecoration(
                         labelText: 'Admin name',
                         prefixIcon: Icon(
@@ -95,10 +100,13 @@ Future<void> showAddAdminDialog({
                         ),
                       ),
                     ),
+
                     const SizedBox(height: 14),
+
                     TextField(
                       controller: emailController,
-                      keyboardType: TextInputType.emailAddress,
+                      keyboardType:
+                          TextInputType.emailAddress,
                       decoration: const InputDecoration(
                         labelText: 'Email',
                         prefixIcon: Icon(
@@ -106,7 +114,9 @@ Future<void> showAddAdminDialog({
                         ),
                       ),
                     ),
+
                     const SizedBox(height: 14),
+
                     DropdownButtonFormField<String>(
                       value: selectedRole,
                       decoration: const InputDecoration(
@@ -132,11 +142,11 @@ Future<void> showAddAdminDialog({
                       onChanged: saving
                           ? null
                           : (value) {
-                              if (value != null) {
-                                setState(() {
-                                  selectedRole = value;
-                                });
-                              }
+                              if (value == null) return;
+
+                              setDialogState(() {
+                                selectedRole = value;
+                              });
                             },
                     ),
                   ],
@@ -147,11 +157,14 @@ Future<void> showAddAdminDialog({
               TextButton(
                 onPressed: saving
                     ? null
-                    : () => Navigator.pop(dialogContext),
+                    : () {
+                        Navigator.pop(dialogContext);
+                      },
                 child: const Text('Cancel'),
               ),
+
               FilledButton(
-                onPressed: saving ? null : save,
+                onPressed: saving ? null : saveAdmin,
                 style: FilledButton.styleFrom(
                   backgroundColor: dojoOrange,
                 ),
