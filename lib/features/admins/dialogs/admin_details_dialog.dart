@@ -22,6 +22,7 @@ Future<void> showAdminDetailsDialog({
             fontWeight: FontWeight.w800,
           ),
         ),
+
         content: SizedBox(
           width: 430,
           child: SingleChildScrollView(
@@ -33,7 +34,8 @@ Future<void> showAdminDetailsDialog({
                   height: 64,
                   decoration: BoxDecoration(
                     color: const Color(0xFFFFEEE9),
-                    borderRadius: BorderRadius.circular(18),
+                    borderRadius:
+                        BorderRadius.circular(18),
                   ),
                   child: const Icon(
                     Icons.person_outline,
@@ -41,44 +43,59 @@ Future<void> showAdminDetailsDialog({
                     size: 34,
                   ),
                 ),
+
                 const SizedBox(height: 18),
+
                 _detail(
                   'Name',
                   admin.name,
                 ),
+
                 _detail(
                   'Email',
                   admin.email,
                 ),
+
                 _detail(
                   'Role',
                   admin.role,
                 ),
+
                 _detail(
                   'Status',
                   admin.status,
                 ),
+
                 _detail(
                   'Last Active',
                   admin.lastActive,
                 ),
+
                 _detail(
                   'UID',
-                  admin.id,
+                  admin.uid,
                 ),
               ],
             ),
           ),
         ),
+
         actions: [
           if (onEdit != null)
             TextButton(
-              onPressed: onEdit,
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                onEdit();
+              },
               child: const Text('Edit'),
             ),
+
           if (onDelete != null)
             TextButton(
-              onPressed: onDelete,
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                onDelete();
+              },
               child: const Text(
                 'Delete',
                 style: TextStyle(
@@ -86,6 +103,7 @@ Future<void> showAdminDetailsDialog({
                 ),
               ),
             ),
+
           TextButton(
             onPressed: () {
               Navigator.pop(dialogContext);
@@ -103,9 +121,12 @@ Widget _detail(
   String value,
 ) {
   return Padding(
-    padding: const EdgeInsets.only(bottom: 11),
+    padding: const EdgeInsets.only(
+      bottom: 11,
+    ),
     child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
       children: [
         SizedBox(
           width: 90,
@@ -117,6 +138,7 @@ Widget _detail(
             ),
           ),
         ),
+
         Expanded(
           child: Text(
             value.isEmpty ? '-' : value,
