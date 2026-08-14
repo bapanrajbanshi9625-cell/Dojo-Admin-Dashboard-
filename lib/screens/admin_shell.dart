@@ -121,12 +121,13 @@ class _AdminShellState extends State<AdminShell> {
   bool mobileMenuOpen = false;
 
   String get pageTitle {
+    if (selectedIndex < 0 ||
+        selectedIndex >= adminMenuItems.length) {
+      return 'Dashboard';
+    }
+
     return adminMenuItems[selectedIndex].title;
   }
-
-  // ==========================================================
-  // PAGE NAVIGATION
-  // ==========================================================
 
   void selectPage(int index) {
     if (index < 0 || index >= adminMenuItems.length) {
@@ -201,10 +202,6 @@ class _AdminShellState extends State<AdminShell> {
     }
   }
 
-  // ==========================================================
-  // MAIN BUILD
-  // ==========================================================
-
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -221,22 +218,16 @@ class _AdminShellState extends State<AdminShell> {
     );
   }
 
-  // ==========================================================
-  // DESKTOP LAYOUT
-  // ==========================================================
-
   Widget desktopLayout() {
     return Scaffold(
       backgroundColor: dojoBackground,
       body: Row(
         children: [
           desktopSidebar(),
-
           Expanded(
             child: Column(
               children: [
                 webTopBar(),
-
                 Expanded(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.all(26),
@@ -250,10 +241,6 @@ class _AdminShellState extends State<AdminShell> {
       ),
     );
   }
-
-  // ==========================================================
-  // DESKTOP SIDEBAR
-  // ==========================================================
 
   Widget desktopSidebar() {
     return Container(
@@ -270,11 +257,8 @@ class _AdminShellState extends State<AdminShell> {
         child: Column(
           children: [
             const SizedBox(height: 20),
-
             brand(),
-
             const SizedBox(height: 22),
-
             Expanded(
               child: ListView.builder(
                 padding: const EdgeInsets.symmetric(
@@ -292,21 +276,13 @@ class _AdminShellState extends State<AdminShell> {
                 },
               ),
             ),
-
-            const Divider(
-              height: 1,
-            ),
-
+            const Divider(height: 1),
             adminProfile(),
           ],
         ),
       ),
     );
   }
-
-  // ==========================================================
-  // BRAND
-  // ==========================================================
 
   Widget brand() {
     return Padding(
@@ -328,9 +304,7 @@ class _AdminShellState extends State<AdminShell> {
               size: 24,
             ),
           ),
-
           const SizedBox(width: 10),
-
           const Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -359,10 +333,6 @@ class _AdminShellState extends State<AdminShell> {
     );
   }
 
-  // ==========================================================
-  // MENU ITEM
-  // ==========================================================
-
   Widget menuItem(
     int index,
     AdminMenuItem item,
@@ -370,9 +340,7 @@ class _AdminShellState extends State<AdminShell> {
     final bool active = selectedIndex == index;
 
     return Container(
-      margin: const EdgeInsets.only(
-        bottom: 3,
-      ),
+      margin: const EdgeInsets.only(bottom: 3),
       decoration: BoxDecoration(
         color: active
             ? const Color(0xFFFFEEE9)
@@ -397,16 +365,10 @@ class _AdminShellState extends State<AdminShell> {
             color: active ? dojoOrange : dojoDark,
           ),
         ),
-        onTap: () {
-          selectPage(index);
-        },
+        onTap: () => selectPage(index),
       ),
     );
   }
-
-  // ==========================================================
-  // ADMIN PROFILE
-  // ==========================================================
 
   Widget adminProfile() {
     return Padding(
@@ -422,9 +384,7 @@ class _AdminShellState extends State<AdminShell> {
               size: 21,
             ),
           ),
-
           const SizedBox(width: 9),
-
           const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -453,10 +413,6 @@ class _AdminShellState extends State<AdminShell> {
     );
   }
 
-  // ==========================================================
-  // WEB TOP BAR
-  // ==========================================================
-
   Widget webTopBar() {
     return Container(
       height: 68,
@@ -481,22 +437,16 @@ class _AdminShellState extends State<AdminShell> {
               color: dojoDark,
             ),
           ),
-
           const Spacer(),
-
           IconButton(
             tooltip: 'Notifications',
-            onPressed: () {
-              selectPage(13);
-            },
+            onPressed: () => selectPage(13),
             icon: const Icon(
               Icons.notifications_none_outlined,
               color: dojoGrey,
             ),
           ),
-
           const SizedBox(width: 10),
-
           Container(
             height: 40,
             padding: const EdgeInsets.symmetric(
@@ -536,10 +486,6 @@ class _AdminShellState extends State<AdminShell> {
     );
   }
 
-  // ==========================================================
-  // MOBILE LAYOUT
-  // ==========================================================
-
   Widget mobileLayout() {
     return Scaffold(
       backgroundColor: dojoBackground,
@@ -547,7 +493,6 @@ class _AdminShellState extends State<AdminShell> {
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
         elevation: 0,
-
         leading: IconButton(
           tooltip: 'Menu',
           onPressed: () {
@@ -560,7 +505,6 @@ class _AdminShellState extends State<AdminShell> {
             color: dojoDark,
           ),
         ),
-
         title: Row(
           children: [
             Container(
@@ -576,9 +520,7 @@ class _AdminShellState extends State<AdminShell> {
                 size: 19,
               ),
             ),
-
             const SizedBox(width: 9),
-
             Flexible(
               child: Text(
                 pageTitle,
@@ -592,13 +534,10 @@ class _AdminShellState extends State<AdminShell> {
             ),
           ],
         ),
-
         actions: [
           IconButton(
             tooltip: 'Notifications',
-            onPressed: () {
-              selectPage(13);
-            },
+            onPressed: () => selectPage(13),
             icon: const Icon(
               Icons.notifications_none_outlined,
               color: dojoGrey,
@@ -606,23 +545,17 @@ class _AdminShellState extends State<AdminShell> {
           ),
         ],
       ),
-
       body: Stack(
         children: [
           SingleChildScrollView(
             padding: const EdgeInsets.all(16),
             child: currentScreen(),
           ),
-
           if (mobileMenuOpen) mobileDrawer(),
         ],
       ),
     );
   }
-
-  // ==========================================================
-  // MOBILE DRAWER
-  // ==========================================================
 
   Widget mobileDrawer() {
     return Positioned.fill(
@@ -637,11 +570,8 @@ class _AdminShellState extends State<AdminShell> {
                 child: Column(
                   children: [
                     const SizedBox(height: 18),
-
                     brand(),
-
                     const SizedBox(height: 18),
-
                     Expanded(
                       child: ListView.builder(
                         padding: const EdgeInsets.symmetric(
@@ -659,13 +589,11 @@ class _AdminShellState extends State<AdminShell> {
                         },
                       ),
                     ),
-
                     adminProfile(),
                   ],
                 ),
               ),
             ),
-
             Expanded(
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
