@@ -1,13 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-const Color orange = Color(0xFFD35435);
-const Color blue = Color(0xFF3F6FA5);
-const Color green = Color(0xFF3F8F68);
-const Color dark = Color(0xFF263238);
-const Color grey = Color(0xFF6B7280);
-const Color background = Color(0xFFF7F8FA);
-const Color border = Color(0xFFE7E9ED);
+import '../widgets/dashboard/dashboard_components.dart';
+import '../widgets/dashboard/dashboard_header.dart';
+import '../widgets/dashboard/dashboard_tabs.dart';
 
 class DashboardScreen extends StatefulWidget {
   final ValueChanged<int> onNavigate;
@@ -18,32 +15,62 @@ class DashboardScreen extends StatefulWidget {
   });
 
   @override
-  State<DashboardScreen> createState() => _DashboardScreenState();
+  State<DashboardScreen> createState() =>
+      _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen>
+class _DashboardScreenState
+    extends State<DashboardScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseFirestore _firestore =
+      FirebaseFirestore.instance;
 
-  final List<String> tabs = [
-    'Overview',
-    'Finance',
-    'Live Walks',
-    'Recent Activity',
-  ];
+  final FirebaseAuth _auth =
+      FirebaseAuth.instance;
 
-  // ============================================================
-  // INIT
-  // ============================================================
+  Stream<QuerySnapshot<Map<String, dynamic>>>
+      get _ownersStream {
+    return _firestore
+        .collection('users')
+        .where('role', isEqualTo: 'owner')
+        .snapshots();
+  }
+
+  Stream<QuerySnapshot<Map<String, dynamic>>>
+      get _walkersStream {
+    return _firestore
+        .collection('walkerProfiles')
+        .snapshots();
+  }
+
+  Stream<QuerySnapshot<Map<String, dynamic>>>
+      get _activeWalksStream {
+    return _firestore
+        .collection('active_walk')
+        .where('status', isEqualTo: 'active')
+        .snapshots();
+  }
+
+  Stream<QuerySnapshot<Map<String, dynamic>>>
+      get _historyStream {
+    return _firestore
+        .collection('walkHistory')
+        .orderBy(
+          'createdAt',
+          descending: true,
+        )
+        .limit(50)
+        .snapshots();
+  }
 
   @override
   void initState() {
     super.initState();
 
     _tabController = TabController(
-      length: tabs.length,
+      length: DashboardTabs.tabs.length,
       vsync: this,
     );
   }
@@ -54,53 +81,32 @@ class _DashboardScreenState extends State<DashboardScreen>
     super.dispose();
   }
 
-  // ============================================================
-  // FIREBASE STREAMS
-  // ============================================================
-
-  Stream<QuerySnapshot<Map<String, dynamic>>> get _ownersStream {
-    return _firestore
-        .collection('users')
-        .where('role', isEqualTo: 'owner')
-        .snapshots();
-  }
-
-  Stream<QuerySnapshot<Map<String, dynamic>>> get _walkersStream {
-    return _firestore
-        .collection('walkerProfiles')
-        .snapshots();
-  }
-
-  Stream<QuerySnapshot<Map<String, dynamic>>> get _activeWalksStream {
-    return _firestore
-        .collection('active_walk')
-        .where('status', isEqualTo: 'active')
-        .snapshots();
-  }
-
-  Stream<QuerySnapshot<Map<String, dynamic>>> get _historyStream {
-    return _firestore
-        .collection('walkHistory')
-        .orderBy('createdAt', descending: true)
-        .limit(50)
-        .snapshots();
-  }
-
-  // ============================================================
-  // BUILD
-  // ============================================================
-
   @override
   Widget build(BuildContext context) {
     return Container(
       color: background,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
-          _header(),
+          DashboardHeader(
+            onLogout: () {
+              // Agar app mein AuthWrapper / login listener hai,
+              // Firebase signOut ke baad automatically login screen aayegi.
+              if (mounted) {
+                setState(() {});
+              }
+            },
+          ),
+
           const SizedBox(height: 20),
-          _dashboardTabs(),
+
+          DashboardTabs(
+            controller: _tabController,
+          ),
+
           const SizedBox(height: 20),
+
           Expanded(
             child: TabBarView(
               controller: _tabController,
@@ -118,70 +124,6 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   // ============================================================
-  // HEADER
-  // ============================================================
-
-  Widget _header() {
-    return const Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Dashboard',
-          style: TextStyle(
-            fontSize: 29,
-            fontWeight: FontWeight.w900,
-            color: dark,
-          ),
-        ),
-        SizedBox(height: 5),
-        Text(
-          'Complete overview of the DOJO platform',
-          style: TextStyle(
-            color: grey,
-            fontSize: 14,
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ============================================================
-  // TABS
-  // ============================================================
-
-  Widget _dashboardTabs() {
-    return Container(
-      height: 52,
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(13),
-        border: Border.all(color: border),
-      ),
-      child: TabBar(
-        controller: _tabController,
-        dividerColor: Colors.transparent,
-        indicatorSize: TabBarIndicatorSize.tab,
-        indicator: BoxDecoration(
-          color: orange,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        labelColor: Colors.white,
-        unselectedLabelColor: grey,
-        labelStyle: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w800,
-        ),
-        unselectedLabelStyle: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-        ),
-        tabs: tabs.map((tab) => Tab(text: tab)).toList(),
-      ),
-    );
-  }
-
-  // ============================================================
   // OVERVIEW
   // ============================================================
 
@@ -189,14 +131,21 @@ class _DashboardScreenState extends State<DashboardScreen>
     return SingleChildScrollView(
       padding: const EdgeInsets.only(bottom: 30),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
           _liveMapContainer(),
+
           const SizedBox(height: 18),
+
           _statsGrid(),
+
           const SizedBox(height: 18),
+
           _quickActions(),
+
           const SizedBox(height: 18),
+
           _overviewPanels(),
         ],
       ),
@@ -218,13 +167,15 @@ class _DashboardScreenState extends State<DashboardScreen>
           columns = 2;
         }
 
-        return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        return StreamBuilder<
+            QuerySnapshot<Map<String, dynamic>>>(
           stream: _ownersStream,
           builder: (context, ownerSnapshot) {
             final ownerCount =
                 ownerSnapshot.data?.docs.length ?? 0;
 
-            return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            return StreamBuilder<
+                QuerySnapshot<Map<String, dynamic>>>(
               stream: _walkersStream,
               builder: (context, walkerSnapshot) {
                 final walkerCount =
@@ -240,9 +191,16 @@ class _DashboardScreenState extends State<DashboardScreen>
                     return StreamBuilder<
                         QuerySnapshot<Map<String, dynamic>>>(
                       stream: _historyStream,
-                      builder: (context, historySnapshot) {
+                      builder: (
+                        context,
+                        historySnapshot,
+                      ) {
                         final completedCount =
-                            historySnapshot.data?.docs.length ?? 0;
+                            historySnapshot
+                                    .data
+                                    ?.docs
+                                    .length ??
+                                0;
 
                         return GridView.count(
                           crossAxisCount: columns,
@@ -254,30 +212,33 @@ class _DashboardScreenState extends State<DashboardScreen>
                           childAspectRatio:
                               columns == 1 ? 3.3 : 2.2,
                           children: [
-                            _StatCard(
+                            StatCard(
                               title: 'Total Owners',
                               value: '$ownerCount',
-                              icon: Icons.people_outline,
+                              icon:
+                                  Icons.people_outline,
                               iconColor: blue,
                             ),
-                            _StatCard(
+                            StatCard(
                               title: 'Total Walkers',
                               value: '$walkerCount',
-                              icon: Icons.badge_outlined,
+                              icon:
+                                  Icons.badge_outlined,
                               iconColor: green,
                             ),
-                            _StatCard(
+                            StatCard(
                               title: 'Active Walks',
                               value: '$activeCount',
-                              icon:
-                                  Icons.directions_walk_outlined,
+                              icon: Icons
+                                  .directions_walk_outlined,
                               iconColor: orange,
                             ),
-                            _StatCard(
+                            StatCard(
                               title: 'Completed Walks',
-                              value: '$completedCount',
-                              icon:
-                                  Icons.check_circle_outline,
+                              value:
+                                  '$completedCount',
+                              icon: Icons
+                                  .check_circle_outline,
                               iconColor: green,
                             ),
                           ],
@@ -295,11 +256,12 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   // ============================================================
-  // LIVE MAP
+  // MAP
   // ============================================================
 
   Widget _liveMapContainer() {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+    return StreamBuilder<
+        QuerySnapshot<Map<String, dynamic>>>(
       stream: _activeWalksStream,
       builder: (context, snapshot) {
         final docs = snapshot.data?.docs ?? [];
@@ -352,7 +314,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(.08),
+                        color:
+                            Colors.black.withOpacity(.08),
                         blurRadius: 10,
                       ),
                     ],
@@ -409,7 +372,8 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   List<Widget> _buildMapMarkers(
-    List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+    List<QueryDocumentSnapshot<Map<String, dynamic>>>
+        docs,
   ) {
     final positions = <Offset>[
       const Offset(80, 90),
@@ -420,10 +384,9 @@ class _DashboardScreenState extends State<DashboardScreen>
       const Offset(330, 190),
     ];
 
-    final count =
-        docs.length > positions.length
-            ? positions.length
-            : docs.length;
+    final count = docs.length > positions.length
+        ? positions.length
+        : docs.length;
 
     return List.generate(
       count,
@@ -432,17 +395,16 @@ class _DashboardScreenState extends State<DashboardScreen>
 
         final walkerUid =
             _readString(data, 'walkeruid') ??
-            _readString(data, 'walkerUid') ??
-            _readString(data, 'walkerId');
+                _readString(data, 'walkerUid') ??
+                _readString(data, 'walkerId');
 
         final walkerName =
             _readString(data, 'walkerName');
 
-        final title = walkerName != null
-            ? walkerName
-            : walkerUid != null
+        final title = walkerName ??
+            (walkerUid != null
                 ? 'Walker ${_shortId(walkerUid)}'
-                : 'Active Walk';
+                : 'Active Walk');
 
         return Positioned(
           left: positions[index].dx,
@@ -466,7 +428,8 @@ class _DashboardScreenState extends State<DashboardScreen>
         border: Border.all(color: border),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
           const Text(
             'Quick Access',
@@ -480,26 +443,26 @@ class _DashboardScreenState extends State<DashboardScreen>
             spacing: 10,
             runSpacing: 10,
             children: [
-              _ActionButton(
+              ActionButton(
                 title: 'Owners',
                 icon: Icons.people_outline,
                 color: blue,
                 onTap: () => widget.onNavigate(4),
               ),
-              _ActionButton(
+              ActionButton(
                 title: 'Walkers',
                 icon: Icons.badge_outlined,
                 color: green,
                 onTap: () => widget.onNavigate(5),
               ),
-              _ActionButton(
+              ActionButton(
                 title: 'Active Walks',
                 icon:
                     Icons.directions_walk_outlined,
                 color: orange,
                 onTap: () => widget.onNavigate(2),
               ),
-              _ActionButton(
+              ActionButton(
                 title: 'Walk History',
                 icon: Icons.history_outlined,
                 color: grey,
@@ -513,7 +476,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   // ============================================================
-  // OVERVIEW PANELS
+  // PANELS
   // ============================================================
 
   Widget _overviewPanels() {
@@ -530,7 +493,8 @@ class _DashboardScreenState extends State<DashboardScreen>
         }
 
         return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment:
+              CrossAxisAlignment.start,
           children: [
             Expanded(
               child: _activeWalkPanel(),
@@ -545,23 +509,20 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
-  // ============================================================
-  // ACTIVE WALK PANEL
-  // ============================================================
-
   Widget _activeWalkPanel() {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+    return StreamBuilder<
+        QuerySnapshot<Map<String, dynamic>>>(
       stream: _activeWalksStream,
       builder: (context, snapshot) {
         final docs = snapshot.data?.docs ?? [];
 
-        return _DataPanel(
+        return DataPanel(
           title: 'Active Walks',
           icon:
               Icons.directions_walk_outlined,
           color: orange,
           child: docs.isEmpty
-              ? const _EmptyMessage(
+              ? const EmptyMessage(
                   text: 'No active walks right now.',
                 )
               : ListView.separated(
@@ -588,12 +549,12 @@ class _DashboardScreenState extends State<DashboardScreen>
   ) {
     final walkerUid =
         _readString(data, 'walkeruid') ??
-        _readString(data, 'walkerUid') ??
-        _readString(data, 'walkerId');
+            _readString(data, 'walkerUid') ??
+            _readString(data, 'walkerId');
 
     final ownerUid =
         _readString(data, 'ownerUid') ??
-        _readString(data, 'ownerId');
+            _readString(data, 'ownerId');
 
     final walkerName =
         _readString(data, 'walkerName');
@@ -603,13 +564,13 @@ class _DashboardScreenState extends State<DashboardScreen>
 
     final distance =
         _readNumber(data, 'distanceKm') ??
-        _readNumber(data, 'distance') ??
-        '0';
+            _readNumber(data, 'distance') ??
+            '0';
 
     final duration =
         _readNumber(data, 'durationMinutes') ??
-        _readNumber(data, 'duration') ??
-        '0';
+            _readNumber(data, 'duration') ??
+            '0';
 
     return Row(
       children: [
@@ -618,8 +579,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           height: 38,
           decoration: BoxDecoration(
             color: orange.withOpacity(.10),
-            borderRadius:
-                BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(10),
           ),
           child: const Icon(
             Icons.pets,
@@ -688,22 +648,19 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
-  // ============================================================
-  // RECENT ACTIVITY
-  // ============================================================
-
   Widget _recentActivityPanel() {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+    return StreamBuilder<
+        QuerySnapshot<Map<String, dynamic>>>(
       stream: _historyStream,
       builder: (context, snapshot) {
         final docs = snapshot.data?.docs ?? [];
 
-        return _DataPanel(
+        return DataPanel(
           title: 'Recent Activity',
           icon: Icons.history_outlined,
           color: blue,
           child: docs.isEmpty
-              ? const _EmptyMessage(
+              ? const EmptyMessage(
                   text: 'No recent activity.',
                 )
               : ListView.separated(
@@ -750,8 +707,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           height: 38,
           decoration: BoxDecoration(
             color: blue.withOpacity(.10),
-            borderRadius:
-                BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(10),
           ),
           child: const Icon(
             Icons.history,
@@ -827,7 +783,8 @@ class _DashboardScreenState extends State<DashboardScreen>
   // ============================================================
 
   Widget _financeTab() {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+    return StreamBuilder<
+        QuerySnapshot<Map<String, dynamic>>>(
       stream: _historyStream,
       builder: (context, snapshot) {
         final docs = snapshot.data?.docs ?? [];
@@ -849,8 +806,9 @@ class _DashboardScreenState extends State<DashboardScreen>
         }
 
         return SingleChildScrollView(
-          padding:
-              const EdgeInsets.only(bottom: 30),
+          padding: const EdgeInsets.only(
+            bottom: 30,
+          ),
           child: Column(
             crossAxisAlignment:
                 CrossAxisAlignment.start,
@@ -872,8 +830,8 @@ class _DashboardScreenState extends State<DashboardScreen>
               const SizedBox(height: 14),
               _financePanel(
                 title: 'Pending Payouts',
-                icon:
-                    Icons.account_balance_wallet_outlined,
+                icon: Icons
+                    .account_balance_wallet_outlined,
                 color: orange,
                 text:
                     'Pending payout data is not available yet.',
@@ -905,26 +863,26 @@ class _DashboardScreenState extends State<DashboardScreen>
           childAspectRatio:
               columns == 1 ? 3 : 2,
           children: [
-            _StatCard(
+            StatCard(
               title: 'Today Revenue',
               value:
                   '₹${_money(todayRevenue)}',
               icon: Icons.currency_rupee,
               iconColor: green,
             ),
-            _StatCard(
+            StatCard(
               title: 'Total Payments',
               value:
                   '₹${_money(totalPayments)}',
               icon: Icons.payments_outlined,
               iconColor: blue,
             ),
-            _StatCard(
+            StatCard(
               title: 'Pending Payouts',
               value:
                   '₹${_money(pendingPayouts)}',
-              icon:
-                  Icons.account_balance_wallet_outlined,
+              icon: Icons
+                  .account_balance_wallet_outlined,
               iconColor: orange,
             ),
           ],
@@ -945,8 +903,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius:
-            BorderRadius.circular(17),
+        borderRadius: BorderRadius.circular(17),
         border: Border.all(color: border),
       ),
       child: Column(
@@ -984,11 +941,12 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   // ============================================================
-  // LIVE WALKS TAB
+  // LIVE WALKS
   // ============================================================
 
   Widget _liveWalksTab() {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+    return StreamBuilder<
+        QuerySnapshot<Map<String, dynamic>>>(
       stream: _activeWalksStream,
       builder: (context, snapshot) {
         final docs = snapshot.data?.docs ?? [];
@@ -1002,13 +960,13 @@ class _DashboardScreenState extends State<DashboardScreen>
             children: [
               _liveMapContainer(),
               const SizedBox(height: 18),
-              _DataPanel(
+              DataPanel(
                 title: 'Active Walks',
                 icon:
                     Icons.directions_walk_outlined,
                 color: orange,
                 child: docs.isEmpty
-                    ? const _EmptyMessage(
+                    ? const EmptyMessage(
                         text:
                             'Live walks will appear here.',
                       )
@@ -1040,14 +998,14 @@ class _DashboardScreenState extends State<DashboardScreen>
   ) {
     final ownerUid =
         _readString(data, 'ownerUid') ??
-        _readString(data, 'ownerId') ??
-        '-';
+            _readString(data, 'ownerId') ??
+            '-';
 
     final walkerUid =
         _readString(data, 'walkeruid') ??
-        _readString(data, 'walkerUid') ??
-        _readString(data, 'walkerId') ??
-        '-';
+            _readString(data, 'walkerUid') ??
+            _readString(data, 'walkerId') ??
+            '-';
 
     final ownerName =
         _readString(data, 'ownerName');
@@ -1063,13 +1021,13 @@ class _DashboardScreenState extends State<DashboardScreen>
 
     final distance =
         _readNumber(data, 'distanceKm') ??
-        _readNumber(data, 'distance') ??
-        '-';
+            _readNumber(data, 'distance') ??
+            '-';
 
     final duration =
         _readNumber(data, 'durationMinutes') ??
-        _readNumber(data, 'duration') ??
-        '-';
+            _readNumber(data, 'duration') ??
+            '-';
 
     final pee =
         _readInt(data, 'peeCount') ?? 0;
@@ -1078,8 +1036,9 @@ class _DashboardScreenState extends State<DashboardScreen>
         _readInt(data, 'poopCount') ?? 0;
 
     return Padding(
-      padding:
-          const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(
+        vertical: 8,
+      ),
       child: Row(
         children: [
           Container(
@@ -1165,11 +1124,12 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   // ============================================================
-  // RECENT ACTIVITY TAB
+  // RECENT ACTIVITY
   // ============================================================
 
   Widget _recentActivityTab() {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+    return StreamBuilder<
+        QuerySnapshot<Map<String, dynamic>>>(
       stream: _historyStream,
       builder: (context, snapshot) {
         final docs = snapshot.data?.docs ?? [];
@@ -1181,12 +1141,12 @@ class _DashboardScreenState extends State<DashboardScreen>
             crossAxisAlignment:
                 CrossAxisAlignment.start,
             children: [
-              _DataPanel(
+              DataPanel(
                 title: 'Recent Activity',
                 icon: Icons.history_outlined,
                 color: blue,
                 child: docs.isEmpty
-                    ? const _EmptyMessage(
+                    ? const EmptyMessage(
                         text:
                             'Recent platform activity will appear here.',
                       )
@@ -1207,12 +1167,12 @@ class _DashboardScreenState extends State<DashboardScreen>
                       ),
               ),
               const SizedBox(height: 14),
-              const _DataPanel(
+              const DataPanel(
                 title: 'System Activity',
                 icon:
                     Icons.receipt_long_outlined,
                 color: green,
-                child: _EmptyMessage(
+                child: EmptyMessage(
                   text:
                       'System activity logs are not connected yet.',
                 ),
@@ -1232,7 +1192,7 @@ class _DashboardScreenState extends State<DashboardScreen>
 
     final walkerName =
         _readString(data, 'walkerName') ??
-        'Walker';
+            'Walker';
 
     final ownerName =
         _readString(data, 'ownerName');
@@ -1256,11 +1216,12 @@ class _DashboardScreenState extends State<DashboardScreen>
         _readString(data, 'dogPhoto');
 
     return Padding(
-      padding:
-          const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(
+        vertical: 8,
+      ),
       child: Row(
         children: [
-          _photoAvatar(
+          photoAvatar(
             imageUrl: dogPhoto,
             icon: Icons.pets,
             color: blue,
@@ -1352,232 +1313,110 @@ class _DashboardScreenState extends State<DashboardScreen>
 }
 
 // ============================================================
-// DATA PANEL
+// FIREBASE HELPERS
 // ============================================================
 
-class _DataPanel extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final Color color;
-  final Widget child;
+String? _readString(
+  Map<String, dynamic> data,
+  String key,
+) {
+  final value = data[key];
 
-  const _DataPanel({
-    required this.title,
-    required this.icon,
-    required this.color,
-    required this.child,
-  });
+  if (value == null) return null;
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius:
-            BorderRadius.circular(17),
-        border: Border.all(color: border),
-      ),
-      child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                icon,
-                color: color,
-                size: 21,
-              ),
-              const SizedBox(width: 9),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 15),
-          child,
-        ],
-      ),
-    );
+  final text = value.toString().trim();
+
+  return text.isEmpty ? null : text;
+}
+
+String? _readNumber(
+  Map<String, dynamic> data,
+  String key,
+) {
+  final value = data[key];
+
+  if (value == null) return null;
+
+  return value.toString();
+}
+
+double? _readDouble(
+  Map<String, dynamic> data,
+  String key,
+) {
+  final value = data[key];
+
+  if (value is num) {
+    return value.toDouble();
   }
+
+  if (value is String) {
+    return double.tryParse(value);
+  }
+
+  return null;
+}
+
+int? _readInt(
+  Map<String, dynamic> data,
+  String key,
+) {
+  final value = data[key];
+
+  if (value is int) return value;
+
+  if (value is num) {
+    return value.toInt();
+  }
+
+  if (value is String) {
+    return int.tryParse(value);
+  }
+
+  return null;
+}
+
+bool _isToday(dynamic value) {
+  DateTime? date;
+
+  if (value is Timestamp) {
+    date = value.toDate();
+  } else if (value is DateTime) {
+    date = value;
+  } else if (value is int) {
+    date = DateTime.fromMillisecondsSinceEpoch(
+      value,
+      isUtc: false,
+    );
+  } else if (value is String) {
+    date = DateTime.tryParse(value);
+  }
+
+  if (date == null) return false;
+
+  final now = DateTime.now();
+
+  return date.year == now.year &&
+      date.month == now.month &&
+      date.day == now.day;
+}
+
+String _shortId(String value) {
+  if (value.length <= 10) return value;
+
+  return '${value.substring(0, 6)}...';
+}
+
+String _money(double value) {
+  if (value == value.roundToDouble()) {
+    return value.toInt().toString();
+  }
+
+  return value.toStringAsFixed(2);
 }
 
 // ============================================================
-// EMPTY
-// ============================================================
-
-class _EmptyMessage extends StatelessWidget {
-  final String text;
-
-  const _EmptyMessage({
-    required this.text,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 90,
-      child: Center(
-        child: Text(
-          text,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: grey,
-            fontSize: 13,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ============================================================
-// STAT CARD
-// ============================================================
-
-class _StatCard extends StatelessWidget {
-  final String title;
-  final String value;
-  final IconData icon;
-  final Color iconColor;
-
-  const _StatCard({
-    required this.title,
-    required this.value,
-    required this.icon,
-    required this.iconColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(17),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius:
-            BorderRadius.circular(16),
-        border: Border.all(color: border),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: iconColor.withOpacity(.10),
-              borderRadius:
-                  BorderRadius.circular(13),
-            ),
-            child: Icon(
-              icon,
-              color: iconColor,
-            ),
-          ),
-          const SizedBox(width: 13),
-          Expanded(
-            child: Column(
-              mainAxisAlignment:
-                  MainAxisAlignment.center,
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow:
-                      TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: grey,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 23,
-                    fontWeight: FontWeight.w900,
-                    color: dark,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ============================================================
-// ACTION BUTTON
-// ============================================================
-
-class _ActionButton extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _ActionButton({
-    required this.title,
-    required this.icon,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius:
-          BorderRadius.circular(11),
-      onTap: onTap,
-      child: Container(
-        padding:
-            const EdgeInsets.symmetric(
-          horizontal: 13,
-          vertical: 10,
-        ),
-        decoration: BoxDecoration(
-          color: color.withOpacity(.08),
-          borderRadius:
-              BorderRadius.circular(11),
-          border: Border.all(
-            color: color.withOpacity(.18),
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 18,
-              color: color,
-            ),
-            const SizedBox(width: 7),
-            Text(
-              title,
-              style: TextStyle(
-                color: color,
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ============================================================
-// MAP MARKER
+// MAP
 // ============================================================
 
 class _MapMarker extends StatelessWidget {
@@ -1592,8 +1431,7 @@ class _MapMarker extends StatelessWidget {
     return Column(
       children: [
         Container(
-          padding:
-              const EdgeInsets.symmetric(
+          padding: const EdgeInsets.symmetric(
             horizontal: 8,
             vertical: 5,
           ),
@@ -1636,51 +1474,6 @@ class _MapMarker extends StatelessWidget {
     );
   }
 }
-
-// ============================================================
-// PHOTO AVATAR
-// ============================================================
-
-Widget _photoAvatar({
-  required String? imageUrl,
-  required IconData icon,
-  required Color color,
-}) {
-  final hasImage =
-      imageUrl != null &&
-      imageUrl.trim().isNotEmpty;
-
-  return Container(
-    width: 44,
-    height: 44,
-    clipBehavior: Clip.antiAlias,
-    decoration: BoxDecoration(
-      color: color.withOpacity(.10),
-      borderRadius:
-          BorderRadius.circular(12),
-    ),
-    child: hasImage
-        ? Image.network(
-            imageUrl,
-            fit: BoxFit.cover,
-            errorBuilder:
-                (_, __, ___) {
-              return Icon(
-                icon,
-                color: color,
-              );
-            },
-          )
-        : Icon(
-            icon,
-            color: color,
-          ),
-  );
-}
-
-// ============================================================
-// MAP PAINTER
-// ============================================================
 
 class DashboardMapPainter
     extends CustomPainter {
@@ -1753,122 +1546,4 @@ class DashboardMapPainter
   ) {
     return false;
   }
-}
-
-// ============================================================
-// FIREBASE HELPERS
-// ============================================================
-
-String? _readString(
-  Map<String, dynamic> data,
-  String key,
-) {
-  final value = data[key];
-
-  if (value == null) {
-    return null;
-  }
-
-  final text =
-      value.toString().trim();
-
-  return text.isEmpty ? null : text;
-}
-
-String? _readNumber(
-  Map<String, dynamic> data,
-  String key,
-) {
-  final value = data[key];
-
-  if (value == null) {
-    return null;
-  }
-
-  if (value is num) {
-    return value.toString();
-  }
-
-  return value.toString();
-}
-
-double? _readDouble(
-  Map<String, dynamic> data,
-  String key,
-) {
-  final value = data[key];
-
-  if (value is num) {
-    return value.toDouble();
-  }
-
-  if (value is String) {
-    return double.tryParse(value);
-  }
-
-  return null;
-}
-
-int? _readInt(
-  Map<String, dynamic> data,
-  String key,
-) {
-  final value = data[key];
-
-  if (value is int) {
-    return value;
-  }
-
-  if (value is num) {
-    return value.toInt();
-  }
-
-  if (value is String) {
-    return int.tryParse(value);
-  }
-
-  return null;
-}
-
-bool _isToday(dynamic value) {
-  DateTime? date;
-
-  if (value is Timestamp) {
-    date = value.toDate();
-  } else if (value is DateTime) {
-    date = value;
-  } else if (value is int) {
-    date = DateTime.fromMillisecondsSinceEpoch(
-      value,
-      isUtc: false,
-    );
-  } else if (value is String) {
-    date = DateTime.tryParse(value);
-  }
-
-  if (date == null) {
-    return false;
-  }
-
-  final now = DateTime.now();
-
-  return date.year == now.year &&
-      date.month == now.month &&
-      date.day == now.day;
-}
-
-String _shortId(String value) {
-  if (value.length <= 10) {
-    return value;
-  }
-
-  return '${value.substring(0, 6)}...';
-}
-
-String _money(double value) {
-  if (value == value.roundToDouble()) {
-    return value.toInt().toString();
-  }
-
-  return value.toStringAsFixed(2);
 }
