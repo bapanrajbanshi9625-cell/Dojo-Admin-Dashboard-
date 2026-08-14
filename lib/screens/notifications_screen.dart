@@ -17,13 +17,16 @@ class NotificationsScreen extends StatefulWidget {
       _NotificationsScreenState();
 }
 
-class _NotificationsScreenState extends State<NotificationsScreen> {
+class _NotificationsScreenState
+    extends State<NotificationsScreen> {
   String selectedFilter = 'All';
 
-  final CollectionReference<Map<String, dynamic>> _notificationsRef =
+  final CollectionReference<Map<String, dynamic>>
+      _notificationsRef =
       FirebaseFirestore.instance.collection('notifications');
 
-  Stream<QuerySnapshot<Map<String, dynamic>>> get _notificationsStream {
+  Stream<QuerySnapshot<Map<String, dynamic>>>
+      get _notificationsStream {
     return _notificationsRef
         .orderBy('createdAt', descending: true)
         .snapshots();
@@ -38,19 +41,24 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           return _errorState();
         }
 
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        if (snapshot.connectionState ==
+            ConnectionState.waiting) {
           return _loadingState();
         }
 
-        final notifications =
-            snapshot.data?.docs
-                .map(NotificationData.fromFirestore)
+        final notifications = snapshot.data?.docs
+                .map(
+                  (doc) =>
+                      NotificationData.fromFirestore(doc),
+                )
                 .toList() ??
             [];
 
-        final unread = notifications.where((n) => !n.read).length;
+        final unread =
+            notifications.where((n) => !n.read).length;
 
-        final filtered = _filterNotifications(notifications);
+        final filtered =
+            _filterNotifications(notifications);
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -66,13 +74,18 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
+  // ============================================================
+  // HEADER
+  // ============================================================
+
   Widget _header(int unread) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Expanded(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
             children: [
               Text(
                 'Notifications',
@@ -101,7 +114,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             ),
             decoration: BoxDecoration(
               color: const Color(0xFFFFEEE9),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius:
+                  BorderRadius.circular(10),
             ),
             child: Text(
               '$unread Unread',
@@ -116,63 +130,82 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
-  Widget _filters() {
-    const filters = [
-      'All',
-      'Unread',
-      'Owner',
-      'Walker',
-      'Walk',
-      'Payment',
-    ];
+  // ============================================================
+  // FILTERS
+  // ============================================================
 
+  Widget _filters() {
     return Container(
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: dojoBorder),
+        borderRadius:
+            BorderRadius.circular(14),
+        border: Border.all(
+          color: dojoBorder,
+        ),
       ),
       child: Wrap(
         spacing: 5,
         runSpacing: 5,
-        children: filters.map(_filterButton).toList(),
+        children: [
+          _filterButton('All'),
+          _filterButton('Unread'),
+          _filterButton('Owner'),
+          _filterButton('Walker'),
+          _filterButton('Walk'),
+          _filterButton('Payment'),
+        ],
       ),
     );
   }
 
   Widget _filterButton(String title) {
-    final active = selectedFilter == title;
+    final active =
+        selectedFilter == title;
 
     return InkWell(
-      borderRadius: BorderRadius.circular(10),
+      borderRadius:
+          BorderRadius.circular(10),
       onTap: () {
         setState(() {
           selectedFilter = title;
         });
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(
+        padding:
+            const EdgeInsets.symmetric(
           horizontal: 13,
           vertical: 10,
         ),
         decoration: BoxDecoration(
-          color: active ? dojoOrange : Colors.transparent,
-          borderRadius: BorderRadius.circular(10),
+          color: active
+              ? dojoOrange
+              : Colors.transparent,
+          borderRadius:
+              BorderRadius.circular(10),
         ),
         child: Text(
           title,
           style: TextStyle(
             fontSize: 12,
-            fontWeight: FontWeight.w800,
-            color: active ? Colors.white : dojoBlack,
+            fontWeight:
+                FontWeight.w800,
+            color: active
+                ? Colors.white
+                : dojoBlack,
           ),
         ),
       ),
     );
   }
 
-  List<NotificationData> _filterNotifications(
+  // ============================================================
+  // FILTER LOGIC
+  // ============================================================
+
+  List<NotificationData>
+      _filterNotifications(
     List<NotificationData> notifications,
   ) {
     if (selectedFilter == 'All') {
@@ -180,13 +213,25 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
 
     if (selectedFilter == 'Unread') {
-      return notifications.where((n) => !n.read).toList();
+      return notifications
+          .where((n) => !n.read)
+          .toList();
     }
 
-    return notifications.where((n) => n.type == selectedFilter).toList();
+    return notifications
+        .where(
+          (n) => n.type == selectedFilter,
+        )
+        .toList();
   }
 
-  Widget _notificationList(List<NotificationData> list) {
+  // ============================================================
+  // LIST
+  // ============================================================
+
+  Widget _notificationList(
+    List<NotificationData> list,
+  ) {
     if (list.isEmpty) {
       return _emptyState();
     }
@@ -194,31 +239,44 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     return Column(
       children: list.map((notification) {
         return Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: _notificationCard(notification),
+          padding:
+              const EdgeInsets.only(bottom: 10),
+          child: _notificationCard(
+            notification,
+          ),
         );
       }).toList(),
     );
   }
 
-  Widget _notificationCard(NotificationData notification) {
-    final color = _typeColor(notification.type);
+  // ============================================================
+  // NOTIFICATION CARD
+  // ============================================================
+
+  Widget _notificationCard(
+    NotificationData notification,
+  ) {
+    final color =
+        _typeColor(notification.type);
 
     return InkWell(
-      borderRadius: BorderRadius.circular(17),
+      borderRadius:
+          BorderRadius.circular(17),
       onTap: () {
-        _markAsRead(notification);
-        _showNotificationDetails(notification);
+        _showNotificationDetails(
+          notification,
+        );
       },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+      child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(17),
+        padding:
+            const EdgeInsets.all(17),
         decoration: BoxDecoration(
           color: notification.read
               ? Colors.white
               : const Color(0xFFFFFAF8),
-          borderRadius: BorderRadius.circular(17),
+          borderRadius:
+              BorderRadius.circular(17),
           border: Border.all(
             color: notification.read
                 ? dojoBorder
@@ -226,68 +284,119 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           ),
         ),
         child: LayoutBuilder(
-          builder: (context, constraints) {
-            if (constraints.maxWidth < 500) {
-              return _mobileCard(notification, color);
+          builder:
+              (context, constraints) {
+            if (constraints.maxWidth < 600) {
+              return _mobileCard(
+                notification,
+                color,
+              );
             }
 
-            return _desktopCard(notification, color);
+            return _desktopCard(
+              notification,
+              color,
+            );
           },
         ),
       ),
     );
   }
 
+  // ============================================================
+  // DESKTOP CARD
+  // ============================================================
+
   Widget _desktopCard(
     NotificationData notification,
     Color color,
   ) {
     return Row(
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
       children: [
-        _notificationIcon(notification.type, color),
-        const SizedBox(width: 14),
-        Expanded(
-          child: _notificationContent(notification),
+        _notificationIcon(
+          notification.type,
+          color,
         ),
-        const SizedBox(width: 12),
-        Text(
-          notification.time,
-          style: const TextStyle(
-            fontSize: 10,
-            color: dojoGrey,
+        const SizedBox(width: 14),
+
+        Expanded(
+          child: _notificationContent(
+            notification,
           ),
         ),
-        const SizedBox(width: 12),
-        if (!notification.read) _unreadDot(color),
+
+        const SizedBox(width: 15),
+
+        Column(
+          crossAxisAlignment:
+              CrossAxisAlignment.end,
+          children: [
+            Text(
+              notification.time,
+              style: const TextStyle(
+                fontSize: 10,
+                color: dojoGrey,
+              ),
+            ),
+            const SizedBox(height: 8),
+            if (!notification.read)
+              _unreadDot(color),
+          ],
+        ),
       ],
     );
   }
+
+  // ============================================================
+  // MOBILE CARD
+  // ============================================================
 
   Widget _mobileCard(
     NotificationData notification,
     Color color,
   ) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
       children: [
-        _notificationIcon(notification.type, color),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _notificationContent(notification),
+        _notificationIcon(
+          notification.type,
+          color,
         ),
+
+        const SizedBox(width: 12),
+
+        Expanded(
+          child: _notificationContent(
+            notification,
+          ),
+        ),
+
         const SizedBox(width: 8),
-        if (!notification.read) _unreadDot(color),
+
+        if (!notification.read)
+          _unreadDot(color),
       ],
     );
   }
 
-  Widget _notificationIcon(String type, Color color) {
+  // ============================================================
+  // ICON
+  // ============================================================
+
+  Widget _notificationIcon(
+    String type,
+    Color color,
+  ) {
     return Container(
       width: 48,
       height: 48,
       decoration: BoxDecoration(
         color: color.withOpacity(.10),
-        borderRadius: BorderRadius.circular(13),
+        borderRadius:
+            BorderRadius.circular(13),
       ),
       child: Icon(
         _typeIcon(type),
@@ -297,33 +406,92 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
-  Widget _notificationContent(NotificationData notification) {
+  // ============================================================
+  // CONTENT
+  // ============================================================
+
+  Widget _notificationContent(
+    NotificationData notification,
+  ) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
       children: [
-        Text(
-          notification.title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight:
-                notification.read ? FontWeight.w700 : FontWeight.w900,
-            color: dojoBlack,
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                notification.title,
+                maxLines: 1,
+                overflow:
+                    TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight:
+                      notification.read
+                          ? FontWeight.w700
+                          : FontWeight.w900,
+                  color: dojoBlack,
+                ),
+              ),
+            ),
+
+            const SizedBox(width: 8),
+
+            _typeBadge(
+              notification.type,
+            ),
+          ],
         ),
-        const SizedBox(height: 5),
+
+        const SizedBox(height: 6),
+
         Text(
           notification.message,
           maxLines: 2,
-          overflow: TextOverflow.ellipsis,
+          overflow:
+              TextOverflow.ellipsis,
           style: const TextStyle(
             fontSize: 12,
             color: dojoGrey,
             height: 1.35,
           ),
         ),
+
+        const SizedBox(height: 10),
+
+        _detailsRow(
+          icon: Icons.pets_outlined,
+          label: 'Pet',
+          value: notification.petName,
+        ),
+
+        const SizedBox(height: 5),
+
+        _detailsRow(
+          icon: Icons.person_outline,
+          label: 'Owner',
+          value: notification.ownerName,
+        ),
+
+        const SizedBox(height: 5),
+
+        _detailsRow(
+          icon: Icons.badge_outlined,
+          label: 'Walker',
+          value: notification.walkerName,
+        ),
+
+        const SizedBox(height: 5),
+
+        _detailsRow(
+          icon: Icons.tag,
+          label: 'Walk ID',
+          value: notification.walkId,
+        ),
+
         const SizedBox(height: 6),
+
         Text(
           notification.time,
           style: const TextStyle(
@@ -332,6 +500,81 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  // ============================================================
+  // DETAIL ROW
+  // ============================================================
+
+  Widget _detailsRow({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    if (value.isEmpty || value == '-') {
+      return const SizedBox.shrink();
+    }
+
+    return Row(
+      children: [
+        Icon(
+          icon,
+          size: 15,
+          color: dojoGrey,
+        ),
+        const SizedBox(width: 6),
+        Text(
+          '$label:',
+          style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: dojoBlack,
+          ),
+        ),
+        const SizedBox(width: 5),
+        Expanded(
+          child: Text(
+            value,
+            maxLines: 1,
+            overflow:
+                TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 11,
+              color: dojoGrey,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ============================================================
+  // TYPE BADGE
+  // ============================================================
+
+  Widget _typeBadge(String type) {
+    final color = _typeColor(type);
+
+    return Container(
+      padding:
+          const EdgeInsets.symmetric(
+        horizontal: 8,
+        vertical: 4,
+      ),
+      decoration: BoxDecoration(
+        color: color.withOpacity(.10),
+        borderRadius:
+            BorderRadius.circular(7),
+      ),
+      child: Text(
+        type,
+        style: TextStyle(
+          color: color,
+          fontSize: 9,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
     );
   }
 
@@ -346,146 +589,182 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
-  Future<void> _markAsRead(NotificationData notification) async {
-    if (notification.read) return;
-
-    try {
-      await _notificationsRef.doc(notification.id).update({
-        'read': true,
-      });
-    } catch (_) {}
-  }
-
   // ============================================================
-  // FULL NOTIFICATION DETAILS
+  // DETAILS BOTTOM SHEET
   // ============================================================
 
-  void _showNotificationDetails(NotificationData notification) {
-    showDialog(
+  Future<void> _showNotificationDetails(
+    NotificationData notification,
+  ) async {
+    if (!notification.read) {
+      await _markAsRead(notification);
+    }
+
+    if (!mounted) return;
+
+    final color =
+        _typeColor(notification.type);
+
+    showModalBottomSheet(
       context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          padding:
+              const EdgeInsets.fromLTRB(
+            20,
+            12,
+            20,
+            25,
           ),
-          title: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: _typeColor(notification.type).withOpacity(.10),
-                  borderRadius: BorderRadius.circular(11),
-                ),
-                child: Icon(
-                  _typeIcon(notification.type),
-                  color: _typeColor(notification.type),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  notification.title,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-            ],
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius:
+                BorderRadius.vertical(
+              top: Radius.circular(24),
+            ),
           ),
-          content: SizedBox(
-            width: 480,
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    notification.message,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: dojoGrey,
-                      height: 1.4,
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 42,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: dojoBorder,
+                      borderRadius:
+                          BorderRadius.circular(10),
                     ),
                   ),
-                  const SizedBox(height: 18),
+                ),
 
-                  _detailRow('Notification Type', notification.type),
+                const SizedBox(height: 20),
 
-                  if (notification.walkId.isNotEmpty)
-                    _detailRow('Walk ID', notification.walkId),
+                Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color:
+                            color.withOpacity(.10),
+                        borderRadius:
+                            BorderRadius.circular(13),
+                      ),
+                      child: Icon(
+                        _typeIcon(
+                          notification.type,
+                        ),
+                        color: color,
+                        size: 24,
+                      ),
+                    ),
 
-                  if (notification.ownerId.isNotEmpty)
-                    _detailRow('Owner ID', notification.ownerId),
+                    const SizedBox(width: 12),
 
-                  if (notification.ownerName.isNotEmpty)
-                    _detailRow('Owner', notification.ownerName),
+                    Expanded(
+                      child: Text(
+                        notification.title,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight:
+                              FontWeight.w900,
+                          color: dojoBlack,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
 
-                  if (notification.walkerId.isNotEmpty)
-                    _detailRow('Walker ID', notification.walkerId),
+                const SizedBox(height: 18),
 
-                  if (notification.walkerName.isNotEmpty)
-                    _detailRow('Walker', notification.walkerName),
-
-                  if (notification.petId.isNotEmpty)
-                    _detailRow('Pet ID', notification.petId),
-
-                  if (notification.petName.isNotEmpty)
-                    _detailRow('Pet', notification.petName),
-
-                  if (notification.paymentId.isNotEmpty)
-                    _detailRow('Payment ID', notification.paymentId),
-
-                  if (notification.amount.isNotEmpty)
-                    _detailRow('Amount', notification.amount),
-
-                  if (notification.status.isNotEmpty)
-                    _detailRow('Status', notification.status),
-
-                  if (notification.mobile.isNotEmpty)
-                    _detailRow('Mobile', notification.mobile),
-
-                  _detailRow(
-                    'Time',
-                    notification.time,
+                Text(
+                  notification.message,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: dojoGrey,
+                    height: 1.4,
                   ),
-                ],
-              ),
+                ),
+
+                const SizedBox(height: 18),
+
+                _detailSheetRow(
+                  Icons.pets_outlined,
+                  'Pet',
+                  notification.petName,
+                ),
+
+                _detailSheetRow(
+                  Icons.person_outline,
+                  'Owner',
+                  notification.ownerName,
+                ),
+
+                _detailSheetRow(
+                  Icons.badge_outlined,
+                  'Walker',
+                  notification.walkerName,
+                ),
+
+                _detailSheetRow(
+                  Icons.tag,
+                  'Walk ID',
+                  notification.walkId,
+                ),
+
+                _detailSheetRow(
+                  Icons.category_outlined,
+                  'Type',
+                  notification.type,
+                ),
+
+                _detailSheetRow(
+                  Icons.access_time,
+                  'Time',
+                  notification.time,
+                ),
+              ],
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text(
-                'Close',
-                style: TextStyle(color: dojoOrange),
-              ),
-            ),
-          ],
         );
       },
     );
   }
 
-  Widget _detailRow(String label, String value) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 9),
-      decoration: const BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: dojoBorder),
-        ),
-      ),
+  Widget _detailSheetRow(
+    IconData icon,
+    String label,
+    String value,
+  ) {
+    if (value.isEmpty || value == '-') {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding:
+          const EdgeInsets.only(bottom: 12),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Icon(
+            icon,
+            size: 19,
+            color: dojoOrange,
+          ),
+          const SizedBox(width: 10),
           SizedBox(
-            width: 105,
+            width: 65,
             child: Text(
               label,
               style: const TextStyle(
-                fontSize: 11,
-                color: dojoGrey,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: dojoBlack,
               ),
             ),
           ),
@@ -494,8 +773,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               value,
               style: const TextStyle(
                 fontSize: 12,
-                fontWeight: FontWeight.w800,
-                color: dojoBlack,
+                color: dojoGrey,
               ),
             ),
           ),
@@ -503,6 +781,41 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       ),
     );
   }
+
+  // ============================================================
+  // MARK AS READ
+  // ============================================================
+
+  Future<void> _markAsRead(
+    NotificationData notification,
+  ) async {
+    if (notification.read) {
+      return;
+    }
+
+    try {
+      await _notificationsRef
+          .doc(notification.id)
+          .update({
+        'read': true,
+      });
+    } catch (_) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Unable to update notification.',
+          ),
+        ),
+      );
+    }
+  }
+
+  // ============================================================
+  // LOADING
+  // ============================================================
 
   Widget _loadingState() {
     return const Center(
@@ -515,14 +828,22 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
+  // ============================================================
+  // ERROR
+  // ============================================================
+
   Widget _errorState() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(25),
+      padding:
+          const EdgeInsets.all(25),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(17),
-        border: Border.all(color: dojoBorder),
+        borderRadius:
+            BorderRadius.circular(17),
+        border: Border.all(
+          color: dojoBorder,
+        ),
       ),
       child: const Column(
         children: [
@@ -536,7 +857,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             'Unable to load notifications',
             style: TextStyle(
               fontSize: 16,
-              fontWeight: FontWeight.w800,
+              fontWeight:
+                  FontWeight.w800,
             ),
           ),
           SizedBox(height: 5),
@@ -553,18 +875,26 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
+  // ============================================================
+  // EMPTY
+  // ============================================================
+
   Widget _emptyState() {
     return Container(
       width: double.infinity,
       height: 280,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(17),
-        border: Border.all(color: dojoBorder),
+        borderRadius:
+            BorderRadius.circular(17),
+        border: Border.all(
+          color: dojoBorder,
+        ),
       ),
       child: const Center(
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize:
+              MainAxisSize.min,
           children: [
             Icon(
               Icons.notifications_none_outlined,
@@ -576,7 +906,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               'No notifications',
               style: TextStyle(
                 fontSize: 16,
-                fontWeight: FontWeight.w800,
+                fontWeight:
+                    FontWeight.w800,
               ),
             ),
             SizedBox(height: 5),
@@ -593,31 +924,47 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
+  // ============================================================
+  // TYPE COLOR
+  // ============================================================
+
   Color _typeColor(String type) {
     switch (type) {
       case 'Owner':
         return dojoBlue;
+
       case 'Walker':
         return dojoGreen;
+
       case 'Walk':
         return dojoOrange;
+
       case 'Payment':
         return const Color(0xFF7567A8);
+
       default:
         return dojoGrey;
     }
   }
 
+  // ============================================================
+  // TYPE ICON
+  // ============================================================
+
   IconData _typeIcon(String type) {
     switch (type) {
       case 'Owner':
         return Icons.person_outline;
+
       case 'Walker':
         return Icons.badge_outlined;
+
       case 'Walk':
         return Icons.directions_walk_outlined;
+
       case 'Payment':
         return Icons.payments_outlined;
+
       default:
         return Icons.notifications_none_outlined;
     }
@@ -625,7 +972,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 }
 
 // ============================================================
-// FIRESTORE MODEL
+// FIRESTORE DATA MODEL
 // ============================================================
 
 class NotificationData {
@@ -637,17 +984,10 @@ class NotificationData {
   final bool read;
   final DateTime? createdAt;
 
-  final String walkId;
-  final String ownerId;
   final String ownerName;
-  final String walkerId;
   final String walkerName;
-  final String petId;
   final String petName;
-  final String paymentId;
-  final String amount;
-  final String status;
-  final String mobile;
+  final String walkId;
 
   const NotificationData({
     required this.id,
@@ -656,18 +996,11 @@ class NotificationData {
     required this.time,
     required this.type,
     required this.read,
-    required this.createdAt,
-    required this.walkId,
-    required this.ownerId,
     required this.ownerName,
-    required this.walkerId,
     required this.walkerName,
-    required this.petId,
     required this.petName,
-    required this.paymentId,
-    required this.amount,
-    required this.status,
-    required this.mobile,
+    required this.walkId,
+    this.createdAt,
   });
 
   factory NotificationData.fromFirestore(
@@ -685,27 +1018,43 @@ class NotificationData {
 
     return NotificationData(
       id: doc.id,
-      title: data['title']?.toString() ?? 'Notification',
-      message: data['message']?.toString() ?? '',
+
+      title:
+          data['title']?.toString() ??
+              'Notification',
+
+      message:
+          data['message']?.toString() ??
+              '',
+
       time: _formatTime(
         createdDate,
         data['time'],
       ),
-      type: data['type']?.toString() ?? 'General',
-      read: data['read'] == true,
-      createdAt: createdDate,
 
-      walkId: data['walkId']?.toString() ?? '',
-      ownerId: data['ownerId']?.toString() ?? '',
-      ownerName: data['ownerName']?.toString() ?? '',
-      walkerId: data['walkerId']?.toString() ?? '',
-      walkerName: data['walkerName']?.toString() ?? '',
-      petId: data['petId']?.toString() ?? '',
-      petName: data['petName']?.toString() ?? '',
-      paymentId: data['paymentId']?.toString() ?? '',
-      amount: data['amount']?.toString() ?? '',
-      status: data['status']?.toString() ?? '',
-      mobile: data['mobile']?.toString() ?? '',
+      type:
+          data['type']?.toString() ??
+              'General',
+
+      read: data['read'] == true,
+
+      ownerName:
+          data['ownerName']?.toString() ??
+              '',
+
+      walkerName:
+          data['walkerName']?.toString() ??
+              '',
+
+      petName:
+          data['petName']?.toString() ??
+              '',
+
+      walkId:
+          data['walkId']?.toString() ??
+              '',
+
+      createdAt: createdDate,
     );
   }
 
@@ -718,7 +1067,8 @@ class NotificationData {
     }
 
     final now = DateTime.now();
-    final difference = now.difference(date);
+    final difference =
+        now.difference(date);
 
     if (difference.inSeconds < 60) {
       return 'Just now';
@@ -729,11 +1079,13 @@ class NotificationData {
     }
 
     if (difference.inHours < 24) {
-      return '${difference.inHours} hour ago';
+      final hours = difference.inHours;
+      return '$hours ${hours == 1 ? 'hour' : 'hours'} ago';
     }
 
     if (difference.inDays < 7) {
-      return '${difference.inDays} day ago';
+      final days = difference.inDays;
+      return '$days ${days == 1 ? 'day' : 'days'} ago';
     }
 
     return '${date.day}/${date.month}/${date.year}';
