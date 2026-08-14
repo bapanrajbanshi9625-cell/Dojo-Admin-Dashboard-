@@ -22,14 +22,15 @@ class _AdminsScreenState extends State<AdminsScreen> {
 
   String selectedFilter = 'All';
 
-  CollectionReference<Map<String, dynamic>> get _adminsRef {
-    return _firestore.collection('admins');
-  }
+  CollectionReference<Map<String, dynamic>> get _adminsRef =>
+      _firestore.collection('admins');
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: _adminsRef.snapshots(),
+      stream: _adminsRef
+          .orderBy('createdAt', descending: true)
+          .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return _loadingState();
@@ -47,11 +48,7 @@ class _AdminsScreenState extends State<AdminsScreen> {
                   ),
                 )
                 .toList() ??
-            [];
-
-        admins.sort(
-          (a, b) => b.createdAt.compareTo(a.createdAt),
-        );
+            <AdminData>[];
 
         final filteredAdmins = _filterAdmins(admins);
 
@@ -233,9 +230,7 @@ class _AdminsScreenState extends State<AdminsScreen> {
           vertical: 10,
         ),
         decoration: BoxDecoration(
-          color: selected
-              ? dojoOrange
-              : Colors.transparent,
+          color: selected ? dojoOrange : Colors.transparent,
           borderRadius: BorderRadius.circular(10),
         ),
         child: Text(
@@ -256,9 +251,7 @@ class _AdminsScreenState extends State<AdminsScreen> {
     }
 
     return admins
-        .where(
-          (admin) => admin.status == selectedFilter,
-        )
+        .where((admin) => admin.status == selectedFilter)
         .toList();
   }
 
@@ -317,7 +310,7 @@ class _AdminsScreenState extends State<AdminsScreen> {
   ) {
     return Row(
       children: [
-        _avatar(admin),
+        _avatar(),
         const SizedBox(width: 14),
         Expanded(
           flex: 3,
@@ -349,7 +342,7 @@ class _AdminsScreenState extends State<AdminsScreen> {
       children: [
         Row(
           children: [
-            _avatar(admin),
+            _avatar(),
             const SizedBox(width: 12),
             Expanded(
               child: _adminInfo(admin),
@@ -369,15 +362,14 @@ class _AdminsScreenState extends State<AdminsScreen> {
               admin.status,
               statusColor,
             ),
+            Text(
+              'Last active: ${admin.lastActive}',
+              style: const TextStyle(
+                fontSize: 10,
+                color: dojoGrey,
+              ),
+            ),
           ],
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Last active: ${admin.lastActive}',
-          style: const TextStyle(
-            fontSize: 10,
-            color: dojoGrey,
-          ),
         ),
         const SizedBox(height: 14),
         SizedBox(
@@ -388,7 +380,7 @@ class _AdminsScreenState extends State<AdminsScreen> {
     );
   }
 
-  Widget _avatar(AdminData admin) {
+  Widget _avatar() {
     return Container(
       width: 52,
       height: 52,
@@ -439,17 +431,14 @@ class _AdminsScreenState extends State<AdminsScreen> {
     );
   }
 
-  Widget _roleChip(
-    String role,
-    Color color,
-  ) {
+  Widget _roleChip(String role, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: 10,
         vertical: 7,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(.09),
+        color: color.withValues(alpha: 0.09),
         borderRadius: BorderRadius.circular(9),
       ),
       child: Text(
@@ -463,17 +452,14 @@ class _AdminsScreenState extends State<AdminsScreen> {
     );
   }
 
-  Widget _statusChip(
-    String status,
-    Color color,
-  ) {
+  Widget _statusChip(String status, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: 10,
         vertical: 7,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(.09),
+        color: color.withValues(alpha: 0.09),
         borderRadius: BorderRadius.circular(9),
       ),
       child: Row(
@@ -523,7 +509,7 @@ class _AdminsScreenState extends State<AdminsScreen> {
   }
 
   void _showAdmin(AdminData admin) {
-    showDialog<void>(
+    showDialog(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
@@ -568,9 +554,7 @@ class _AdminsScreenState extends State<AdminsScreen> {
                 ),
               ),
             TextButton(
-              onPressed: () {
-                Navigator.pop(dialogContext);
-              },
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Close'),
             ),
           ],
@@ -579,10 +563,7 @@ class _AdminsScreenState extends State<AdminsScreen> {
     );
   }
 
-  Widget _detail(
-    String title,
-    String value,
-  ) {
+  Widget _detail(String title, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 9),
       child: Row(
@@ -618,7 +599,7 @@ class _AdminsScreenState extends State<AdminsScreen> {
 
     String selectedRole = 'Admin';
 
-    showDialog<void>(
+    showDialog(
       context: context,
       builder: (dialogContext) {
         return StatefulBuilder(
@@ -659,7 +640,7 @@ class _AdminsScreenState extends State<AdminsScreen> {
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      initialValue: selectedRole,
+                      value: selectedRole,
                       decoration: const InputDecoration(
                         labelText: 'Role',
                         prefixIcon: Icon(
@@ -744,10 +725,7 @@ class _AdminsScreenState extends State<AdminsScreen> {
     required String role,
   }) async {
     try {
-      final doc = _adminsRef.doc();
-
-      await doc.set({
-        'uid': doc.id,
+      await _adminsRef.add({
         'name': name,
         'email': email,
         'role': role,
@@ -757,9 +735,7 @@ class _AdminsScreenState extends State<AdminsScreen> {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -769,9 +745,7 @@ class _AdminsScreenState extends State<AdminsScreen> {
         ),
       );
     } catch (e) {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -786,23 +760,14 @@ class _AdminsScreenState extends State<AdminsScreen> {
   void _editAdmin(AdminData admin) {
     final nameController =
         TextEditingController(text: admin.name);
+
     final emailController =
         TextEditingController(text: admin.email);
 
     String selectedRole = admin.role;
     String selectedStatus = admin.status;
 
-    const roles = [
-      'Admin',
-      'Support',
-      'Finance',
-    ];
-
-    if (!roles.contains(selectedRole)) {
-      selectedRole = 'Admin';
-    }
-
-    showDialog<void>(
+    showDialog(
       context: context,
       builder: (dialogContext) {
         return StatefulBuilder(
@@ -841,7 +806,7 @@ class _AdminsScreenState extends State<AdminsScreen> {
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      initialValue: selectedRole,
+                      value: selectedRole,
                       decoration: const InputDecoration(
                         labelText: 'Role',
                         prefixIcon: Icon(
@@ -872,7 +837,7 @@ class _AdminsScreenState extends State<AdminsScreen> {
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      initialValue: selectedStatus,
+                      value: selectedStatus,
                       decoration: const InputDecoration(
                         labelText: 'Status',
                         prefixIcon: Icon(
@@ -902,9 +867,8 @@ class _AdminsScreenState extends State<AdminsScreen> {
               ),
               actions: [
                 TextButton(
-                  onPressed: () {
-                    Navigator.pop(dialogContext);
-                  },
+                  onPressed: () =>
+                      Navigator.pop(dialogContext),
                   child: const Text('Cancel'),
                 ),
                 FilledButton(
@@ -957,9 +921,7 @@ class _AdminsScreenState extends State<AdminsScreen> {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -969,9 +931,7 @@ class _AdminsScreenState extends State<AdminsScreen> {
         ),
       );
     } catch (e) {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -983,12 +943,10 @@ class _AdminsScreenState extends State<AdminsScreen> {
     }
   }
 
-  Future<void> _deleteAdmin(
-    AdminData admin,
-  ) async {
+  Future<void> _deleteAdmin(AdminData admin) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) {
+      builder: (context) {
         return AlertDialog(
           title: const Text(
             'Delete Admin?',
@@ -1001,21 +959,13 @@ class _AdminsScreenState extends State<AdminsScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () {
-                Navigator.pop(
-                  dialogContext,
-                  false,
-                );
-              },
+              onPressed: () =>
+                  Navigator.pop(context, false),
               child: const Text('Cancel'),
             ),
             FilledButton(
-              onPressed: () {
-                Navigator.pop(
-                  dialogContext,
-                  true,
-                );
-              },
+              onPressed: () =>
+                  Navigator.pop(context, true),
               style: FilledButton.styleFrom(
                 backgroundColor: dojoRed,
               ),
@@ -1033,9 +983,7 @@ class _AdminsScreenState extends State<AdminsScreen> {
     try {
       await _adminsRef.doc(admin.uid).delete();
 
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -1045,9 +993,7 @@ class _AdminsScreenState extends State<AdminsScreen> {
         ),
       );
     } catch (e) {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -1175,7 +1121,6 @@ class AdminData {
   final String role;
   final String status;
   final String lastActive;
-  final DateTime createdAt;
 
   const AdminData({
     required this.uid,
@@ -1184,23 +1129,12 @@ class AdminData {
     required this.role,
     required this.status,
     required this.lastActive,
-    required this.createdAt,
   });
 
   factory AdminData.fromFirestore(
     String uid,
     Map<String, dynamic> data,
   ) {
-    DateTime createdAt = DateTime.fromMillisecondsSinceEpoch(0);
-
-    final rawCreatedAt = data['createdAt'];
-
-    if (rawCreatedAt is Timestamp) {
-      createdAt = rawCreatedAt.toDate();
-    } else if (rawCreatedAt is DateTime) {
-      createdAt = rawCreatedAt;
-    }
-
     return AdminData(
       uid: uid,
       name: data['name']?.toString() ?? '',
@@ -1208,7 +1142,6 @@ class AdminData {
       role: data['role']?.toString() ?? 'Admin',
       status: data['status']?.toString() ?? 'Active',
       lastActive: data['lastActive']?.toString() ?? 'Unknown',
-      createdAt: createdAt,
     );
   }
 }
@@ -1243,7 +1176,7 @@ class _SummaryCard extends StatelessWidget {
             width: 47,
             height: 47,
             decoration: BoxDecoration(
-              color: color.withOpacity(.10),
+              color: color.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(13),
             ),
             child: Icon(
@@ -1255,8 +1188,7 @@ class _SummaryCard extends StatelessWidget {
           Expanded(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
