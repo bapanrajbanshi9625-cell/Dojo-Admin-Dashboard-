@@ -113,20 +113,26 @@ class AdminShell extends StatefulWidget {
   });
 
   @override
-  State<AdminShell> createState() =>
-      _AdminShellState();
+  State<AdminShell> createState() => _AdminShellState();
 }
 
 class _AdminShellState extends State<AdminShell> {
   int selectedIndex = 0;
-
   bool mobileMenuOpen = false;
 
   String get pageTitle {
     return adminMenuItems[selectedIndex].title;
   }
 
+  // ==========================================================
+  // PAGE NAVIGATION
+  // ==========================================================
+
   void selectPage(int index) {
+    if (index < 0 || index >= adminMenuItems.length) {
+      return;
+    }
+
     setState(() {
       selectedIndex = index;
       mobileMenuOpen = false;
@@ -195,6 +201,10 @@ class _AdminShellState extends State<AdminShell> {
     }
   }
 
+  // ==========================================================
+  // MAIN BUILD
+  // ==========================================================
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -212,7 +222,7 @@ class _AdminShellState extends State<AdminShell> {
   }
 
   // ==========================================================
-  // DESKTOP
+  // DESKTOP LAYOUT
   // ==========================================================
 
   Widget desktopLayout() {
@@ -242,7 +252,7 @@ class _AdminShellState extends State<AdminShell> {
   }
 
   // ==========================================================
-  // SIDEBAR
+  // DESKTOP SIDEBAR
   // ==========================================================
 
   Widget desktopSidebar() {
@@ -272,8 +282,8 @@ class _AdminShellState extends State<AdminShell> {
                 ),
                 itemCount: adminMenuItems.length,
                 itemBuilder: (
-                  context,
-                  index,
+                  BuildContext context,
+                  int index,
                 ) {
                   return menuItem(
                     index,
@@ -322,8 +332,7 @@ class _AdminShellState extends State<AdminShell> {
           const SizedBox(width: 10),
 
           const Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 'DOJO',
@@ -358,8 +367,7 @@ class _AdminShellState extends State<AdminShell> {
     int index,
     AdminMenuItem item,
   ) {
-    final bool active =
-        selectedIndex == index;
+    final bool active = selectedIndex == index;
 
     return Container(
       margin: const EdgeInsets.only(
@@ -374,15 +382,11 @@ class _AdminShellState extends State<AdminShell> {
       child: ListTile(
         dense: true,
         minLeadingWidth: 24,
-
         leading: Icon(
           item.icon,
           size: 20,
-          color: active
-              ? dojoOrange
-              : dojoGrey,
+          color: active ? dojoOrange : dojoGrey,
         ),
-
         title: Text(
           item.title,
           style: TextStyle(
@@ -390,12 +394,9 @@ class _AdminShellState extends State<AdminShell> {
             fontWeight: active
                 ? FontWeight.w800
                 : FontWeight.w500,
-            color: active
-                ? dojoOrange
-                : dojoDark,
+            color: active ? dojoOrange : dojoDark,
           ),
         ),
-
         onTap: () {
           selectPage(index);
         },
@@ -414,8 +415,7 @@ class _AdminShellState extends State<AdminShell> {
         children: [
           const CircleAvatar(
             radius: 19,
-            backgroundColor:
-                Color(0xFFFFEEE9),
+            backgroundColor: Color(0xFFFFEEE9),
             child: Icon(
               Icons.person_outline,
               color: dojoOrange,
@@ -427,8 +427,7 @@ class _AdminShellState extends State<AdminShell> {
 
           const Expanded(
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'Super Admin',
@@ -500,14 +499,12 @@ class _AdminShellState extends State<AdminShell> {
 
           Container(
             height: 40,
-            padding:
-                const EdgeInsets.symmetric(
+            padding: const EdgeInsets.symmetric(
               horizontal: 10,
             ),
             decoration: BoxDecoration(
               color: dojoBackground,
-              borderRadius:
-                  BorderRadius.circular(22),
+              borderRadius: BorderRadius.circular(22),
               border: Border.all(
                 color: dojoBorder,
               ),
@@ -516,8 +513,7 @@ class _AdminShellState extends State<AdminShell> {
               children: [
                 CircleAvatar(
                   radius: 15,
-                  backgroundColor:
-                      Color(0xFFFFEEE9),
+                  backgroundColor: Color(0xFFFFEEE9),
                   child: Icon(
                     Icons.person_outline,
                     color: dojoOrange,
@@ -541,13 +537,12 @@ class _AdminShellState extends State<AdminShell> {
   }
 
   // ==========================================================
-  // MOBILE
+  // MOBILE LAYOUT
   // ==========================================================
 
   Widget mobileLayout() {
     return Scaffold(
       backgroundColor: dojoBackground,
-
       appBar: AppBar(
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
@@ -557,8 +552,7 @@ class _AdminShellState extends State<AdminShell> {
           tooltip: 'Menu',
           onPressed: () {
             setState(() {
-              mobileMenuOpen =
-                  !mobileMenuOpen;
+              mobileMenuOpen = !mobileMenuOpen;
             });
           },
           icon: const Icon(
@@ -574,8 +568,7 @@ class _AdminShellState extends State<AdminShell> {
               height: 34,
               decoration: BoxDecoration(
                 color: dojoOrange,
-                borderRadius:
-                    BorderRadius.circular(9),
+                borderRadius: BorderRadius.circular(9),
               ),
               child: const Icon(
                 Icons.pets,
@@ -589,8 +582,7 @@ class _AdminShellState extends State<AdminShell> {
             Flexible(
               child: Text(
                 pageTitle,
-                overflow:
-                    TextOverflow.ellipsis,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.w800,
@@ -603,6 +595,7 @@ class _AdminShellState extends State<AdminShell> {
 
         actions: [
           IconButton(
+            tooltip: 'Notifications',
             onPressed: () {
               selectPage(13);
             },
@@ -617,13 +610,11 @@ class _AdminShellState extends State<AdminShell> {
       body: Stack(
         children: [
           SingleChildScrollView(
-            padding:
-                const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(16),
             child: currentScreen(),
           ),
 
-          if (mobileMenuOpen)
-            mobileDrawer(),
+          if (mobileMenuOpen) mobileDrawer(),
         ],
       ),
     );
@@ -636,8 +627,7 @@ class _AdminShellState extends State<AdminShell> {
   Widget mobileDrawer() {
     return Positioned.fill(
       child: Material(
-        color:
-            Colors.black.withOpacity(.18),
+        color: Colors.black.withOpacity(.18),
         child: Row(
           children: [
             Container(
@@ -654,15 +644,13 @@ class _AdminShellState extends State<AdminShell> {
 
                     Expanded(
                       child: ListView.builder(
-                        padding:
-                            const EdgeInsets.symmetric(
+                        padding: const EdgeInsets.symmetric(
                           horizontal: 10,
                         ),
-                        itemCount:
-                            adminMenuItems.length,
+                        itemCount: adminMenuItems.length,
                         itemBuilder: (
-                          context,
-                          index,
+                          BuildContext context,
+                          int index,
                         ) {
                           return menuItem(
                             index,
@@ -680,10 +668,10 @@ class _AdminShellState extends State<AdminShell> {
 
             Expanded(
               child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
                 onTap: () {
                   setState(() {
-                    mobileMenuOpen =
-                        false;
+                    mobileMenuOpen = false;
                   });
                 },
                 child: Container(
