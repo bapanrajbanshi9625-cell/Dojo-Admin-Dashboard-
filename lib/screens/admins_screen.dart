@@ -50,7 +50,7 @@ class _AdminsScreenState extends State<AdminsScreen> {
                   ),
                 )
                 .toList() ??
-            <AdminData>[];
+            [];
 
         final filteredAdmins = _filterAdmins(admins);
 
@@ -82,6 +82,10 @@ class _AdminsScreenState extends State<AdminsScreen> {
     );
   }
 
+  // ==========================================================
+  // HEADER
+  // ==========================================================
+
   Widget _header() {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -98,7 +102,9 @@ class _AdminsScreenState extends State<AdminsScreen> {
 
         return Row(
           children: [
-            Expanded(child: _title()),
+            Expanded(
+              child: _title(),
+            ),
             _addButton(),
           ],
         );
@@ -133,7 +139,9 @@ class _AdminsScreenState extends State<AdminsScreen> {
   Widget _addButton() {
     return FilledButton.icon(
       onPressed: _addAdmin,
-      icon: const Icon(Icons.person_add_alt_1_outlined),
+      icon: const Icon(
+        Icons.person_add_alt_1_outlined,
+      ),
       label: const Text('Add Admin'),
       style: FilledButton.styleFrom(
         backgroundColor: dojoOrange,
@@ -148,6 +156,10 @@ class _AdminsScreenState extends State<AdminsScreen> {
       ),
     );
   }
+
+  // ==========================================================
+  // SUMMARY
+  // ==========================================================
 
   Widget _summary(
     int total,
@@ -194,13 +206,19 @@ class _AdminsScreenState extends State<AdminsScreen> {
     );
   }
 
+  // ==========================================================
+  // FILTER
+  // ==========================================================
+
   Widget _toolbar() {
     return Container(
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: dojoBorder),
+        border: Border.all(
+          color: dojoBorder,
+        ),
       ),
       child: Wrap(
         spacing: 5,
@@ -230,7 +248,9 @@ class _AdminsScreenState extends State<AdminsScreen> {
           vertical: 10,
         ),
         decoration: BoxDecoration(
-          color: selected ? dojoOrange : Colors.transparent,
+          color: selected
+              ? dojoOrange
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(10),
         ),
         child: Text(
@@ -238,24 +258,36 @@ class _AdminsScreenState extends State<AdminsScreen> {
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w800,
-            color: selected ? Colors.white : dojoBlack,
+            color: selected
+                ? Colors.white
+                : dojoBlack,
           ),
         ),
       ),
     );
   }
 
-  List<AdminData> _filterAdmins(List<AdminData> admins) {
+  List<AdminData> _filterAdmins(
+    List<AdminData> admins,
+  ) {
     if (selectedFilter == 'All') {
       return admins;
     }
 
     return admins
-        .where((admin) => admin.status == selectedFilter)
+        .where(
+          (admin) => admin.status == selectedFilter,
+        )
         .toList();
   }
 
-  Widget _adminList(List<AdminData> admins) {
+  // ==========================================================
+  // ADMIN LIST
+  // ==========================================================
+
+  Widget _adminList(
+    List<AdminData> admins,
+  ) {
     if (admins.isEmpty) {
       return _emptyState();
     }
@@ -263,16 +295,26 @@ class _AdminsScreenState extends State<AdminsScreen> {
     return Column(
       children: admins.map((admin) {
         return Padding(
-          padding: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.only(
+            bottom: 12,
+          ),
           child: _adminCard(admin),
         );
       }).toList(),
     );
   }
 
+  // ==========================================================
+  // ADMIN CARD
+  // ==========================================================
+
   Widget _adminCard(AdminData admin) {
     final active = admin.status == 'Active';
-    final statusColor = active ? dojoGreen : dojoRed;
+
+    final statusColor = active
+        ? dojoGreen
+        : dojoRed;
+
     final roleColor = _roleColor(admin.role);
 
     return Container(
@@ -281,7 +323,9 @@ class _AdminsScreenState extends State<AdminsScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(17),
-        border: Border.all(color: dojoBorder),
+        border: Border.all(
+          color: dojoBorder,
+        ),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -514,6 +558,10 @@ class _AdminsScreenState extends State<AdminsScreen> {
     );
   }
 
+  // ==========================================================
+  // VIEW ADMIN
+  // ==========================================================
+
   void _showAdmin(AdminData admin) {
     showDialog(
       context: context,
@@ -533,7 +581,10 @@ class _AdminsScreenState extends State<AdminsScreen> {
               _detail('Email', admin.email),
               _detail('Role', admin.role),
               _detail('Status', admin.status),
-              _detail('Last Active', admin.lastActive),
+              _detail(
+                'Last Active',
+                admin.lastActive,
+              ),
               _detail('UID', admin.uid),
             ],
           ),
@@ -554,11 +605,15 @@ class _AdminsScreenState extends State<AdminsScreen> {
                 },
                 child: const Text(
                   'Delete',
-                  style: TextStyle(color: dojoRed),
+                  style: TextStyle(
+                    color: dojoRed,
+                  ),
                 ),
               ),
             TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
+              onPressed: () => Navigator.pop(
+                dialogContext,
+              ),
               child: const Text('Close'),
             ),
           ],
@@ -572,7 +627,9 @@ class _AdminsScreenState extends State<AdminsScreen> {
     String value,
   ) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 9),
+      padding: const EdgeInsets.only(
+        bottom: 9,
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -600,6 +657,10 @@ class _AdminsScreenState extends State<AdminsScreen> {
     );
   }
 
+  // ==========================================================
+  // ADD ADMIN
+  // ==========================================================
+
   void _addAdmin() {
     final nameController = TextEditingController();
     final emailController = TextEditingController();
@@ -624,7 +685,8 @@ class _AdminsScreenState extends State<AdminsScreen> {
                   children: [
                     TextField(
                       controller: nameController,
-                      textCapitalization: TextCapitalization.words,
+                      textCapitalization:
+                          TextCapitalization.words,
                       decoration: const InputDecoration(
                         labelText: 'Admin name',
                         prefixIcon: Icon(
@@ -635,7 +697,8 @@ class _AdminsScreenState extends State<AdminsScreen> {
                     const SizedBox(height: 12),
                     TextField(
                       controller: emailController,
-                      keyboardType: TextInputType.emailAddress,
+                      keyboardType:
+                          TextInputType.emailAddress,
                       decoration: const InputDecoration(
                         labelText: 'Email',
                         prefixIcon: Icon(
@@ -645,11 +708,12 @@ class _AdminsScreenState extends State<AdminsScreen> {
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      value: selectedRole,
+                      initialValue: selectedRole,
                       decoration: const InputDecoration(
                         labelText: 'Role',
                         prefixIcon: Icon(
-                          Icons.admin_panel_settings_outlined,
+                          Icons
+                              .admin_panel_settings_outlined,
                         ),
                       ),
                       items: const [
@@ -688,11 +752,13 @@ class _AdminsScreenState extends State<AdminsScreen> {
                   onPressed: () async {
                     final name =
                         nameController.text.trim();
+
                     final email =
                         emailController.text.trim();
 
                     if (name.isEmpty || email.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
+                      ScaffoldMessenger.of(context)
+                          .showSnackBar(
                         const SnackBar(
                           content: Text(
                             'Please enter name and email.',
@@ -743,7 +809,9 @@ class _AdminsScreenState extends State<AdminsScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Admin added successfully.'),
+          content: Text(
+            'Admin added successfully.',
+          ),
         ),
       );
     } catch (e) {
@@ -751,11 +819,17 @@ class _AdminsScreenState extends State<AdminsScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to add admin: $e'),
+          content: Text(
+            'Failed to add admin: $e',
+          ),
         ),
       );
     }
   }
+
+  // ==========================================================
+  // EDIT ADMIN
+  // ==========================================================
 
   void _editAdmin(AdminData admin) {
     final nameController = TextEditingController(
@@ -797,7 +871,8 @@ class _AdminsScreenState extends State<AdminsScreen> {
                     const SizedBox(height: 12),
                     TextField(
                       controller: emailController,
-                      keyboardType: TextInputType.emailAddress,
+                      keyboardType:
+                          TextInputType.emailAddress,
                       decoration: const InputDecoration(
                         labelText: 'Email',
                         prefixIcon: Icon(
@@ -806,15 +881,13 @@ class _AdminsScreenState extends State<AdminsScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-
-                    // IMPORTANT:
-                    // Use "value", not "initialValue".
                     DropdownButtonFormField<String>(
-                      value: _validRole(selectedRole),
+                      initialValue: selectedRole,
                       decoration: const InputDecoration(
                         labelText: 'Role',
                         prefixIcon: Icon(
-                          Icons.admin_panel_settings_outlined,
+                          Icons
+                              .admin_panel_settings_outlined,
                         ),
                       ),
                       items: const [
@@ -839,13 +912,9 @@ class _AdminsScreenState extends State<AdminsScreen> {
                         }
                       },
                     ),
-
                     const SizedBox(height: 12),
-
-                    // IMPORTANT:
-                    // Use "value", not "initialValue".
                     DropdownButtonFormField<String>(
-                      value: _validStatus(selectedStatus),
+                      initialValue: selectedStatus,
                       decoration: const InputDecoration(
                         labelText: 'Status',
                         prefixIcon: Icon(
@@ -875,13 +944,16 @@ class _AdminsScreenState extends State<AdminsScreen> {
               ),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.pop(dialogContext),
+                  onPressed: () => Navigator.pop(
+                    dialogContext,
+                  ),
                   child: const Text('Cancel'),
                 ),
                 FilledButton(
                   onPressed: () async {
                     final name =
                         nameController.text.trim();
+
                     final email =
                         emailController.text.trim();
 
@@ -912,25 +984,6 @@ class _AdminsScreenState extends State<AdminsScreen> {
     );
   }
 
-  String _validRole(String role) {
-    const roles = <String>[
-      'Admin',
-      'Support',
-      'Finance',
-    ];
-
-    return roles.contains(role) ? role : 'Admin';
-  }
-
-  String _validStatus(String status) {
-    const statuses = <String>[
-      'Active',
-      'Inactive',
-    ];
-
-    return statuses.contains(status) ? status : 'Active';
-  }
-
   Future<void> _updateAdmin(
     AdminData admin,
     String name,
@@ -951,7 +1004,9 @@ class _AdminsScreenState extends State<AdminsScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Admin updated successfully.'),
+          content: Text(
+            'Admin updated successfully.',
+          ),
         ),
       );
     } catch (e) {
@@ -959,13 +1014,21 @@ class _AdminsScreenState extends State<AdminsScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to update admin: $e'),
+          content: Text(
+            'Failed to update admin: $e',
+          ),
         ),
       );
     }
   }
 
-  Future<void> _deleteAdmin(AdminData admin) async {
+  // ==========================================================
+  // DELETE ADMIN
+  // ==========================================================
+
+  Future<void> _deleteAdmin(
+    AdminData admin,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) {
@@ -981,11 +1044,17 @@ class _AdminsScreenState extends State<AdminsScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context, false),
+              onPressed: () => Navigator.pop(
+                context,
+                false,
+              ),
               child: const Text('Cancel'),
             ),
             FilledButton(
-              onPressed: () => Navigator.pop(context, true),
+              onPressed: () => Navigator.pop(
+                context,
+                true,
+              ),
               style: FilledButton.styleFrom(
                 backgroundColor: dojoRed,
               ),
@@ -1007,7 +1076,9 @@ class _AdminsScreenState extends State<AdminsScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Admin deleted successfully.'),
+          content: Text(
+            'Admin deleted successfully.',
+          ),
         ),
       );
     } catch (e) {
@@ -1015,11 +1086,17 @@ class _AdminsScreenState extends State<AdminsScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to delete admin: $e'),
+          content: Text(
+            'Failed to delete admin: $e',
+          ),
         ),
       );
     }
   }
+
+  // ==========================================================
+  // LOADING
+  // ==========================================================
 
   Widget _loadingState() {
     return const SizedBox(
@@ -1032,6 +1109,10 @@ class _AdminsScreenState extends State<AdminsScreen> {
     );
   }
 
+  // ==========================================================
+  // ERROR
+  // ==========================================================
+
   Widget _errorState(String error) {
     return Container(
       width: double.infinity,
@@ -1039,7 +1120,9 @@ class _AdminsScreenState extends State<AdminsScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(17),
-        border: Border.all(color: dojoBorder),
+        border: Border.all(
+          color: dojoBorder,
+        ),
       ),
       child: Column(
         children: [
@@ -1070,6 +1153,10 @@ class _AdminsScreenState extends State<AdminsScreen> {
     );
   }
 
+  // ==========================================================
+  // EMPTY
+  // ==========================================================
+
   Widget _emptyState() {
     return Container(
       width: double.infinity,
@@ -1077,7 +1164,9 @@ class _AdminsScreenState extends State<AdminsScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(17),
-        border: Border.all(color: dojoBorder),
+        border: Border.all(
+          color: dojoBorder,
+        ),
       ),
       child: const Center(
         child: Column(
@@ -1110,6 +1199,10 @@ class _AdminsScreenState extends State<AdminsScreen> {
     );
   }
 
+  // ==========================================================
+  // ROLE COLOR
+  // ==========================================================
+
   Color _roleColor(String role) {
     switch (role) {
       case 'Super Admin':
@@ -1125,6 +1218,10 @@ class _AdminsScreenState extends State<AdminsScreen> {
     }
   }
 }
+
+// ============================================================
+// ADMIN DATA
+// ============================================================
 
 class AdminData {
   final String uid;
@@ -1153,10 +1250,15 @@ class AdminData {
       email: data['email']?.toString() ?? '',
       role: data['role']?.toString() ?? 'Admin',
       status: data['status']?.toString() ?? 'Active',
-      lastActive: data['lastActive']?.toString() ?? 'Unknown',
+      lastActive:
+          data['lastActive']?.toString() ?? 'Unknown',
     );
   }
 }
+
+// ============================================================
+// SUMMARY CARD
+// ============================================================
 
 class _SummaryCard extends StatelessWidget {
   final String title;
@@ -1178,7 +1280,9 @@ class _SummaryCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: dojoBorder),
+        border: Border.all(
+          color: dojoBorder,
+        ),
       ),
       child: Row(
         children: [
@@ -1224,3 +1328,13 @@ class _SummaryCard extends StatelessWidget {
     );
   }
 }
+
+Important: मैंने "DropdownButtonFormField" में भी "value:" को "initialValue:" किया है, ताकि newer Flutter में आने वाली deprecation warning भी avoid हो सके।
+
+अब यह file save करके:
+
+flutter analyze --no-fatal-infos
+
+चलाओ।
+
+अगर फिर वही "ComplaintsScreen isn't a class" error आता है, तो वह "admins_screen.dart" का नहीं है। उस समय "admin_shell.dart" की line 160–185 भेजना होगा।
