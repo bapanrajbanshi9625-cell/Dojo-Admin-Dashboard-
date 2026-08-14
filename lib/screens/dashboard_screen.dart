@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../widgets/dashboard/dashboard_components.dart';
@@ -15,55 +14,53 @@ class DashboardScreen extends StatefulWidget {
   });
 
   @override
-  State<DashboardScreen> createState() =>
-      _DashboardScreenState();
+  State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState
-    extends State<DashboardScreen>
+class _DashboardScreenState extends State<DashboardScreen>
     with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+  late final TabController _tabController;
 
-  final FirebaseFirestore _firestore =
-      FirebaseFirestore.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  final FirebaseAuth _auth =
-      FirebaseAuth.instance;
+  // ============================================================
+  // FIRESTORE STREAMS
+  // ============================================================
 
-  Stream<QuerySnapshot<Map<String, dynamic>>>
-      get _ownersStream {
+  Stream<QuerySnapshot<Map<String, dynamic>>> get _ownersStream {
     return _firestore
         .collection('users')
         .where('role', isEqualTo: 'owner')
         .snapshots();
   }
 
-  Stream<QuerySnapshot<Map<String, dynamic>>>
-      get _walkersStream {
-    return _firestore
-        .collection('walkerProfiles')
-        .snapshots();
+  Stream<QuerySnapshot<Map<String, dynamic>>> get _walkersStream {
+    return _firestore.collection('walkerProfiles').snapshots();
   }
 
-  Stream<QuerySnapshot<Map<String, dynamic>>>
-      get _activeWalksStream {
+  Stream<QuerySnapshot<Map<String, dynamic>>> get _activeWalksStream {
     return _firestore
         .collection('active_walk')
         .where('status', isEqualTo: 'active')
         .snapshots();
   }
 
-  Stream<QuerySnapshot<Map<String, dynamic>>>
-      get _historyStream {
-    return _firestore
-        .collection('walkHistory')
-        .orderBy(
-          'createdAt',
-          descending: true,
-        )
-        .limit(50)
-        .snapshots();
+  /*
+   * Intentionally no orderBy('createdAt') here.
+   *
+   * This avoids:
+   * - missing-field issues
+   * - unnecessary composite/index problems
+   *
+   * We sort the documents locally instead.
+   */
+  Stream<QuerySnapshot<Map<String, dynamic>>> get _historyStream {
+    return _firestore.collection('walkHistory').snapshots();
   }
+
+  // ============================================================
+  // INIT / DISPOSE
+  // ============================================================
 
   @override
   void initState() {
@@ -81,18 +78,19 @@ class _DashboardScreenState
     super.dispose();
   }
 
+  // ============================================================
+  // BUILD
+  // ============================================================
+
   @override
   Widget build(BuildContext context) {
     return Container(
       color: background,
       child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           DashboardHeader(
             onLogout: () {
-              // Agar app mein AuthWrapper / login listener hai,
-              // Firebase signOut ke baad automatically login screen aayegi.
               if (mounted) {
                 setState(() {});
               }
@@ -131,8 +129,7 @@ class _DashboardScreenState
     return SingleChildScrollView(
       padding: const EdgeInsets.only(bottom: 30),
       child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _liveMapContainer(),
 
@@ -167,22 +164,17 @@ class _DashboardScreenState
           columns = 2;
         }
 
-        return StreamBuilder<
-            QuerySnapshot<Map<String, dynamic>>>(
+        return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
           stream: _ownersStream,
           builder: (context, ownerSnapshot) {
-            final ownerCount =
-                ownerSnapshot.data?.docs.length ?? 0;
+            final ownerCount = ownerSnapshot.data?.docs.length ?? 0;
 
-            return StreamBuilder<
-                QuerySnapshot<Map<String, dynamic>>>(
+            return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
               stream: _walkersStream,
               builder: (context, walkerSnapshot) {
-                final walkerCount =
-                    walkerSnapshot.data?.docs.length ?? 0;
+                final walkerCount = walkerSnapshot.data?.docs.length ?? 0;
 
-                return StreamBuilder<
-                    QuerySnapshot<Map<String, dynamic>>>(
+                return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                   stream: _activeWalksStream,
                   builder: (context, activeSnapshot) {
                     final activeCount =
@@ -191,16 +183,11 @@ class _DashboardScreenState
                     return StreamBuilder<
                         QuerySnapshot<Map<String, dynamic>>>(
                       stream: _historyStream,
-                      builder: (
-                        context,
-                        historySnapshot,
-                      ) {
-                        final completedCount =
-                            historySnapshot
-                                    .data
-                                    ?.docs
-                                    .length ??
-                                0;
+                      builder: (context, historySnapshot) {
+                        final historyDocs =
+                            _sortedHistoryDocs(historySnapshot.data?.docs);
+
+                        final completedCount = historyDocs.length;
 
                         return GridView.count(
                           crossAxisCount: columns,
@@ -215,30 +202,25 @@ class _DashboardScreenState
                             StatCard(
                               title: 'Total Owners',
                               value: '$ownerCount',
-                              icon:
-                                  Icons.people_outline,
+                              icon: Icons.people_outline,
                               iconColor: blue,
                             ),
                             StatCard(
                               title: 'Total Walkers',
                               value: '$walkerCount',
-                              icon:
-                                  Icons.badge_outlined,
+                              icon: Icons.badge_outlined,
                               iconColor: green,
                             ),
                             StatCard(
                               title: 'Active Walks',
                               value: '$activeCount',
-                              icon: Icons
-                                  .directions_walk_outlined,
+                              icon: Icons.directions_walk_outlined,
                               iconColor: orange,
                             ),
                             StatCard(
                               title: 'Completed Walks',
-                              value:
-                                  '$completedCount',
-                              icon: Icons
-                                  .check_circle_outline,
+                              value: '$completedCount',
+                              icon: Icons.check_circle_outline,
                               iconColor: green,
                             ),
                           ],
@@ -256,14 +238,19 @@ class _DashboardScreenState
   }
 
   // ============================================================
-  // MAP
+  // LIVE MAP
   // ============================================================
 
   Widget _liveMapContainer() {
-    return StreamBuilder<
-        QuerySnapshot<Map<String, dynamic>>>(
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: _activeWalksStream,
       builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return _firebaseErrorContainer(
+            'Unable to load live walks.',
+          );
+        }
+
         final docs = snapshot.data?.docs ?? [];
 
         return Container(
@@ -301,7 +288,9 @@ class _DashboardScreenState
                   ),
                 )
               else
-                ..._buildMapMarkers(docs),
+                ..._buildMapMarkers(
+                  docs,
+                ),
 
               Positioned(
                 right: 15,
@@ -314,8 +303,7 @@ class _DashboardScreenState
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color:
-                            Colors.black.withOpacity(.08),
+                        color: Colors.black.withOpacity(.08),
                         blurRadius: 10,
                       ),
                     ],
@@ -350,6 +338,7 @@ class _DashboardScreenState
         ],
       ),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
           const Icon(
             Icons.circle,
@@ -372,8 +361,7 @@ class _DashboardScreenState
   }
 
   List<Widget> _buildMapMarkers(
-    List<QueryDocumentSnapshot<Map<String, dynamic>>>
-        docs,
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
   ) {
     final positions = <Offset>[
       const Offset(80, 90),
@@ -393,13 +381,22 @@ class _DashboardScreenState
       (index) {
         final data = docs[index].data();
 
-        final walkerUid =
-            _readString(data, 'walkeruid') ??
-                _readString(data, 'walkerUid') ??
-                _readString(data, 'walkerId');
+        final walkerUid = _firstString(
+          data,
+          [
+            'walkerUid',
+            'walkeruid',
+            'walkerId',
+          ],
+        );
 
-        final walkerName =
-            _readString(data, 'walkerName');
+        final walkerName = _firstString(
+          data,
+          [
+            'walkerName',
+            'walkerFullName',
+          ],
+        );
 
         final title = walkerName ??
             (walkerUid != null
@@ -409,7 +406,9 @@ class _DashboardScreenState
         return Positioned(
           left: positions[index].dx,
           top: positions[index].dy,
-          child: _MapMarker(title: title),
+          child: _MapMarker(
+            title: title,
+          ),
         );
       },
     );
@@ -428,8 +427,7 @@ class _DashboardScreenState
         border: Border.all(color: border),
       ),
       child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
             'Quick Access',
@@ -438,7 +436,9 @@ class _DashboardScreenState
               fontWeight: FontWeight.w800,
             ),
           ),
+
           const SizedBox(height: 14),
+
           Wrap(
             spacing: 10,
             runSpacing: 10,
@@ -457,8 +457,7 @@ class _DashboardScreenState
               ),
               ActionButton(
                 title: 'Active Walks',
-                icon:
-                    Icons.directions_walk_outlined,
+                icon: Icons.directions_walk_outlined,
                 color: orange,
                 onTap: () => widget.onNavigate(2),
               ),
@@ -476,7 +475,7 @@ class _DashboardScreenState
   }
 
   // ============================================================
-  // PANELS
+  // OVERVIEW PANELS
   // ============================================================
 
   Widget _overviewPanels() {
@@ -493,8 +492,7 @@ class _DashboardScreenState
         }
 
         return Row(
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
               child: _activeWalkPanel(),
@@ -509,17 +507,30 @@ class _DashboardScreenState
     );
   }
 
+  // ============================================================
+  // ACTIVE WALK PANEL
+  // ============================================================
+
   Widget _activeWalkPanel() {
-    return StreamBuilder<
-        QuerySnapshot<Map<String, dynamic>>>(
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: _activeWalksStream,
       builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return DataPanel(
+            title: 'Active Walks',
+            icon: Icons.directions_walk_outlined,
+            color: orange,
+            child: const EmptyMessage(
+              text: 'Unable to load active walks.',
+            ),
+          );
+        }
+
         final docs = snapshot.data?.docs ?? [];
 
         return DataPanel(
           title: 'Active Walks',
-          icon:
-              Icons.directions_walk_outlined,
+          icon: Icons.directions_walk_outlined,
           color: orange,
           child: docs.isEmpty
               ? const EmptyMessage(
@@ -529,8 +540,7 @@ class _DashboardScreenState
                   shrinkWrap: true,
                   physics:
                       const NeverScrollableScrollPhysics(),
-                  itemCount:
-                      docs.length > 4 ? 4 : docs.length,
+                  itemCount: docs.length > 4 ? 4 : docs.length,
                   separatorBuilder: (_, __) =>
                       const Divider(height: 12),
                   itemBuilder: (context, index) {
@@ -547,30 +557,55 @@ class _DashboardScreenState
   Widget _activeWalkRow(
     Map<String, dynamic> data,
   ) {
-    final walkerUid =
-        _readString(data, 'walkeruid') ??
-            _readString(data, 'walkerUid') ??
-            _readString(data, 'walkerId');
+    final walkerUid = _firstString(
+      data,
+      [
+        'walkerUid',
+        'walkeruid',
+        'walkerId',
+      ],
+    );
 
-    final ownerUid =
-        _readString(data, 'ownerUid') ??
-            _readString(data, 'ownerId');
+    final ownerUid = _firstString(
+      data,
+      [
+        'ownerUid',
+        'owneruid',
+        'ownerId',
+      ],
+    );
 
-    final walkerName =
-        _readString(data, 'walkerName');
+    final walkerName = _firstString(
+      data,
+      [
+        'walkerName',
+        'walkerFullName',
+      ],
+    );
 
-    final ownerName =
-        _readString(data, 'ownerName');
+    final ownerName = _firstString(
+      data,
+      [
+        'ownerName',
+        'ownerFullName',
+      ],
+    );
 
-    final distance =
-        _readNumber(data, 'distanceKm') ??
-            _readNumber(data, 'distance') ??
-            '0';
+    final distance = _firstValue(
+      data,
+      [
+        'distanceKm',
+        'distance',
+      ],
+    ) ?? '0';
 
-    final duration =
-        _readNumber(data, 'durationMinutes') ??
-            _readNumber(data, 'duration') ??
-            '0';
+    final duration = _firstValue(
+      data,
+      [
+        'durationMinutes',
+        'duration',
+      ],
+    ) ?? '0';
 
     return Row(
       children: [
@@ -587,11 +622,12 @@ class _DashboardScreenState
             size: 20,
           ),
         ),
+
         const SizedBox(width: 10),
+
         Expanded(
           child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 walkerName ??
@@ -599,23 +635,23 @@ class _DashboardScreenState
                         ? 'Walker ${_shortId(walkerUid)}'
                         : 'Active Walk'),
                 maxLines: 1,
-                overflow:
-                    TextOverflow.ellipsis,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontWeight: FontWeight.w800,
                   fontSize: 12,
                   color: dark,
                 ),
               ),
+
               const SizedBox(height: 3),
+
               Text(
                 ownerName ??
                     (ownerUid != null
                         ? 'Owner ${_shortId(ownerUid)}'
                         : 'Live walk'),
                 maxLines: 1,
-                overflow:
-                    TextOverflow.ellipsis,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontSize: 10,
                   color: grey,
@@ -624,9 +660,9 @@ class _DashboardScreenState
             ],
           ),
         ),
+
         Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.end,
+          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Text(
               '$distance',
@@ -648,12 +684,28 @@ class _DashboardScreenState
     );
   }
 
+  // ============================================================
+  // RECENT ACTIVITY PANEL
+  // ============================================================
+
   Widget _recentActivityPanel() {
-    return StreamBuilder<
-        QuerySnapshot<Map<String, dynamic>>>(
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: _historyStream,
       builder: (context, snapshot) {
-        final docs = snapshot.data?.docs ?? [];
+        if (snapshot.hasError) {
+          return DataPanel(
+            title: 'Recent Activity',
+            icon: Icons.history_outlined,
+            color: blue,
+            child: const EmptyMessage(
+              text: 'Unable to load recent activity.',
+            ),
+          );
+        }
+
+        final docs = _sortedHistoryDocs(
+          snapshot.data?.docs,
+        );
 
         return DataPanel(
           title: 'Recent Activity',
@@ -667,8 +719,7 @@ class _DashboardScreenState
                   shrinkWrap: true,
                   physics:
                       const NeverScrollableScrollPhysics(),
-                  itemCount:
-                      docs.length > 4 ? 4 : docs.length,
+                  itemCount: docs.length > 4 ? 4 : docs.length,
                   separatorBuilder: (_, __) =>
                       const Divider(height: 12),
                   itemBuilder: (context, index) {
@@ -692,13 +743,21 @@ class _DashboardScreenState
         _readString(data, 'walkerName') ?? 'Walker';
 
     final distance =
-        _readNumber(data, 'distanceKm') ?? '0';
+        _firstValue(data, [
+          'distanceKm',
+          'distance',
+        ]) ?? '0';
 
     final duration =
-        _readNumber(data, 'durationMinutes') ?? '0';
+        _firstValue(data, [
+          'durationMinutes',
+          'duration',
+        ]) ?? '0';
 
-    final rating =
-        _readInt(data, 'rating');
+    final rating = _readInt(
+      data,
+      'rating',
+    );
 
     return Row(
       children: [
@@ -715,28 +774,29 @@ class _DashboardScreenState
             size: 20,
           ),
         ),
+
         const SizedBox(width: 10),
+
         Expanded(
           child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 dogName,
                 maxLines: 1,
-                overflow:
-                    TextOverflow.ellipsis,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w800,
                 ),
               ),
+
               const SizedBox(height: 3),
+
               Text(
                 walkerName,
                 maxLines: 1,
-                overflow:
-                    TextOverflow.ellipsis,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontSize: 10,
                   color: grey,
@@ -745,9 +805,9 @@ class _DashboardScreenState
             ],
           ),
         ),
+
         Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.end,
+          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Text(
               '$distance km',
@@ -783,11 +843,21 @@ class _DashboardScreenState
   // ============================================================
 
   Widget _financeTab() {
-    return StreamBuilder<
-        QuerySnapshot<Map<String, dynamic>>>(
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: _historyStream,
       builder: (context, snapshot) {
-        final docs = snapshot.data?.docs ?? [];
+        if (snapshot.hasError) {
+          return const SingleChildScrollView(
+            padding: EdgeInsets.only(bottom: 30),
+            child: EmptyMessage(
+              text: 'Unable to load finance data.',
+            ),
+          );
+        }
+
+        final docs = _sortedHistoryDocs(
+          snapshot.data?.docs,
+        );
 
         double total = 0;
         double today = 0;
@@ -795,12 +865,29 @@ class _DashboardScreenState
         for (final doc in docs) {
           final data = doc.data();
 
-          final payout =
-              _readDouble(data, 'payoutAmount') ?? 0;
+          final payout = _firstDouble(
+                data,
+                [
+                  'payoutAmount',
+                  'paymentAmount',
+                  'amount',
+                  'totalAmount',
+                ],
+              ) ??
+              0;
 
           total += payout;
 
-          if (_isToday(data['createdAt'])) {
+          if (_isToday(
+            _firstExistingValue(
+              data,
+              [
+                'createdAt',
+                'completedAt',
+                'timestamp',
+              ],
+            ),
+          )) {
             today += payout;
           }
         }
@@ -810,15 +897,16 @@ class _DashboardScreenState
             bottom: 30,
           ),
           child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _financeStats(
                 todayRevenue: today,
                 totalPayments: total,
                 pendingPayouts: 0,
               ),
+
               const SizedBox(height: 18),
+
               _financePanel(
                 title: 'Revenue Overview',
                 icon: Icons.trending_up,
@@ -827,11 +915,12 @@ class _DashboardScreenState
                     ? 'No completed walk payments yet.'
                     : 'Total completed walk revenue: ₹${_money(total)}',
               ),
+
               const SizedBox(height: 14),
+
               _financePanel(
                 title: 'Pending Payouts',
-                icon: Icons
-                    .account_balance_wallet_outlined,
+                icon: Icons.account_balance_wallet_outlined,
                 color: orange,
                 text:
                     'Pending payout data is not available yet.',
@@ -865,24 +954,21 @@ class _DashboardScreenState
           children: [
             StatCard(
               title: 'Today Revenue',
-              value:
-                  '₹${_money(todayRevenue)}',
+              value: '₹${_money(todayRevenue)}',
               icon: Icons.currency_rupee,
               iconColor: green,
             ),
             StatCard(
               title: 'Total Payments',
-              value:
-                  '₹${_money(totalPayments)}',
+              value: '₹${_money(totalPayments)}',
               icon: Icons.payments_outlined,
               iconColor: blue,
             ),
             StatCard(
               title: 'Pending Payouts',
-              value:
-                  '₹${_money(pendingPayouts)}',
-              icon: Icons
-                  .account_balance_wallet_outlined,
+              value: '₹${_money(pendingPayouts)}',
+              icon:
+                  Icons.account_balance_wallet_outlined,
               iconColor: orange,
             ),
           ],
@@ -907,12 +993,14 @@ class _DashboardScreenState
         border: Border.all(color: border),
       ),
       child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, color: color),
+              Icon(
+                icon,
+                color: color,
+              ),
               const SizedBox(width: 9),
               Text(
                 title,
@@ -923,6 +1011,7 @@ class _DashboardScreenState
               ),
             ],
           ),
+
           Expanded(
             child: Center(
               child: Text(
@@ -941,45 +1030,51 @@ class _DashboardScreenState
   }
 
   // ============================================================
-  // LIVE WALKS
+  // LIVE WALKS TAB
   // ============================================================
 
   Widget _liveWalksTab() {
-    return StreamBuilder<
-        QuerySnapshot<Map<String, dynamic>>>(
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: _activeWalksStream,
       builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return const SingleChildScrollView(
+            padding: EdgeInsets.only(bottom: 30),
+            child: EmptyMessage(
+              text: 'Unable to load live walks.',
+            ),
+          );
+        }
+
         final docs = snapshot.data?.docs ?? [];
 
         return SingleChildScrollView(
-          padding:
-              const EdgeInsets.only(bottom: 30),
+          padding: const EdgeInsets.only(
+            bottom: 30,
+          ),
           child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _liveMapContainer(),
+
               const SizedBox(height: 18),
+
               DataPanel(
                 title: 'Active Walks',
-                icon:
-                    Icons.directions_walk_outlined,
+                icon: Icons.directions_walk_outlined,
                 color: orange,
                 child: docs.isEmpty
                     ? const EmptyMessage(
-                        text:
-                            'Live walks will appear here.',
+                        text: 'Live walks will appear here.',
                       )
                     : ListView.separated(
                         shrinkWrap: true,
                         physics:
                             const NeverScrollableScrollPhysics(),
                         itemCount: docs.length,
-                        separatorBuilder:
-                            (_, __) =>
-                                const Divider(),
-                        itemBuilder:
-                            (context, index) {
+                        separatorBuilder: (_, __) =>
+                            const Divider(),
+                        itemBuilder: (context, index) {
                           return _liveWalkDetailedRow(
                             docs[index].data(),
                           );
@@ -996,44 +1091,96 @@ class _DashboardScreenState
   Widget _liveWalkDetailedRow(
     Map<String, dynamic> data,
   ) {
-    final ownerUid =
-        _readString(data, 'ownerUid') ??
-            _readString(data, 'ownerId') ??
-            '-';
+    final ownerUid = _firstString(
+          data,
+          [
+            'ownerUid',
+            'owneruid',
+            'ownerId',
+          ],
+        ) ??
+        '-';
 
-    final walkerUid =
-        _readString(data, 'walkeruid') ??
-            _readString(data, 'walkerUid') ??
-            _readString(data, 'walkerId') ??
-            '-';
+    final walkerUid = _firstString(
+          data,
+          [
+            'walkerUid',
+            'walkeruid',
+            'walkerId',
+          ],
+        ) ??
+        '-';
 
-    final ownerName =
-        _readString(data, 'ownerName');
+    final ownerName = _firstString(
+      data,
+      [
+        'ownerName',
+        'ownerFullName',
+      ],
+    );
 
-    final walkerName =
-        _readString(data, 'walkerName');
+    final walkerName = _firstString(
+      data,
+      [
+        'walkerName',
+        'walkerFullName',
+      ],
+    );
 
-    final lat =
-        _readDouble(data, 'currentLat');
+    final lat = _firstDouble(
+      data,
+      [
+        'currentLat',
+        'latitude',
+        'lat',
+      ],
+    );
 
-    final lng =
-        _readDouble(data, 'currentLng');
+    final lng = _firstDouble(
+      data,
+      [
+        'currentLng',
+        'longitude',
+        'lng',
+        'lon',
+      ],
+    );
 
-    final distance =
-        _readNumber(data, 'distanceKm') ??
-            _readNumber(data, 'distance') ??
-            '-';
+    final distance = _firstValue(
+          data,
+          [
+            'distanceKm',
+            'distance',
+          ],
+        ) ??
+        '-';
 
-    final duration =
-        _readNumber(data, 'durationMinutes') ??
-            _readNumber(data, 'duration') ??
-            '-';
+    final duration = _firstValue(
+          data,
+          [
+            'durationMinutes',
+            'duration',
+          ],
+        ) ??
+        '-';
 
-    final pee =
-        _readInt(data, 'peeCount') ?? 0;
+    final pee = _firstInt(
+          data,
+          [
+            'peeCount',
+            'pee',
+          ],
+        ) ??
+        0;
 
-    final poop =
-        _readInt(data, 'poopCount') ?? 0;
+    final poop = _firstInt(
+          data,
+          [
+            'poopCount',
+            'poop',
+          ],
+        ) ??
+        0;
 
     return Padding(
       padding: const EdgeInsets.symmetric(
@@ -1046,19 +1193,19 @@ class _DashboardScreenState
             height: 45,
             decoration: BoxDecoration(
               color: orange.withOpacity(.10),
-              borderRadius:
-                  BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(
               Icons.pets,
               color: orange,
             ),
           ),
+
           const SizedBox(width: 12),
+
           Expanded(
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   walkerName ??
@@ -1068,7 +1215,9 @@ class _DashboardScreenState
                     fontWeight: FontWeight.w800,
                   ),
                 ),
+
                 const SizedBox(height: 3),
+
                 Text(
                   ownerName ??
                       'Owner ${_shortId(ownerUid)}',
@@ -1077,7 +1226,9 @@ class _DashboardScreenState
                     color: grey,
                   ),
                 ),
+
                 const SizedBox(height: 3),
+
                 Text(
                   lat == null || lng == null
                       ? 'Location unavailable'
@@ -1091,9 +1242,11 @@ class _DashboardScreenState
               ],
             ),
           ),
+
+          const SizedBox(width: 8),
+
           Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.end,
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
                 '$distance',
@@ -1124,22 +1277,32 @@ class _DashboardScreenState
   }
 
   // ============================================================
-  // RECENT ACTIVITY
+  // RECENT ACTIVITY TAB
   // ============================================================
 
   Widget _recentActivityTab() {
-    return StreamBuilder<
-        QuerySnapshot<Map<String, dynamic>>>(
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: _historyStream,
       builder: (context, snapshot) {
-        final docs = snapshot.data?.docs ?? [];
+        if (snapshot.hasError) {
+          return const SingleChildScrollView(
+            padding: EdgeInsets.only(bottom: 30),
+            child: EmptyMessage(
+              text: 'Unable to load recent activity.',
+            ),
+          );
+        }
+
+        final docs = _sortedHistoryDocs(
+          snapshot.data?.docs,
+        );
 
         return SingleChildScrollView(
-          padding:
-              const EdgeInsets.only(bottom: 30),
+          padding: const EdgeInsets.only(
+            bottom: 30,
+          ),
           child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               DataPanel(
                 title: 'Recent Activity',
@@ -1155,22 +1318,21 @@ class _DashboardScreenState
                         physics:
                             const NeverScrollableScrollPhysics(),
                         itemCount: docs.length,
-                        separatorBuilder:
-                            (_, __) =>
-                                const Divider(),
-                        itemBuilder:
-                            (context, index) {
+                        separatorBuilder: (_, __) =>
+                            const Divider(),
+                        itemBuilder: (context, index) {
                           return _historyDetailedRow(
                             docs[index].data(),
                           );
                         },
                       ),
               ),
+
               const SizedBox(height: 14),
+
               const DataPanel(
                 title: 'System Activity',
-                icon:
-                    Icons.receipt_long_outlined,
+                icon: Icons.receipt_long_outlined,
                 color: green,
                 child: EmptyMessage(
                   text:
@@ -1191,8 +1353,7 @@ class _DashboardScreenState
         _readString(data, 'dogName') ?? 'Dog';
 
     final walkerName =
-        _readString(data, 'walkerName') ??
-            'Walker';
+        _readString(data, 'walkerName') ?? 'Walker';
 
     final ownerName =
         _readString(data, 'ownerName');
@@ -1204,10 +1365,22 @@ class _DashboardScreenState
         _readString(data, 'badge');
 
     final distance =
-        _readDouble(data, 'distanceKm');
+        _firstDouble(
+          data,
+          [
+            'distanceKm',
+            'distance',
+          ],
+        );
 
     final duration =
-        _readInt(data, 'durationMinutes');
+        _firstInt(
+          data,
+          [
+            'durationMinutes',
+            'duration',
+          ],
+        );
 
     final rating =
         _readInt(data, 'rating');
@@ -1226,35 +1399,46 @@ class _DashboardScreenState
             icon: Icons.pets,
             color: blue,
           ),
+
           const SizedBox(width: 12),
+
           Expanded(
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   dogName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
+
                 const SizedBox(height: 3),
+
                 Text(
                   walkerName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 10,
                     color: grey,
                   ),
                 ),
+
                 if (ownerName != null)
                   Text(
                     ownerName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontSize: 10,
                       color: grey,
                     ),
                   ),
+
                 if (date.isNotEmpty)
                   Text(
                     date,
@@ -1263,6 +1447,7 @@ class _DashboardScreenState
                       color: grey,
                     ),
                   ),
+
                 if (badge != null)
                   Text(
                     badge,
@@ -1275,9 +1460,11 @@ class _DashboardScreenState
               ],
             ),
           ),
+
+          const SizedBox(width: 8),
+
           Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.end,
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               if (distance != null)
                 Text(
@@ -1287,6 +1474,7 @@ class _DashboardScreenState
                     fontWeight: FontWeight.w700,
                   ),
                 ),
+
               if (duration != null)
                 Text(
                   '$duration min',
@@ -1295,6 +1483,7 @@ class _DashboardScreenState
                     color: grey,
                   ),
                 ),
+
               if (rating != null)
                 Text(
                   '★ $rating',
@@ -1310,6 +1499,47 @@ class _DashboardScreenState
       ),
     );
   }
+
+  // ============================================================
+  // FIREBASE ERROR
+  // ============================================================
+
+  Widget _firebaseErrorContainer(String text) {
+    return Container(
+      height: 300,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: const Color(0xFFEFF2F0),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: border),
+      ),
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.cloud_off_outlined,
+                color: grey,
+                size: 32,
+              ),
+              const SizedBox(height: 10),
+              Text(
+                text,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: grey,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 // ============================================================
@@ -1322,20 +1552,55 @@ String? _readString(
 ) {
   final value = data[key];
 
-  if (value == null) return null;
+  if (value == null) {
+    return null;
+  }
 
   final text = value.toString().trim();
 
   return text.isEmpty ? null : text;
 }
 
-String? _readNumber(
+String? _firstString(
   Map<String, dynamic> data,
-  String key,
+  List<String> keys,
 ) {
-  final value = data[key];
+  for (final key in keys) {
+    final value = _readString(data, key);
 
-  if (value == null) return null;
+    if (value != null) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+dynamic _firstExistingValue(
+  Map<String, dynamic> data,
+  List<String> keys,
+) {
+  for (final key in keys) {
+    if (data.containsKey(key) && data[key] != null) {
+      return data[key];
+    }
+  }
+
+  return null;
+}
+
+String? _firstValue(
+  Map<String, dynamic> data,
+  List<String> keys,
+) {
+  final value = _firstExistingValue(
+    data,
+    keys,
+  );
+
+  if (value == null) {
+    return null;
+  }
 
   return value.toString();
 }
@@ -1357,13 +1622,33 @@ double? _readDouble(
   return null;
 }
 
+double? _firstDouble(
+  Map<String, dynamic> data,
+  List<String> keys,
+) {
+  for (final key in keys) {
+    final value = _readDouble(
+      data,
+      key,
+    );
+
+    if (value != null) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
 int? _readInt(
   Map<String, dynamic> data,
   String key,
 ) {
   final value = data[key];
 
-  if (value is int) return value;
+  if (value is int) {
+    return value;
+  }
 
   if (value is num) {
     return value.toInt();
@@ -1376,23 +1661,68 @@ int? _readInt(
   return null;
 }
 
-bool _isToday(dynamic value) {
-  DateTime? date;
+int? _firstInt(
+  Map<String, dynamic> data,
+  List<String> keys,
+) {
+  for (final key in keys) {
+    final value = _readInt(
+      data,
+      key,
+    );
+
+    if (value != null) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+// ============================================================
+// DATE
+// ============================================================
+
+DateTime? _toDateTime(dynamic value) {
+  if (value == null) {
+    return null;
+  }
 
   if (value is Timestamp) {
-    date = value.toDate();
-  } else if (value is DateTime) {
-    date = value;
-  } else if (value is int) {
-    date = DateTime.fromMillisecondsSinceEpoch(
+    return value.toDate();
+  }
+
+  if (value is DateTime) {
+    return value;
+  }
+
+  if (value is int) {
+    return DateTime.fromMillisecondsSinceEpoch(
       value,
       isUtc: false,
     );
-  } else if (value is String) {
-    date = DateTime.tryParse(value);
   }
 
-  if (date == null) return false;
+  if (value is double) {
+    return DateTime.fromMillisecondsSinceEpoch(
+      value.toInt(),
+      isUtc: false,
+    );
+  }
+
+  if (value is String) {
+    return DateTime.tryParse(value);
+  }
+
+  return null;
+}
+
+bool _isToday(dynamic value) {
+  final date = _toDateTime(value);
+
+  if (date == null) {
+    return false;
+  }
 
   final now = DateTime.now();
 
@@ -1401,11 +1731,76 @@ bool _isToday(dynamic value) {
       date.day == now.day;
 }
 
+// ============================================================
+// HISTORY SORT
+// ============================================================
+
+List<QueryDocumentSnapshot<Map<String, dynamic>>>
+    _sortedHistoryDocs(
+  List<QueryDocumentSnapshot<Map<String, dynamic>>>? docs,
+) {
+  final result = List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(
+    docs ?? const [],
+  );
+
+  result.sort(
+    (a, b) {
+      final aDate = _toDateTime(
+        _firstExistingValue(
+          a.data(),
+          [
+            'createdAt',
+            'completedAt',
+            'timestamp',
+          ],
+        ),
+      );
+
+      final bDate = _toDateTime(
+        _firstExistingValue(
+          b.data(),
+          [
+            'createdAt',
+            'completedAt',
+            'timestamp',
+          ],
+        ),
+      );
+
+      if (aDate == null && bDate == null) {
+        return 0;
+      }
+
+      if (aDate == null) {
+        return 1;
+      }
+
+      if (bDate == null) {
+        return -1;
+      }
+
+      return bDate.compareTo(aDate);
+    },
+  );
+
+  return result;
+}
+
+// ============================================================
+// ID
+// ============================================================
+
 String _shortId(String value) {
-  if (value.length <= 10) return value;
+  if (value.length <= 10) {
+    return value;
+  }
 
   return '${value.substring(0, 6)}...';
 }
+
+// ============================================================
+// MONEY
+// ============================================================
 
 String _money(double value) {
   if (value == value.roundToDouble()) {
@@ -1416,7 +1811,7 @@ String _money(double value) {
 }
 
 // ============================================================
-// MAP
+// MAP MARKER
 // ============================================================
 
 class _MapMarker extends StatelessWidget {
@@ -1429,38 +1824,43 @@ class _MapMarker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Container(
+          constraints: const BoxConstraints(
+            maxWidth: 130,
+          ),
           padding: const EdgeInsets.symmetric(
             horizontal: 8,
             vertical: 5,
           ),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius:
-                BorderRadius.circular(7),
+            borderRadius: BorderRadius.circular(7),
             boxShadow: [
               BoxShadow(
-                color:
-                    Colors.black.withOpacity(.10),
+                color: Colors.black.withOpacity(.10),
                 blurRadius: 8,
               ),
             ],
           ),
           child: Text(
             title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w800,
             ),
           ),
         ),
+
         const SizedBox(height: 4),
+
         Container(
           width: 28,
           height: 28,
-          decoration:
-              const BoxDecoration(
+          decoration: const BoxDecoration(
             color: orange,
             shape: BoxShape.circle,
           ),
@@ -1475,16 +1875,18 @@ class _MapMarker extends StatelessWidget {
   }
 }
 
-class DashboardMapPainter
-    extends CustomPainter {
+// ============================================================
+// MAP PAINTER
+// ============================================================
+
+class DashboardMapPainter extends CustomPainter {
   @override
   void paint(
     Canvas canvas,
     Size size,
   ) {
     final gridPaint = Paint()
-      ..color =
-          const Color(0xFFDDE3DF)
+      ..color = const Color(0xFFDDE3DF)
       ..strokeWidth = 1.5;
 
     for (
