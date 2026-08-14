@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 const Color dojoOrange = Color(0xFFD35435);
@@ -19,90 +20,110 @@ class ComplaintsScreen extends StatefulWidget {
 class _ComplaintsScreenState extends State<ComplaintsScreen> {
   String selectedFilter = 'All';
 
-  final List<ComplaintData> complaints = const [
-    ComplaintData(
-      id: 'CMP-001',
-      user: 'Owner 01',
-      subject: 'Walker arrived late',
-      description:
-          'The walker arrived later than the scheduled walk time.',
-      date: '14 Aug 2026',
-      status: 'Open',
-      priority: 'High',
-    ),
-    ComplaintData(
-      id: 'CMP-002',
-      user: 'Owner 02',
-      subject: 'Walk duration issue',
-      description:
-          'The completed walk duration was shorter than expected.',
-      date: '14 Aug 2026',
-      status: 'In Progress',
-      priority: 'Medium',
-    ),
-    ComplaintData(
-      id: 'CMP-003',
-      user: 'Walker 01',
-      subject: 'Payment clarification',
-      description:
-          'Walker requested clarification about a completed walk payment.',
-      date: '13 Aug 2026',
-      status: 'Resolved',
-      priority: 'Low',
-    ),
-    ComplaintData(
-      id: 'CMP-004',
-      user: 'Owner 03',
-      subject: 'Service complaint',
-      description:
-          'Owner reported an issue with the walking service.',
-      date: '13 Aug 2026',
-      status: 'Open',
-      priority: 'High',
-    ),
-  ];
+  final FirebaseFirestore _firestore =
+      FirebaseFirestore.instance;
 
-  List<ComplaintData> get filteredComplaints {
+  Stream<List<ComplaintData>> get _complaintsStream {
+    return _firestore
+        .collection('complaints')
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+              .map(
+                (doc) => ComplaintData.fromFirestore(
+                  doc.id,
+                  doc.data(),
+                ),
+              )
+              .toList(),
+        );
+  }
+
+  List<ComplaintData> _filterComplaints(
+    List<ComplaintData> complaints,
+  ) {
     if (selectedFilter == 'All') {
       return complaints;
     }
 
     return complaints
-        .where((item) => item.status == selectedFilter)
+        .where(
+          (item) => item.status == selectedFilter,
+        )
         .toList();
   }
 
   @override
   Widget build(BuildContext context) {
-    final open = complaints
-        .where((c) => c.status == 'Open')
-        .length;
+    return StreamBuilder<List<ComplaintData>>(
+      stream: _complaintsStream,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return _errorState(
+            snapshot.error.toString(),
+          );
+        }
 
-    final progress = complaints
-        .where((c) => c.status == 'In Progress')
-        .length;
+        if (snapshot.connectionState ==
+            ConnectionState.waiting) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(50),
+              child: CircularProgressIndicator(
+                color: dojoOrange,
+              ),
+            ),
+          );
+        }
 
-    final resolved = complaints
-        .where((c) => c.status == 'Resolved')
-        .length;
+        final complaints = snapshot.data ?? [];
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _header(),
-        const SizedBox(height: 20),
-        _summary(open, progress, resolved),
-        const SizedBox(height: 20),
-        _filters(),
-        const SizedBox(height: 16),
-        _complaintList(),
-      ],
+        final open = complaints
+            .where(
+              (c) => c.status == 'Open',
+            )
+            .length;
+
+        final progress = complaints
+            .where(
+              (c) => c.status == 'In Progress',
+            )
+            .length;
+
+        final resolved = complaints
+            .where(
+              (c) => c.status == 'Resolved',
+            )
+            .length;
+
+        final filtered =
+            _filterComplaints(complaints);
+
+        return Column(
+          crossAxisAlignment:
+              CrossAxisAlignment.start,
+          children: [
+            _header(),
+            const SizedBox(height: 20),
+            _summary(
+              open,
+              progress,
+              resolved,
+            ),
+            const SizedBox(height: 20),
+            _filters(),
+            const SizedBox(height: 16),
+            _complaintList(filtered),
+          ],
+        );
+      },
     );
   }
 
   Widget _header() {
     return const Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
       children: [
         Text(
           'Complaints',
@@ -131,19 +152,22 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
   ) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 900
-            ? 3
-            : constraints.maxWidth >= 550
-                ? 2
-                : 1;
+        final columns =
+            constraints.maxWidth >= 900
+                ? 3
+                : constraints.maxWidth >= 550
+                    ? 2
+                    : 1;
 
         return GridView.count(
           crossAxisCount: columns,
           shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
+          physics:
+              const NeverScrollableScrollPhysics(),
           crossAxisSpacing: 14,
           mainAxisSpacing: 14,
-          childAspectRatio: columns == 1 ? 3.2 : 2.4,
+          childAspectRatio:
+              columns == 1 ? 3.2 : 2.4,
           children: [
             _SummaryCard(
               title: 'Open',
@@ -154,13 +178,15 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
             _SummaryCard(
               title: 'In Progress',
               value: '$progress',
-              icon: Icons.pending_actions_outlined,
+              icon:
+                  Icons.pending_actions_outlined,
               color: dojoOrange,
             ),
             _SummaryCard(
               title: 'Resolved',
               value: '$resolved',
-              icon: Icons.check_circle_outline,
+              icon:
+                  Icons.check_circle_outline,
               color: dojoGreen,
             ),
           ],
@@ -174,8 +200,11 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: dojoBorder),
+        borderRadius:
+            BorderRadius.circular(14),
+        border: Border.all(
+          color: dojoBorder,
+        ),
       ),
       child: Wrap(
         spacing: 5,
@@ -191,17 +220,20 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
   }
 
   Widget _filterButton(String title) {
-    final selected = selectedFilter == title;
+    final selected =
+        selectedFilter == title;
 
     return InkWell(
-      borderRadius: BorderRadius.circular(10),
+      borderRadius:
+          BorderRadius.circular(10),
       onTap: () {
         setState(() {
           selectedFilter = title;
         });
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(
+        padding:
+            const EdgeInsets.symmetric(
           horizontal: 14,
           vertical: 10,
         ),
@@ -209,7 +241,8 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
           color: selected
               ? dojoOrange
               : Colors.transparent,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius:
+              BorderRadius.circular(10),
         ),
         child: Text(
           title,
@@ -225,9 +258,9 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
     );
   }
 
-  Widget _complaintList() {
-    final list = filteredComplaints;
-
+  Widget _complaintList(
+    List<ComplaintData> list,
+  ) {
     if (list.isEmpty) {
       return _emptyState();
     }
@@ -235,24 +268,36 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
     return Column(
       children: list.map((complaint) {
         return Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: _complaintCard(complaint),
+          padding:
+              const EdgeInsets.only(
+            bottom: 12,
+          ),
+          child:
+              _complaintCard(complaint),
         );
       }).toList(),
     );
   }
 
-  Widget _complaintCard(ComplaintData complaint) {
-    final statusColor = _statusColor(complaint.status);
-    final priorityColor = _priorityColor(complaint.priority);
+  Widget _complaintCard(
+    ComplaintData complaint,
+  ) {
+    final statusColor =
+        _statusColor(complaint.status);
+
+    final priorityColor =
+        _priorityColor(complaint.priority);
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(17),
-        border: Border.all(color: dojoBorder),
+        borderRadius:
+            BorderRadius.circular(17),
+        border: Border.all(
+          color: dojoBorder,
+        ),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -281,7 +326,9 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
   ) {
     return Row(
       children: [
-        _complaintIcon(complaint.priority),
+        _complaintIcon(
+          complaint.priority,
+        ),
         const SizedBox(width: 14),
         Expanded(
           flex: 3,
@@ -315,11 +362,14 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
     Color priorityColor,
   ) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            _complaintIcon(complaint.priority),
+            _complaintIcon(
+              complaint.priority,
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: _mainInfo(complaint),
@@ -369,14 +419,16 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
   }
 
   Widget _complaintIcon(String priority) {
-    final color = _priorityColor(priority);
+    final color =
+        _priorityColor(priority);
 
     return Container(
       width: 52,
       height: 52,
       decoration: BoxDecoration(
         color: color.withOpacity(.10),
-        borderRadius: BorderRadius.circular(15),
+        borderRadius:
+            BorderRadius.circular(15),
       ),
       child: Icon(
         Icons.report_problem_outlined,
@@ -386,9 +438,12 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
     );
   }
 
-  Widget _mainInfo(ComplaintData complaint) {
+  Widget _mainInfo(
+    ComplaintData complaint,
+  ) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
       children: [
         Text(
           complaint.id,
@@ -402,7 +457,8 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
         Text(
           complaint.subject,
           maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+          overflow:
+              TextOverflow.ellipsis,
           style: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w900,
@@ -413,7 +469,8 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
         Text(
           complaint.description,
           maxLines: 2,
-          overflow: TextOverflow.ellipsis,
+          overflow:
+              TextOverflow.ellipsis,
           style: const TextStyle(
             fontSize: 11,
             color: dojoGrey,
@@ -452,7 +509,8 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
               Text(
                 value,
                 maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                overflow:
+                    TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w800,
@@ -470,13 +528,15 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
     Color color,
   ) {
     return Container(
-      padding: const EdgeInsets.symmetric(
+      padding:
+          const EdgeInsets.symmetric(
         horizontal: 9,
         vertical: 6,
       ),
       decoration: BoxDecoration(
         color: color.withOpacity(.09),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius:
+            BorderRadius.circular(8),
       ),
       child: Text(
         priority,
@@ -494,16 +554,19 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
     Color color,
   ) {
     return Container(
-      padding: const EdgeInsets.symmetric(
+      padding:
+          const EdgeInsets.symmetric(
         horizontal: 9,
         vertical: 6,
       ),
       decoration: BoxDecoration(
         color: color.withOpacity(.09),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius:
+            BorderRadius.circular(8),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize:
+            MainAxisSize.min,
         children: [
           Icon(
             Icons.circle,
@@ -515,7 +578,8 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
             status,
             style: TextStyle(
               fontSize: 10,
-              fontWeight: FontWeight.w900,
+              fontWeight:
+                  FontWeight.w900,
               color: color,
             ),
           ),
@@ -524,7 +588,9 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
     );
   }
 
-  Widget _viewButton(ComplaintData complaint) {
+  Widget _viewButton(
+    ComplaintData complaint,
+  ) {
     return OutlinedButton.icon(
       onPressed: () {
         _showDetails(complaint);
@@ -539,10 +605,13 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
         side: const BorderSide(
           color: dojoOrange,
         ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
+        shape:
+            RoundedRectangleBorder(
+          borderRadius:
+              BorderRadius.circular(10),
         ),
-        padding: const EdgeInsets.symmetric(
+        padding:
+            const EdgeInsets.symmetric(
           horizontal: 13,
           vertical: 11,
         ),
@@ -550,10 +619,12 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
     );
   }
 
-  void _showDetails(ComplaintData complaint) {
+  void _showDetails(
+    ComplaintData complaint,
+  ) {
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
           title: const Text(
             'Complaint Details',
@@ -561,78 +632,223 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
               fontWeight: FontWeight.w800,
             ),
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
-            children: [
-              _detailRow(
-                'Complaint ID',
-                complaint.id,
-              ),
-              _detailRow(
-                'User',
-                complaint.user,
-              ),
-              _detailRow(
-                'Subject',
-                complaint.subject,
-              ),
-              _detailRow(
-                'Priority',
-                complaint.priority,
-              ),
-              _detailRow(
-                'Status',
-                complaint.status,
-              ),
-              _detailRow(
-                'Date',
-                complaint.date,
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Description',
-                style: TextStyle(
-                  color: dojoGrey,
-                  fontSize: 11,
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize:
+                  MainAxisSize.min,
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: [
+                _detailRow(
+                  'Complaint ID',
+                  complaint.id,
                 ),
-              ),
-              const SizedBox(height: 5),
-              Text(
-                complaint.description,
-                style: const TextStyle(
-                  fontSize: 13,
-                  height: 1.4,
+                _detailRow(
+                  'User',
+                  complaint.user,
                 ),
-              ),
-            ],
+                _detailRow(
+                  'Subject',
+                  complaint.subject,
+                ),
+                _detailRow(
+                  'Priority',
+                  complaint.priority,
+                ),
+                _detailRow(
+                  'Status',
+                  complaint.status,
+                ),
+                _detailRow(
+                  'Date',
+                  complaint.date,
+                ),
+                if (complaint.walkId.isNotEmpty)
+                  _detailRow(
+                    'Walk ID',
+                    complaint.walkId,
+                  ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Description',
+                  style: TextStyle(
+                    color: dojoGrey,
+                    fontSize: 11,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  complaint.description,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
           ),
           actions: [
-            if (complaint.status != 'Resolved')
+            if (complaint.status !=
+                'Resolved')
               FilledButton(
                 onPressed: () {
-                  Navigator.pop(context);
-
-                  ScaffoldMessenger.of(context)
-                      .showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Complaint action will connect to Firebase.',
-                      ),
-                    ),
+                  Navigator.pop(
+                    dialogContext,
+                  );
+                  _showUpdateDialog(
+                    complaint,
                   );
                 },
-                style: FilledButton.styleFrom(
-                  backgroundColor: dojoOrange,
+                style:
+                    FilledButton.styleFrom(
+                  backgroundColor:
+                      dojoOrange,
                 ),
-                child: const Text('Update'),
+                child:
+                    const Text('Update'),
               ),
             TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Close'),
+              onPressed: () =>
+                  Navigator.pop(
+                dialogContext,
+              ),
+              child:
+                  const Text('Close'),
             ),
           ],
+        );
+      },
+    );
+  }
+
+  void _showUpdateDialog(
+    ComplaintData complaint,
+  ) {
+    String selectedStatus =
+        complaint.status;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder:
+              (context, setDialogState) {
+            return AlertDialog(
+              title: const Text(
+                'Update Complaint',
+                style: TextStyle(
+                  fontWeight:
+                      FontWeight.w800,
+                ),
+              ),
+              content:
+                  DropdownButtonFormField<
+                      String>(
+                initialValue:
+                    selectedStatus,
+                decoration:
+                    const InputDecoration(
+                  labelText: 'Status',
+                ),
+                items: const [
+                  DropdownMenuItem(
+                    value: 'Open',
+                    child:
+                        Text('Open'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'In Progress',
+                    child: Text(
+                      'In Progress',
+                    ),
+                  ),
+                  DropdownMenuItem(
+                    value: 'Resolved',
+                    child:
+                        Text('Resolved'),
+                  ),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    setDialogState(() {
+                      selectedStatus =
+                          value;
+                    });
+                  }
+                },
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () =>
+                      Navigator.pop(
+                    dialogContext,
+                  ),
+                  child:
+                      const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () async {
+                    try {
+                      await _firestore
+                          .collection(
+                            'complaints',
+                          )
+                          .doc(
+                            complaint
+                                .documentId,
+                          )
+                          .update({
+                        'status':
+                            selectedStatus,
+                        'updatedAt':
+                            FieldValue
+                                .serverTimestamp(),
+                      });
+
+                      if (!mounted) {
+                        return;
+                      }
+
+                      Navigator.pop(
+                        dialogContext,
+                      );
+
+                      ScaffoldMessenger
+                              .of(context)
+                          .showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Complaint updated successfully.',
+                          ),
+                        ),
+                      );
+                    } catch (e) {
+                      if (!mounted) {
+                        return;
+                      }
+
+                      ScaffoldMessenger
+                              .of(context)
+                          .showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Failed to update complaint: $e',
+                          ),
+                        ),
+                      );
+                    }
+                  },
+                  style:
+                      FilledButton.styleFrom(
+                    backgroundColor:
+                        dojoOrange,
+                  ),
+                  child:
+                      const Text('Save'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -643,7 +859,10 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
     String value,
   ) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 9),
+      padding:
+          const EdgeInsets.only(
+        bottom: 9,
+      ),
       child: Row(
         crossAxisAlignment:
             CrossAxisAlignment.start,
@@ -663,7 +882,8 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
               value,
               style: const TextStyle(
                 fontSize: 12,
-                fontWeight: FontWeight.w700,
+                fontWeight:
+                    FontWeight.w700,
               ),
             ),
           ),
@@ -678,15 +898,20 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
       height: 300,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(17),
-        border: Border.all(color: dojoBorder),
+        borderRadius:
+            BorderRadius.circular(17),
+        border: Border.all(
+          color: dojoBorder,
+        ),
       ),
       child: const Center(
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize:
+              MainAxisSize.min,
           children: [
             Icon(
-              Icons.report_problem_outlined,
+              Icons
+                  .report_problem_outlined,
               size: 50,
               color: dojoGrey,
             ),
@@ -695,7 +920,8 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
               'No complaints found',
               style: TextStyle(
                 fontSize: 16,
-                fontWeight: FontWeight.w800,
+                fontWeight:
+                    FontWeight.w800,
               ),
             ),
             SizedBox(height: 5),
@@ -712,7 +938,47 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
     );
   }
 
-  Color _statusColor(String status) {
+  Widget _errorState(String error) {
+    return Container(
+      width: double.infinity,
+      padding:
+          const EdgeInsets.all(30),
+      child: Column(
+        mainAxisSize:
+            MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.error_outline,
+            color: dojoRed,
+            size: 48,
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Unable to load complaints',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight:
+                  FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            error,
+            textAlign:
+                TextAlign.center,
+            style: const TextStyle(
+              color: dojoGrey,
+              fontSize: 11,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _statusColor(
+    String status,
+  ) {
     switch (status) {
       case 'Open':
         return dojoRed;
@@ -725,7 +991,9 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
     }
   }
 
-  Color _priorityColor(String priority) {
+  Color _priorityColor(
+    String priority,
+  ) {
     switch (priority) {
       case 'High':
         return dojoRed;
@@ -740,6 +1008,7 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
 }
 
 class ComplaintData {
+  final String documentId;
   final String id;
   final String user;
   final String subject;
@@ -747,8 +1016,10 @@ class ComplaintData {
   final String date;
   final String status;
   final String priority;
+  final String walkId;
 
   const ComplaintData({
+    required this.documentId,
     required this.id,
     required this.user,
     required this.subject,
@@ -756,10 +1027,94 @@ class ComplaintData {
     required this.date,
     required this.status,
     required this.priority,
+    required this.walkId,
   });
+
+  factory ComplaintData.fromFirestore(
+    String documentId,
+    Map<String, dynamic> data,
+  ) {
+    String date = '';
+
+    final dateValue = data['date'];
+
+    if (dateValue is Timestamp) {
+      final d = dateValue.toDate();
+
+      date =
+          '${d.day.toString().padLeft(2, '0')} '
+          '${_monthName(d.month)} '
+          '${d.year}';
+    } else if (dateValue is String) {
+      date = dateValue;
+    } else {
+      final createdAt =
+          data['createdAt'];
+
+      if (createdAt is Timestamp) {
+        final d = createdAt.toDate();
+
+        date =
+            '${d.day.toString().padLeft(2, '0')} '
+            '${_monthName(d.month)} '
+            '${d.year}';
+      }
+    }
+
+    return ComplaintData(
+      documentId: documentId,
+      id:
+          data['id']?.toString() ??
+              documentId,
+      user:
+          data['user']?.toString() ??
+              data['userName']?.toString() ??
+              'Unknown User',
+      subject:
+          data['subject']?.toString() ??
+              'No subject',
+      description:
+          data['description']?.toString() ??
+              '',
+      date: date.isEmpty
+          ? 'Unknown date'
+          : date,
+      status:
+          data['status']?.toString() ??
+              'Open',
+      priority:
+          data['priority']?.toString() ??
+              'Medium',
+      walkId:
+          data['walkId']?.toString() ??
+              '',
+    );
+  }
+
+  static String _monthName(
+    int month,
+  ) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+
+    return months[month - 1];
+  }
 }
 
-class _SummaryCard extends StatelessWidget {
+class _SummaryCard
+    extends StatelessWidget {
   final String title;
   final String value;
   final IconData icon;
@@ -773,22 +1128,31 @@ class _SummaryCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Container(
-      padding: const EdgeInsets.all(17),
+      padding:
+          const EdgeInsets.all(17),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: dojoBorder),
+        borderRadius:
+            BorderRadius.circular(16),
+        border: Border.all(
+          color: dojoBorder,
+        ),
       ),
       child: Row(
         children: [
           Container(
             width: 47,
             height: 47,
-            decoration: BoxDecoration(
-              color: color.withOpacity(.10),
-              borderRadius: BorderRadius.circular(13),
+            decoration:
+                BoxDecoration(
+              color:
+                  color.withOpacity(.10),
+              borderRadius:
+                  BorderRadius.circular(13),
             ),
             child: Icon(
               icon,
@@ -805,17 +1169,22 @@ class _SummaryCard extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style:
+                      const TextStyle(
                     fontSize: 11,
                     color: dojoGrey,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(
+                  height: 4,
+                ),
                 Text(
                   value,
-                  style: const TextStyle(
+                  style:
+                      const TextStyle(
                     fontSize: 22,
-                    fontWeight: FontWeight.w900,
+                    fontWeight:
+                        FontWeight.w900,
                     color: dojoBlack,
                   ),
                 ),
