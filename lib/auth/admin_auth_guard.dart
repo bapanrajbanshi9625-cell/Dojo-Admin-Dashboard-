@@ -19,10 +19,12 @@ class AdminAuthGuard extends StatelessWidget {
 
         final user = snapshot.data;
 
+        // Not logged in
         if (user == null) {
           return const AdminLogin();
         }
 
+        // Check admin document using Firebase Auth UID
         return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
           stream: FirebaseFirestore.instance
               .collection('admins')
@@ -34,18 +36,38 @@ class AdminAuthGuard extends StatelessWidget {
               return const _LoadingScreen();
             }
 
-            if (!adminSnapshot.hasData ||
-                !adminSnapshot.data!.exists) {
+            if (adminSnapshot.hasError) {
+              return _AccessDeniedScreen(
+                message:
+                    'Unable to verify your admin account.',
+              );
+            }
+
+            final adminDocument = adminSnapshot.data;
+
+            if (adminDocument == null ||
+                !adminDocument.exists) {
+              return const _AccessDeniedScreen(
+                message:
+                    'No admin account is linked to this Firebase account.',
+              );
+            }
+
+            final data = adminDocument.data();
+
+            if (data == null) {
               return const _AccessDeniedScreen();
             }
 
-            final data = adminSnapshot.data!.data();
+            // IMPORTANT:
+            // AdminsScreen stores "status": "Active"
+            final status =
+                data['status']?.toString() ?? 'Inactive';
 
-            final active = data?['active'] == true;
-
-            if (!active) {
+            if (status != 'Active') {
               return const _AccessDeniedScreen(
-                message: 'Your admin account is inactive.',
+                message:
+                    'Your admin account is inactive.',
               );
             }
 
@@ -77,7 +99,8 @@ class _AccessDeniedScreen extends StatelessWidget {
   final String message;
 
   const _AccessDeniedScreen({
-    this.message = 'You are not authorized to access DOJO Admin.',
+    this.message =
+        'You are not authorized to access DOJO Admin.',
   });
 
   @override
@@ -106,7 +129,8 @@ class _AccessDeniedScreen extends StatelessWidget {
                 height: 64,
                 decoration: BoxDecoration(
                   color: const Color(0xFFFFEEE9),
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius:
+                      BorderRadius.circular(18),
                 ),
                 child: const Icon(
                   Icons.lock_outline,
@@ -137,7 +161,8 @@ class _AccessDeniedScreen extends StatelessWidget {
                   await FirebaseAuth.instance.signOut();
                 },
                 style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFFD35435),
+                  backgroundColor:
+                      const Color(0xFFD35435),
                 ),
                 icon: const Icon(Icons.logout),
                 label: const Text('Sign Out'),
