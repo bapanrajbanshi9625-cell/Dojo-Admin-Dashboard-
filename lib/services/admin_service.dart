@@ -7,6 +7,10 @@ class AdminService {
   CollectionReference<Map<String, dynamic>> get _admins =>
       _firestore.collection('admins');
 
+  // =========================================================
+  // GET ADMIN
+  // =========================================================
+
   Future<Map<String, dynamic>?> getAdmin(
     String uid,
   ) async {
@@ -21,6 +25,10 @@ class AdminService {
       ...?doc.data(),
     };
   }
+
+  // =========================================================
+  // WATCH ADMIN
+  // =========================================================
 
   Stream<Map<String, dynamic>?> watchAdmin(
     String uid,
@@ -37,6 +45,10 @@ class AdminService {
     });
   }
 
+  // =========================================================
+  // CHECK ADMIN
+  // =========================================================
+
   Future<bool> isAdmin(
     String uid,
   ) async {
@@ -52,18 +64,25 @@ class AdminService {
       return false;
     }
 
-    final role = data['role']?.toString().toLowerCase();
+    // Rules ke saath same field:
+    // active == true
+    final active = data['active'];
 
-    final active = data['isActive'];
-
-    if (active is bool && !active) {
+    if (active != true) {
       return false;
     }
 
+    final role =
+        data['role']?.toString().trim();
+
+    // Rules ke saath same role values.
     return role == 'admin' ||
-        role == 'super_admin' ||
-        role == 'super admin';
+        role == 'superAdmin';
   }
+
+  // =========================================================
+  // CREATE ADMIN
+  // =========================================================
 
   Future<void> createAdmin({
     required String uid,
@@ -79,26 +98,47 @@ class AdminService {
         'email': email,
         'mobile': mobile,
         'role': role,
-        'isActive': true,
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
+        'active': true,
+        'createdAt':
+            FieldValue.serverTimestamp(),
+        'updatedAt':
+            FieldValue.serverTimestamp(),
       },
       SetOptions(merge: true),
     );
   }
 
+  // =========================================================
+  // UPDATE ADMIN
+  // =========================================================
+
   Future<void> updateAdmin(
     String uid,
     Map<String, dynamic> data,
   ) async {
+    final updatedData =
+        Map<String, dynamic>.from(data);
+
+    // Old field isActive aaye to
+    // automatically active me convert karo.
+    if (updatedData.containsKey('isActive')) {
+      updatedData['active'] =
+          updatedData.remove('isActive');
+    }
+
     await _admins.doc(uid).set(
       {
-        ...data,
-        'updatedAt': FieldValue.serverTimestamp(),
+        ...updatedData,
+        'updatedAt':
+            FieldValue.serverTimestamp(),
       },
       SetOptions(merge: true),
     );
   }
+
+  // =========================================================
+  // SET ADMIN ACTIVE
+  // =========================================================
 
   Future<void> setAdminActive(
     String uid,
@@ -106,12 +146,17 @@ class AdminService {
   ) async {
     await _admins.doc(uid).set(
       {
-        'isActive': active,
-        'updatedAt': FieldValue.serverTimestamp(),
+        'active': active,
+        'updatedAt':
+            FieldValue.serverTimestamp(),
       },
       SetOptions(merge: true),
     );
   }
+
+  // =========================================================
+  // WATCH ALL ADMINS
+  // =========================================================
 
   Stream<QuerySnapshot<Map<String, dynamic>>>
       watchAdmins() {
