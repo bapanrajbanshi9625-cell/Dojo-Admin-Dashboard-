@@ -37,7 +37,11 @@ class DataPanel extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(icon, color: color, size: 21),
+              Icon(
+                icon,
+                color: color,
+                size: 21,
+              ),
               const SizedBox(width: 9),
               Text(
                 title,
@@ -112,7 +116,7 @@ class StatCard extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: iconColor.withOpacity(.10),
+              color: iconColor.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(13),
             ),
             child: Icon(
@@ -178,10 +182,10 @@ class ActionButton extends StatelessWidget {
           vertical: 10,
         ),
         decoration: BoxDecoration(
-          color: color.withOpacity(.08),
+          color: color.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(11),
           border: Border.all(
-            color: color.withOpacity(.18),
+            color: color.withValues(alpha: 0.18),
           ),
         ),
         child: Row(
@@ -221,17 +225,23 @@ Widget photoAvatar({
     height: 44,
     clipBehavior: Clip.antiAlias,
     decoration: BoxDecoration(
-      color: color.withOpacity(.10),
+      color: color.withValues(alpha: 0.10),
       borderRadius: BorderRadius.circular(12),
     ),
     child: hasImage
         ? Image.network(
-            imageUrl!,
+            imageUrl,
             fit: BoxFit.cover,
             errorBuilder: (_, __, ___) {
-              return Icon(icon, color: color);
+              return Icon(
+                icon,
+                color: color,
+              );
             },
           )
-        : Icon(icon, color: color),
+        : Icon(
+            icon,
+            color: color,
+          ),
   );
 }
