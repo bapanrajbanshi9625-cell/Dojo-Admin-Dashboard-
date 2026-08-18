@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 
-class WalkerHelpers {
-  WalkerHelpers._();
+class WalkersHelpers {
+  WalkersHelpers._();
 
-  static String _value(dynamic walker, String key) {
-    if (walker == null) return '';
+  static String _value(
+    dynamic walker,
+    String key,
+  ) {
+    if (walker == null) {
+      return '';
+    }
 
     if (walker is Map) {
       final value = walker[key];
@@ -12,87 +17,96 @@ class WalkerHelpers {
     }
 
     try {
-      final value = _readObjectValue(walker, key);
+      final value = _readObjectValue(
+        walker,
+        key,
+      );
+
       return value?.toString().trim() ?? '';
     } catch (_) {
       return '';
     }
   }
 
-  static dynamic _readObjectValue(dynamic object, String key) {
+  static dynamic _readObjectValue(
+    dynamic object,
+    String key,
+  ) {
     switch (key) {
       case 'Full Name':
         try {
           return object.name;
-        } catch (_) {
-          return null;
-        }
+        } catch (_) {}
 
       case 'Mobile number':
         try {
           return object.mobile;
-        } catch (_) {
-          return null;
-        }
+        } catch (_) {}
 
       case 'Adress':
         try {
           return object.address;
-        } catch (_) {
-          return null;
-        }
+        } catch (_) {}
 
       case 'Pincode':
         try {
           return object.pincode;
-        } catch (_) {
-          return null;
-        }
+        } catch (_) {}
 
       case 'Date Of Birth':
         try {
           return object.dateOfBirth;
-        } catch (_) {
-          return null;
-        }
+        } catch (_) {}
 
       case 'Aadhar Number':
         try {
           return object.aadhaarNumber;
-        } catch (_) {
-          return null;
-        }
+        } catch (_) {}
 
       case 'Walker Uid':
         try {
           return object.walkerUid;
-        } catch (_) {
-          return null;
-        }
+        } catch (_) {}
 
       case 'Profile Selfie':
         try {
           return object.profileSelfie;
-        } catch (_) {
-          return null;
-        }
+        } catch (_) {}
 
       case 'status':
         try {
           return object.status;
-        } catch (_) {
-          return null;
-        }
+        } catch (_) {}
+
+      case 'verificationStatus':
+        try {
+          return object.verificationStatus;
+        } catch (_) {}
+
+      case 'isOnline':
+        try {
+          return object.isOnline;
+        } catch (_) {}
+
+      case 'online':
+        try {
+          return object.online;
+        } catch (_) {}
     }
 
     return null;
   }
+
+  // =========================================================
+  // BASIC WALKER DATA
+  // =========================================================
 
   static String name(dynamic walker) {
     return _firstNonEmpty([
       _value(walker, 'Full Name'),
       _value(walker, 'fullName'),
       _value(walker, 'name'),
+      _value(walker, 'walkerName'),
       'Unknown Walker',
     ]);
   }
@@ -100,6 +114,7 @@ class WalkerHelpers {
   static String mobile(dynamic walker) {
     return _firstNonEmpty([
       _value(walker, 'Mobile number'),
+      _value(walker, 'mobileNumber'),
       _value(walker, 'mobile'),
       _value(walker, 'phone'),
       _value(walker, 'phoneNumber'),
@@ -158,77 +173,204 @@ class WalkerHelpers {
     ]);
   }
 
+  // =========================================================
+  // STATUS
+  // =========================================================
+
   static String status(dynamic walker) {
     return _firstNonEmpty([
       _value(walker, 'status'),
       _value(walker, 'Status'),
       _value(walker, 'walkerStatus'),
       _value(walker, 'verificationStatus'),
+      _value(walker, 'approvalStatus'),
+      'pending',
     ]);
   }
 
-  static String verificationStatus(dynamic walker) {
-    return status(walker).toLowerCase().trim();
+  /// Returns the normalized verification status.
+  ///
+  /// Supported values:
+  /// - pending
+  /// - approved
+  /// - rejected
+  /// - blocked
+  /// - suspended
+  static String verificationStatus(
+    dynamic walker,
+  ) {
+    final value = _firstNonEmpty([
+      _value(walker, 'verificationStatus'),
+      _value(walker, 'approvalStatus'),
+      _value(walker, 'status'),
+      _value(walker, 'Status'),
+      _value(walker, 'walkerStatus'),
+      'pending',
+    ]);
+
+    final normalized =
+        value.trim().toLowerCase();
+
+    switch (normalized) {
+      case 'approved':
+      case 'approve':
+      case 'active':
+        return 'approved';
+
+      case 'rejected':
+      case 'reject':
+        return 'rejected';
+
+      case 'blocked':
+        return 'blocked';
+
+      case 'suspended':
+        return 'suspended';
+
+      case 'pending':
+      case 'pending approval':
+      case 'waiting':
+      case 'under review':
+        return 'pending';
+
+      default:
+        return normalized.isEmpty
+            ? 'pending'
+            : normalized;
+    }
   }
+
+  // =========================================================
+  // ONLINE STATUS
+  // =========================================================
 
   static bool isOnline(dynamic walker) {
-    final value = _value(walker, 'isOnline').toLowerCase();
+    if (walker == null) {
+      return false;
+    }
 
-    if (value == 'true') return true;
+    if (walker is Map) {
+      final map = walker;
 
-    final currentStatus = status(walker).toLowerCase();
+      final directValues = [
+        map['isOnline'],
+        map['online'],
+        map['is_online'],
+        map['onlineStatus'],
+        map['walkerOnline'],
+      ];
 
-    return currentStatus == 'online' ||
-        currentStatus == 'active';
-  }
+      for (final value in directValues) {
+        final result = _toBool(value);
 
-  static bool matchesSearch(
-    dynamic walker,
-    String search,
-  ) {
-    final query = search.trim().toLowerCase();
+        if (result != null) {
+          return result;
+        }
+      }
 
-    if (query.isEmpty) return true;
+      final statusValue = _firstNonEmpty([
+        map['status']?.toString() ?? '',
+        map['walkerStatus']?.toString() ?? '',
+      ]).toLowerCase();
 
-    final values = [
-      name(walker),
-      mobile(walker),
-      address(walker),
-      pincode(walker),
-      dateOfBirth(walker),
-      aadhaarNumber(walker),
-      walkerUid(walker),
-    ];
+      if (statusValue == 'online') {
+        return true;
+      }
 
-    return values.any(
-      (value) => value.toLowerCase().contains(query),
+      return false;
+    }
+
+    final objectValue = _readObjectValue(
+      walker,
+      'isOnline',
     );
+
+    final result = _toBool(objectValue);
+
+    if (result != null) {
+      return result;
+    }
+
+    final statusValue = status(walker)
+        .trim()
+        .toLowerCase();
+
+    return statusValue == 'online';
   }
 
-  static bool matchesFilter(
-    dynamic walker,
-    String filter,
+  static bool? _toBool(dynamic value) {
+    if (value is bool) {
+      return value;
+    }
+
+    if (value is num) {
+      return value != 0;
+    }
+
+    if (value is String) {
+      final normalized =
+          value.trim().toLowerCase();
+
+      if (normalized == 'true' ||
+          normalized == 'yes' ||
+          normalized == '1' ||
+          normalized == 'online') {
+        return true;
+      }
+
+      if (normalized == 'false' ||
+          normalized == 'no' ||
+          normalized == '0' ||
+          normalized == 'offline') {
+        return false;
+      }
+    }
+
+    return null;
+  }
+
+  // =========================================================
+  // INITIALS
+  // =========================================================
+
+  static String initials(dynamic walker) {
+    final fullName = name(walker).trim();
+
+    if (fullName.isEmpty ||
+        fullName.toLowerCase() ==
+            'unknown walker') {
+      return 'W';
+    }
+
+    final parts = fullName
+        .split(RegExp(r'\s+'))
+        .where(
+          (part) => part.isNotEmpty,
+        )
+        .toList();
+
+    if (parts.isEmpty) {
+      return 'W';
+    }
+
+    if (parts.length == 1) {
+      return parts.first
+          .substring(0, 1)
+          .toUpperCase();
+    }
+
+    return '${parts.first.substring(0, 1)}'
+            '${parts.last.substring(0, 1)}'
+        .toUpperCase();
+  }
+
+  // =========================================================
+  // STATUS COLOR
+  // =========================================================
+
+  static Color statusColor(
+    String status,
   ) {
-    final selected = filter.trim().toLowerCase();
-
-    if (selected.isEmpty || selected == 'all') {
-      return true;
-    }
-
-    final currentStatus = verificationStatus(walker);
-
-    if (selected == 'online') {
-      return isOnline(walker);
-    }
-
-    if (selected == 'offline') {
-      return !isOnline(walker);
-    }
-
-    return currentStatus == selected;
-  }
-
-  static Color statusColor(String status) {
     switch (status.trim().toLowerCase()) {
       case 'approved':
       case 'active':
@@ -252,94 +394,13 @@ class WalkerHelpers {
     }
   }
 
-  static String initials(dynamic walker) {
-    final fullName = name(walker).trim();
+  // =========================================================
+  // HELPERS
+  // =========================================================
 
-    if (fullName.isEmpty ||
-        fullName.toLowerCase() == 'unknown walker') {
-      return 'W';
-    }
-
-    final parts = fullName
-        .split(RegExp(r'\s+'))
-        .where((part) => part.isNotEmpty)
-        .toList();
-
-    if (parts.length == 1) {
-      return parts.first.substring(0, 1).toUpperCase();
-    }
-
-    return '${parts.first.substring(0, 1)}'
-            '${parts.last.substring(0, 1)}'
-        .toUpperCase();
-  }
-
-  static Widget emptyState({
-    String message = 'No walkers found',
-  }) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(40),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.person_search_outlined,
-              size: 52,
-              color: Color(0xFF9CA3AF),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF6B7280),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  static Widget errorState(String message) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(30),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.error_outline,
-              size: 48,
-              color: Color(0xFFDC2626),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'Unable to load walkers',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 12,
-                color: Color(0xFF6B7280),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  static String _firstNonEmpty(List<String> values) {
+  static String _firstNonEmpty(
+    List<String> values,
+  ) {
     for (final value in values) {
       final cleaned = value.trim();
 
