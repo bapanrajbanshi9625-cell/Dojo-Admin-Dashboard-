@@ -5,15 +5,15 @@ const Color dojoGrey = Color(0xFF6B7280);
 const Color dojoDark = Color(0xFF263238);
 const Color dojoBorder = Color(0xFFE7E9ED);
 
-class WalkerVerificationCard extends StatelessWidget {
+class WalkersVerificationCard extends StatelessWidget {
   final Map<String, dynamic> data;
 
-  const WalkerVerificationCard({
+  const WalkersVerificationCard({
     super.key,
     required this.data,
   });
 
-  bool _bool(List<String> keys) {
+  bool _readBool(List<String> keys) {
     for (final key in keys) {
       final value = data[key];
 
@@ -21,8 +21,25 @@ class WalkerVerificationCard extends StatelessWidget {
         return value;
       }
 
+      if (value is num) {
+        return value != 0;
+      }
+
       if (value is String) {
-        return value.toLowerCase() == 'true';
+        final normalized =
+            value.trim().toLowerCase();
+
+        if (normalized == 'true' ||
+            normalized == 'yes' ||
+            normalized == '1') {
+          return true;
+        }
+
+        if (normalized == 'false' ||
+            normalized == 'no' ||
+            normalized == '0') {
+          return false;
+        }
       }
     }
 
@@ -30,28 +47,28 @@ class WalkerVerificationCard extends StatelessWidget {
   }
 
   bool get profileCompleted {
-    return _bool([
+    return _readBool([
       'profileCompleted',
       'profile_completed',
     ]);
   }
 
   bool get aadhaarFrontUploaded {
-    return _bool([
+    return _readBool([
       'aadhaar_front_uploaded',
       'aadhaarFrontUploaded',
     ]);
   }
 
   bool get aadhaarBackUploaded {
-    return _bool([
+    return _readBool([
       'aadhaar_back_uploaded',
       'aadhaarBackUploaded',
     ]);
   }
 
   bool get aadhaarVerified {
-    return _bool([
+    return _readBool([
       'aadhaarVerified',
       'aadharVerified',
       'aadhaar_verified',
@@ -59,7 +76,7 @@ class WalkerVerificationCard extends StatelessWidget {
   }
 
   bool get selfieVerified {
-    return _bool([
+    return _readBool([
       'selfieVerified',
       'selfie_verified',
     ]);
@@ -68,6 +85,7 @@ class WalkerVerificationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -79,34 +97,34 @@ class WalkerVerificationCard extends StatelessWidget {
       child: Column(
         children: [
           _row(
-            'Profile Completed',
-            profileCompleted,
+            title: 'Profile Completed',
+            value: profileCompleted,
           ),
           _row(
-            'Aadhaar Front Uploaded',
-            aadhaarFrontUploaded,
+            title: 'Aadhaar Front Uploaded',
+            value: aadhaarFrontUploaded,
           ),
           _row(
-            'Aadhaar Back Uploaded',
-            aadhaarBackUploaded,
+            title: 'Aadhaar Back Uploaded',
+            value: aadhaarBackUploaded,
           ),
           _row(
-            'Aadhaar Verified',
-            aadhaarVerified,
+            title: 'Aadhaar Verified',
+            value: aadhaarVerified,
           ),
           _row(
-            'Selfie Verified',
-            selfieVerified,
+            title: 'Selfie Verified',
+            value: selfieVerified,
           ),
         ],
       ),
     );
   }
 
-  Widget _row(
-    String title,
-    bool value,
-  ) {
+  Widget _row({
+    required String title,
+    required bool value,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(
         bottom: 9,
@@ -115,14 +133,14 @@ class WalkerVerificationCard extends StatelessWidget {
         children: [
           Icon(
             value
-                ? Icons.check_circle
+                ? Icons.check_circle_rounded
                 : Icons.cancel_outlined,
-            color:
-                value ? dojoGreen : dojoGrey,
+            color: value
+                ? dojoGreen
+                : dojoGrey,
             size: 19,
           ),
           const SizedBox(width: 8),
-
           Expanded(
             child: Text(
               title,
@@ -133,14 +151,14 @@ class WalkerVerificationCard extends StatelessWidget {
               ),
             ),
           ),
-
           Text(
             value ? 'Yes' : 'No',
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w800,
-              color:
-                  value ? dojoGreen : dojoGrey,
+              color: value
+                  ? dojoGreen
+                  : dojoGrey,
             ),
           ),
         ],
