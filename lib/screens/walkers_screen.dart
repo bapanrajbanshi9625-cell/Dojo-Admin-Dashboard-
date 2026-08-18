@@ -18,11 +18,13 @@ class WalkersScreen extends StatefulWidget {
 }
 
 class _WalkersScreenState extends State<WalkersScreen> {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final TextEditingController searchController = TextEditingController();
+  final TextEditingController searchController =
+      TextEditingController();
+
+  final CollectionReference<Map<String, dynamic>> _profiles =
+      FirebaseFirestore.instance.collection('walkerProfiles');
 
   String selectedFilter = 'All';
-  bool _busy = false;
 
   @override
   void dispose() {
@@ -30,93 +32,238 @@ class _WalkersScreenState extends State<WalkersScreen> {
     super.dispose();
   }
 
-  Stream<QuerySnapshot<Map<String, dynamic>>> get _walkerStream {
-    return _firestore.collection('walkerProfiles').snapshots();
+  bool _bool(dynamic value) {
+    return value == true;
   }
 
-  List<WalkerData> _convert(
-    QuerySnapshot<Map<String, dynamic>> snapshot,
+  String _string(dynamic value) {
+    if (value == null) return '';
+    return value.toString();
+  }
+
+  String _firstValue(
+    Map<String, dynamic> data,
+    List<String> keys,
   ) {
-    final list = snapshot.docs
-        .map((doc) => WalkerData.fromFirestore(doc))
-        .toList();
+    for (final key in keys) {
+      final value = data[key];
 
-    list.sort((a, b) {
-      final ad = a.createdAt;
-      final bd = b.createdAt;
+      if (value != null && value.toString().trim().isNotEmpty) {
+        return value.toString();
+      }
+    }
 
-      if (ad == null && bd == null) return 0;
-      if (ad == null) return 1;
-      if (bd == null) return -1;
-
-      return bd.compareTo(ad);
-    });
-
-    return list;
+    return '';
   }
 
-  List<WalkerData> _filtered(List<WalkerData> walkers) {
+  String _status(Map<String, dynamic> data) {
+    final approval = _firstValue(
+      data,
+      ['approvalStatus', 'status'],
+    ).toLowerCase();
+
+    if (approval == 'approved') {
+      return 'Approved';
+    }
+
+    if (approval == 'rejected') {
+      return 'Rejected';
+    }
+
+    return 'Pending';
+  }
+
+  String _displayName(
+    Map<String, dynamic> data,
+  ) {
+    return _firstValue(
+      data,
+      [
+        'Full Name',
+        'fullName',
+        'name',
+      ],
+    );
+  }
+
+  String _mobile(
+    Map<String, dynamic> data,
+  ) {
+    return _firstValue(
+      data,
+      [
+        'Mobile number',
+        'mobile',
+        'phone',
+        'phoneNumber',
+      ],
+    );
+  }
+
+  String _walkerUid(
+    QueryDocumentSnapshot<Map<String, dynamic>> doc,
+    Map<String, dynamic> data,
+  ) {
+    return _firstValue(
+      data,
+      [
+        'Walker Uid',
+        'walkerUid',
+        'uid',
+      ],
+    ).isNotEmpty
+        ? _firstValue(
+            data,
+            [
+              'Walker Uid',
+              'walkerUid',
+              'uid',
+            ],
+          )
+        : doc.id;
+  }
+
+  String _walkerId(
+    Map<String, dynamic> data,
+  ) {
+    return _firstValue(
+      data,
+      [
+        'walkerId',
+        'Walker Id',
+        'Walker ID',
+        'id',
+      ],
+    );
+  }
+
+  String _email(
+    Map<String, dynamic> data,
+  ) {
+    return _firstValue(
+      data,
+      [
+        'email',
+        'Email',
+      ],
+    );
+  }
+
+  String _selfie(
+    Map<String, dynamic> data,
+  ) {
+    return _firstValue(
+      data,
+      [
+        'Profile Selfie',
+        'profileSelfie',
+        'profileImage',
+        'profileImageUrl',
+      ],
+    );
+  }
+
+  bool _isOnline(Map<String, dynamic> data) {
+    return _bool(data['isOnline']);
+  }
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> _walkerStream() {
+    return _profiles.snapshots();
+  }
+
+  List<QueryDocumentSnapshot<Map<String, dynamic>>> _filterDocs(
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+  ) {
     final query = searchController.text.trim().toLowerCase();
 
-    return walkers.where((walker) {
+    final result = docs.where((doc) {
+      final data = doc.data();
+
+      final name = _displayName(data).toLowerCase();
+      final phone = _mobile(data).toLowerCase();
+      final email = _email(data).toLowerCase();
+      final uid = _walkerUid(doc, data).toLowerCase();
+      final walkerId = _walkerId(data).toLowerCase();
+      final status = _status(data);
+
       final matchesSearch =
           query.isEmpty ||
-          walker.uid.toLowerCase().contains(query) ||
-          walker.walkerId.toLowerCase().contains(query) ||
-          walker.name.toLowerCase().contains(query) ||
-          walker.phone.toLowerCase().contains(query) ||
-          walker.aadhaar.toLowerCase().contains(query);
+          name.contains(query) ||
+          phone.contains(query) ||
+          email.contains(query) ||
+          uid.contains(query) ||
+          walkerId.contains(query);
 
-      final status = walker.verificationStatus.toLowerCase();
-
-      final matchesFilter = switch (selectedFilter) {
-        'Pending' => status == 'pending',
-        'Approved' => status == 'approved',
-        'Rejected' => status == 'rejected',
-        'Online' => walker.isOnline,
-        'Offline' => !walker.isOnline,
-        _ => true,
-      };
+      final matchesFilter =
+          selectedFilter == 'All' ||
+          status == selectedFilter;
 
       return matchesSearch && matchesFilter;
     }).toList();
+
+    result.sort((a, b) {
+      final aCreated = a.data()['createdAt'];
+      final bCreated = b.data()['createdAt'];
+
+      if (aCreated is Timestamp && bCreated is Timestamp) {
+        return bCreated.compareTo(aCreated);
+      }
+
+      return 0;
+    });
+
+    return result;
   }
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: _walkerStream,
+      stream: _walkerStream(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return _errorState(snapshot.error.toString());
         }
 
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return _loadingState();
+        if (snapshot.connectionState ==
+            ConnectionState.waiting) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(50),
+              child: CircularProgressIndicator(
+                color: dojoOrange,
+              ),
+            ),
+          );
         }
 
-        final walkers = _convert(snapshot.data!);
-        final filtered = _filtered(walkers);
+        final docs = snapshot.data?.docs ?? [];
 
-        final online = walkers.where((e) => e.isOnline).length;
-        final offline = walkers.length - online;
-
-        final pending = walkers
-            .where((e) => e.verificationStatus == 'pending')
+        final online = docs
+            .where((doc) => _isOnline(doc.data()))
             .length;
 
-        final approved = walkers
-            .where((e) => e.verificationStatus == 'approved')
+        final approved = docs
+            .where(
+              (doc) =>
+                  _status(doc.data()) == 'Approved',
+            )
             .length;
 
-        final rejected = walkers
-            .where((e) => e.verificationStatus == 'rejected')
+        final pending = docs
+            .where(
+              (doc) =>
+                  _status(doc.data()) == 'Pending',
+            )
             .length;
 
-        final activeWalks = walkers.fold<int>(
-          0,
-          (sum, walker) => sum + walker.activeWalks,
-        );
+        final rejected = docs
+            .where(
+              (doc) =>
+                  _status(doc.data()) == 'Rejected',
+            )
+            .length;
+
+        final filtered = _filterDocs(docs);
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -124,12 +271,10 @@ class _WalkersScreenState extends State<WalkersScreen> {
             _header(),
             const SizedBox(height: 20),
             _summaryCards(
+              total: docs.length,
               online: online,
-              offline: offline,
               pending: pending,
               approved: approved,
-              rejected: rejected,
-              activeWalks: activeWalks,
             ),
             const SizedBox(height: 20),
             _toolbar(),
@@ -137,7 +282,12 @@ class _WalkersScreenState extends State<WalkersScreen> {
             if (filtered.isEmpty)
               _emptyState()
             else
-              _walkerList(filtered),
+              ...filtered.map(
+                (doc) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _walkerCard(doc),
+                ),
+              ),
           ],
         );
       },
@@ -158,7 +308,7 @@ class _WalkersScreenState extends State<WalkersScreen> {
         ),
         SizedBox(height: 5),
         Text(
-          'Manage walkers and verify their profiles',
+          'Manage walker profiles, verification and approvals',
           style: TextStyle(
             color: dojoGrey,
             fontSize: 14,
@@ -169,29 +319,36 @@ class _WalkersScreenState extends State<WalkersScreen> {
   }
 
   Widget _summaryCards({
+    required int total,
     required int online,
-    required int offline,
     required int pending,
     required int approved,
-    required int rejected,
-    required int activeWalks,
   }) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 1200
-            ? 6
-            : constraints.maxWidth >= 750
-                ? 3
-                : 2;
+        final columns =
+            constraints.maxWidth >= 1000
+                ? 4
+                : constraints.maxWidth >= 600
+                    ? 2
+                    : 1;
 
         return GridView.count(
           crossAxisCount: columns,
           shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-          childAspectRatio: columns <= 2 ? 1.7 : 1.45,
+          physics:
+              const NeverScrollableScrollPhysics(),
+          crossAxisSpacing: 14,
+          mainAxisSpacing: 14,
+          childAspectRatio:
+              columns == 1 ? 3.3 : 2.25,
           children: [
+            _SummaryCard(
+              title: 'Total Walkers',
+              value: '$total',
+              icon: Icons.badge_outlined,
+              color: dojoBlue,
+            ),
             _SummaryCard(
               title: 'Online',
               value: '$online',
@@ -199,13 +356,7 @@ class _WalkersScreenState extends State<WalkersScreen> {
               color: dojoGreen,
             ),
             _SummaryCard(
-              title: 'Offline',
-              value: '$offline',
-              icon: Icons.wifi_off,
-              color: dojoGrey,
-            ),
-            _SummaryCard(
-              title: 'Pending',
+              title: 'Pending Approval',
               value: '$pending',
               icon: Icons.pending_actions_outlined,
               color: dojoOrange,
@@ -215,18 +366,6 @@ class _WalkersScreenState extends State<WalkersScreen> {
               value: '$approved',
               icon: Icons.verified_outlined,
               color: dojoGreen,
-            ),
-            _SummaryCard(
-              title: 'Rejected',
-              value: '$rejected',
-              icon: Icons.cancel_outlined,
-              color: dojoRed,
-            ),
-            _SummaryCard(
-              title: 'Active Walks',
-              value: '$activeWalks',
-              icon: Icons.directions_walk_outlined,
-              color: dojoBlue,
             ),
           ],
         );
@@ -240,11 +379,13 @@ class _WalkersScreenState extends State<WalkersScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: dojoBorder),
+        border: Border.all(
+          color: dojoBorder,
+        ),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          if (constraints.maxWidth < 700) {
+          if (constraints.maxWidth < 650) {
             return Column(
               children: [
                 _searchBox(),
@@ -256,9 +397,11 @@ class _WalkersScreenState extends State<WalkersScreen> {
 
           return Row(
             children: [
-              Expanded(child: _searchBox()),
+              Expanded(
+                child: _searchBox(),
+              ),
               const SizedBox(width: 12),
-              Flexible(child: _filters()),
+              _filters(),
             ],
           );
         },
@@ -269,9 +412,12 @@ class _WalkersScreenState extends State<WalkersScreen> {
   Widget _searchBox() {
     return TextField(
       controller: searchController,
-      onChanged: (_) => setState(() {}),
+      onChanged: (_) {
+        setState(() {});
+      },
       decoration: InputDecoration(
-        hintText: 'Search name, phone, Aadhaar, Walker ID or UID...',
+        hintText:
+            'Search name, UID, Walker ID or phone...',
         hintStyle: const TextStyle(
           color: dojoGrey,
           fontSize: 12,
@@ -281,182 +427,266 @@ class _WalkersScreenState extends State<WalkersScreen> {
           size: 20,
           color: dojoGrey,
         ),
-        suffixIcon: searchController.text.isEmpty
-            ? null
-            : IconButton(
-                onPressed: () {
-                  searchController.clear();
-                  setState(() {});
-                },
-                icon: const Icon(Icons.close, size: 18),
-              ),
+        suffixIcon:
+            searchController.text.isNotEmpty
+                ? IconButton(
+                    onPressed: () {
+                      searchController.clear();
+                      setState(() {});
+                    },
+                    icon: const Icon(
+                      Icons.close,
+                      size: 18,
+                    ),
+                  )
+                : null,
         filled: true,
         fillColor: const Color(0xFFF8F9FA),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(11),
-          borderSide: const BorderSide(color: dojoBorder),
+          borderRadius:
+              BorderRadius.circular(11),
+          borderSide: const BorderSide(
+            color: dojoBorder,
+          ),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(11),
-          borderSide: const BorderSide(color: dojoBorder),
+          borderRadius:
+              BorderRadius.circular(11),
+          borderSide: const BorderSide(
+            color: dojoBorder,
+          ),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(11),
-          borderSide: const BorderSide(color: dojoOrange),
+          borderRadius:
+              BorderRadius.circular(11),
+          borderSide: const BorderSide(
+            color: dojoOrange,
+          ),
         ),
       ),
     );
   }
 
   Widget _filters() {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          _filterButton('All'),
-          _filterButton('Pending'),
-          _filterButton('Approved'),
-          _filterButton('Rejected'),
-          _filterButton('Online'),
-          _filterButton('Offline'),
-        ],
-      ),
+    return Wrap(
+      spacing: 7,
+      runSpacing: 7,
+      children: [
+        _filterButton('All'),
+        _filterButton('Pending'),
+        _filterButton('Approved'),
+        _filterButton('Rejected'),
+      ],
     );
   }
 
   Widget _filterButton(String title) {
-    final selected = selectedFilter == title;
+    final selected =
+        selectedFilter == title;
 
-    return Padding(
-      padding: const EdgeInsets.only(right: 7),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(10),
-        onTap: () {
-          setState(() {
-            selectedFilter = title;
-          });
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 13,
-            vertical: 10,
-          ),
-          decoration: BoxDecoration(
+    return InkWell(
+      borderRadius:
+          BorderRadius.circular(10),
+      onTap: () {
+        setState(() {
+          selectedFilter = title;
+        });
+      },
+      child: Container(
+        padding:
+            const EdgeInsets.symmetric(
+          horizontal: 13,
+          vertical: 10,
+        ),
+        decoration: BoxDecoration(
+          color: selected
+              ? dojoOrange
+              : const Color(0xFFF8F9FA),
+          borderRadius:
+              BorderRadius.circular(10),
+          border: Border.all(
             color: selected
                 ? dojoOrange
-                : const Color(0xFFF8F9FA),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: selected ? dojoOrange : dojoBorder,
-            ),
+                : dojoBorder,
           ),
-          child: Text(
-            title,
-            style: TextStyle(
-              color: selected ? Colors.white : dojoDark,
-              fontSize: 12,
-              fontWeight: selected
-                  ? FontWeight.w800
-                  : FontWeight.w600,
-            ),
+        ),
+        child: Text(
+          title,
+          style: TextStyle(
+            color: selected
+                ? Colors.white
+                : dojoDark,
+            fontSize: 12,
+            fontWeight: selected
+                ? FontWeight.w800
+                : FontWeight.w600,
           ),
         ),
       ),
     );
   }
 
-  Widget _walkerList(List<WalkerData> walkers) {
-    return Column(
-      children: walkers.map((walker) {
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: _walkerCard(walker),
-        );
-      }).toList(),
-    );
-  }
+  Widget _walkerCard(
+    QueryDocumentSnapshot<Map<String, dynamic>>
+        doc,
+  ) {
+    final data = doc.data();
 
-  Widget _walkerCard(WalkerData walker) {
-    final online = walker.isOnline;
-    final statusColor = online ? dojoGreen : dojoGrey;
+    final name = _displayName(data);
+    final uid = _walkerUid(doc, data);
+    final walkerId = _walkerId(data);
+    final phone = _mobile(data);
+    final email = _email(data);
+    final status = _status(data);
+    final online = _isOnline(data);
+
+    final statusColor =
+        status == 'Approved'
+            ? dojoGreen
+            : status == 'Rejected'
+                ? dojoRed
+                : dojoOrange;
 
     return Container(
       padding: const EdgeInsets.all(17),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(17),
-        border: Border.all(color: dojoBorder),
+        borderRadius:
+            BorderRadius.circular(17),
+        border: Border.all(
+          color: dojoBorder,
+        ),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
           if (constraints.maxWidth < 700) {
-            return _mobileCard(walker, statusColor);
+            return _mobileCard(
+              doc,
+              data,
+              name,
+              uid,
+              walkerId,
+              phone,
+              email,
+              status,
+              online,
+              statusColor,
+            );
           }
 
-          return _desktopCard(walker, statusColor);
+          return _desktopCard(
+            doc,
+            data,
+            name,
+            uid,
+            walkerId,
+            phone,
+            email,
+            status,
+            online,
+            statusColor,
+          );
         },
       ),
     );
   }
 
   Widget _desktopCard(
-    WalkerData walker,
+    QueryDocumentSnapshot<Map<String, dynamic>>
+        doc,
+    Map<String, dynamic> data,
+    String name,
+    String uid,
+    String walkerId,
+    String phone,
+    String email,
+    String status,
+    bool online,
     Color statusColor,
   ) {
     return Row(
       children: [
-        _avatar(walker),
+        _avatar(
+          online: online,
+          selfieUrl: _selfie(data),
+        ),
         const SizedBox(width: 14),
         Expanded(
           flex: 3,
-          child: _mainInfo(walker),
+          child: _mainInfo(
+            name: name,
+            uid: uid,
+            walkerId: walkerId,
+            email: email,
+          ),
         ),
         Expanded(
           child: _info(
             Icons.phone_outlined,
             'Phone',
-            walker.phone,
+            phone.isEmpty ? '—' : phone,
           ),
         ),
         Expanded(
           child: _info(
-            Icons.directions_walk_outlined,
-            'Walks',
-            '${walker.walks}',
+            Icons.verified_outlined,
+            'Aadhaar',
+            _bool(
+              data['aadhaar_front_uploaded'],
+            ) &&
+                    _bool(
+                      data['aadhaar_back_uploaded'],
+                    )
+                ? 'Uploaded'
+                : 'Pending',
           ),
         ),
-        Expanded(
-          child: _info(
-            Icons.star_outline,
-            'Rating',
-            walker.rating.toStringAsFixed(1),
-          ),
-        ),
-        _verificationChip(walker.verificationStatus),
-        const SizedBox(width: 7),
         _statusChip(
-          walker.isOnline ? 'Online' : 'Offline',
+          status,
           statusColor,
         ),
-        const SizedBox(width: 10),
-        _viewButton(walker),
+        const SizedBox(width: 12),
+        _viewButton(doc),
       ],
     );
   }
 
   Widget _mobileCard(
-    WalkerData walker,
+    QueryDocumentSnapshot<Map<String, dynamic>>
+        doc,
+    Map<String, dynamic> data,
+    String name,
+    String uid,
+    String walkerId,
+    String phone,
+    String email,
+    String status,
+    bool online,
     Color statusColor,
   ) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            _avatar(walker),
+            _avatar(
+              online: online,
+              selfieUrl: _selfie(data),
+            ),
             const SizedBox(width: 12),
-            Expanded(child: _mainInfo(walker)),
-            _verificationChip(walker.verificationStatus),
+            Expanded(
+              child: _mainInfo(
+                name: name,
+                uid: uid,
+                walkerId: walkerId,
+                email: email,
+              ),
+            ),
+            _statusChip(
+              status,
+              statusColor,
+            ),
           ],
         ),
         const SizedBox(height: 16),
@@ -466,107 +696,84 @@ class _WalkersScreenState extends State<WalkersScreen> {
               child: _info(
                 Icons.phone_outlined,
                 'Phone',
-                walker.phone,
+                phone.isEmpty
+                    ? '—'
+                    : phone,
               ),
             ),
             Expanded(
               child: _info(
-                Icons.directions_walk_outlined,
-                'Walks',
-                '${walker.walks}',
+                Icons.verified_outlined,
+                'Aadhaar',
+                _bool(
+                          data[
+                              'aadhaar_front_uploaded'],
+                        ) &&
+                        _bool(
+                          data[
+                              'aadhaar_back_uploaded'],
+                        )
+                    ? 'Uploaded'
+                    : 'Pending',
               ),
             ),
           ],
         ),
         const SizedBox(height: 14),
-        Row(
-          children: [
-            Expanded(
-              child: _info(
-                Icons.star_outline,
-                'Rating',
-                walker.rating.toStringAsFixed(1),
-              ),
-            ),
-            Expanded(
-              child: _info(
-                Icons.play_circle_outline,
-                'Active',
-                '${walker.activeWalks}',
-              ),
-            ),
-          ],
+        SizedBox(
+          width: double.infinity,
+          child: _viewButton(doc),
         ),
-        const SizedBox(height: 14),
-        Row(
-          children: [
-            _statusChip(
-              walker.isOnline ? 'Online' : 'Offline',
-              statusColor,
-            ),
-            const Spacer(),
-            _viewButton(walker),
-          ],
-        ),
-        if (walker.verificationStatus == 'pending') ...[
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: _approveButton(walker),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _rejectButton(walker),
-              ),
-            ],
-          ),
-        ],
       ],
     );
   }
 
-  Widget _avatar(WalkerData walker) {
-    final online = walker.isOnline;
-
+  Widget _avatar({
+    required bool online,
+    required String selfieUrl,
+  }) {
     return Stack(
       children: [
         Container(
-          width: 52,
-          height: 52,
+          width: 56,
+          height: 56,
           decoration: BoxDecoration(
-            color: const Color(0xFFEAF0F7),
-            borderRadius: BorderRadius.circular(15),
+            color:
+                const Color(0xFFEAF0F7),
+            borderRadius:
+                BorderRadius.circular(16),
           ),
-          child: walker.profileSelfie.isNotEmpty
-              ? ClipRRect(
-                  borderRadius: BorderRadius.circular(15),
-                  child: Image.network(
-                    walker.profileSelfie,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) {
-                      return const Icon(
-                        Icons.badge_outlined,
-                        color: dojoBlue,
-                        size: 26,
-                      );
-                    },
-                  ),
+          clipBehavior:
+              Clip.antiAlias,
+          child: selfieUrl.isNotEmpty
+              ? Image.network(
+                  selfieUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder:
+                      (_, __, ___) {
+                    return const Icon(
+                      Icons.badge_outlined,
+                      color: dojoBlue,
+                      size: 27,
+                    );
+                  },
                 )
               : const Icon(
                   Icons.badge_outlined,
                   color: dojoBlue,
-                  size: 26,
+                  size: 27,
                 ),
         ),
         Positioned(
           right: 1,
           bottom: 1,
           child: Container(
-            width: 13,
-            height: 13,
+            width: 14,
+            height: 14,
             decoration: BoxDecoration(
-              color: online ? dojoGreen : dojoGrey,
+              color: online
+                  ? dojoGreen
+                  : dojoGrey,
               shape: BoxShape.circle,
               border: Border.all(
                 color: Colors.white,
@@ -579,43 +786,66 @@ class _WalkersScreenState extends State<WalkersScreen> {
     );
   }
 
-  Widget _mainInfo(WalkerData walker) {
+  Widget _mainInfo({
+    required String name,
+    required String uid,
+    required String walkerId,
+    required String email,
+  }) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
       children: [
         Text(
-          walker.walkerId.isEmpty
-              ? 'UID: ${walker.uid}'
-              : walker.walkerId,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+          walkerId.isEmpty
+              ? 'Walker'
+              : walkerId,
           style: const TextStyle(
             fontSize: 11,
             color: dojoGrey,
-            fontWeight: FontWeight.w700,
+            fontWeight:
+                FontWeight.w700,
           ),
         ),
         const SizedBox(height: 3),
         Text(
-          walker.name.isEmpty ? 'Unnamed Walker' : walker.name,
+          name.isEmpty
+              ? 'Unnamed Walker'
+              : name,
           maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+          overflow:
+              TextOverflow.ellipsis,
           style: const TextStyle(
             fontSize: 14,
-            fontWeight: FontWeight.w900,
+            fontWeight:
+                FontWeight.w900,
             color: dojoDark,
           ),
         ),
         const SizedBox(height: 3),
         Text(
-          walker.uid,
+          'UID: $uid',
           maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+          overflow:
+              TextOverflow.ellipsis,
           style: const TextStyle(
             fontSize: 10,
             color: dojoGrey,
           ),
         ),
+        if (email.isNotEmpty) ...[
+          const SizedBox(height: 2),
+          Text(
+            email,
+            maxLines: 1,
+            overflow:
+                TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 10,
+              color: dojoGrey,
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -627,27 +857,36 @@ class _WalkersScreenState extends State<WalkersScreen> {
   ) {
     return Row(
       children: [
-        Icon(icon, size: 18, color: dojoBlue),
+        Icon(
+          icon,
+          size: 18,
+          color: dojoBlue,
+        ),
         const SizedBox(width: 7),
         Flexible(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
             children: [
               Text(
                 label,
-                style: const TextStyle(
+                style:
+                    const TextStyle(
                   fontSize: 10,
                   color: dojoGrey,
                 ),
               ),
               const SizedBox(height: 2),
               Text(
-                value.isEmpty ? '-' : value,
+                value,
                 maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                overflow:
+                    TextOverflow.ellipsis,
+                style:
+                    const TextStyle(
                   fontSize: 12,
-                  fontWeight: FontWeight.w800,
+                  fontWeight:
+                      FontWeight.w800,
                 ),
               ),
             ],
@@ -657,77 +896,38 @@ class _WalkersScreenState extends State<WalkersScreen> {
     );
   }
 
-  Widget _verificationChip(String status) {
-    final normalized = status.toLowerCase();
-
-    final Color color;
-    final String label;
-    final IconData icon;
-
-    switch (normalized) {
-      case 'approved':
-        color = dojoGreen;
-        label = 'Approved';
-        icon = Icons.verified;
-        break;
-      case 'rejected':
-        color = dojoRed;
-        label = 'Rejected';
-        icon = Icons.cancel;
-        break;
-      default:
-        color = dojoOrange;
-        label = 'Pending';
-        icon = Icons.pending_actions;
-    }
-
+  Widget _statusChip(
+    String status,
+    Color color,
+  ) {
     return Container(
-      padding: const EdgeInsets.symmetric(
+      padding:
+          const EdgeInsets.symmetric(
         horizontal: 9,
         vertical: 6,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: .09),
-        borderRadius: BorderRadius.circular(8),
+        color:
+            color.withOpacity(.09),
+        borderRadius:
+            BorderRadius.circular(8),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize:
+            MainAxisSize.min,
         children: [
-          Icon(icon, size: 13, color: color),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w900,
-              color: color,
-            ),
+          Icon(
+            Icons.circle,
+            size: 7,
+            color: color,
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _statusChip(String status, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 9,
-        vertical: 6,
-      ),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: .09),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.circle, size: 7, color: color),
           const SizedBox(width: 5),
           Text(
             status,
             style: TextStyle(
               fontSize: 10,
-              fontWeight: FontWeight.w900,
+              fontWeight:
+                  FontWeight.w900,
               color: color,
             ),
           ),
@@ -736,21 +936,34 @@ class _WalkersScreenState extends State<WalkersScreen> {
     );
   }
 
-  Widget _viewButton(WalkerData walker) {
+  Widget _viewButton(
+    QueryDocumentSnapshot<Map<String, dynamic>>
+        doc,
+  ) {
     return OutlinedButton.icon(
-      onPressed: () => _showWalkerDetails(walker),
+      onPressed: () {
+        _showWalkerDetails(doc);
+      },
       icon: const Icon(
         Icons.visibility_outlined,
         size: 17,
       ),
       label: const Text('View'),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: dojoOrange,
-        side: const BorderSide(color: dojoOrange),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
+      style:
+          OutlinedButton.styleFrom(
+        foregroundColor:
+            dojoOrange,
+        side:
+            const BorderSide(
+          color: dojoOrange,
         ),
-        padding: const EdgeInsets.symmetric(
+        shape:
+            RoundedRectangleBorder(
+          borderRadius:
+              BorderRadius.circular(10),
+        ),
+        padding:
+            const EdgeInsets.symmetric(
           horizontal: 13,
           vertical: 11,
         ),
@@ -758,588 +971,179 @@ class _WalkersScreenState extends State<WalkersScreen> {
     );
   }
 
-  Widget _approveButton(WalkerData walker) {
-    return ElevatedButton.icon(
-      onPressed: _busy ? null : () => _showApproveDialog(walker),
-      icon: const Icon(Icons.verified_outlined, size: 17),
-      label: const Text('Approve'),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: dojoGreen,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        padding: const EdgeInsets.symmetric(vertical: 11),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
-      ),
-    );
-  }
+  void _showWalkerDetails(
+    QueryDocumentSnapshot<Map<String, dynamic>>
+        doc,
+  ) {
+    final data = doc.data();
 
-  Widget _rejectButton(WalkerData walker) {
-    return OutlinedButton.icon(
-      onPressed: _busy ? null : () => _showRejectDialog(walker),
-      icon: const Icon(Icons.close, size: 17),
-      label: const Text('Reject'),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: dojoRed,
-        side: const BorderSide(color: dojoRed),
-        padding: const EdgeInsets.symmetric(vertical: 11),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
-      ),
-    );
-  }
-
-  void _showWalkerDetails(WalkerData walker) {
-    showDialog<void>(
+    showModalBottomSheet(
       context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: Row(
-            children: [
-              const Icon(
-                Icons.badge_outlined,
-                color: dojoBlue,
-              ),
-              const SizedBox(width: 9),
-              Expanded(
-                child: Text(
-                  walker.name.isEmpty
-                      ? 'Walker Details'
-                      : walker.name,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          content: SizedBox(
-            width: 520,
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _detailSection('Identity'),
-                  _detailRow('Walker ID', walker.walkerId),
-                  _detailRow('Auth UID', walker.uid),
-                  _detailRow('Full Name', walker.name),
-                  _detailRow('Mobile', walker.phone),
-                  _detailRow('DOB', walker.dob),
-                  _detailRow('Aadhaar', walker.aadhaar),
-                  _detailRow('Address', walker.address),
-                  _detailRow('Pincode', walker.pincode),
-                  const SizedBox(height: 8),
-                  _detailSection('Verification'),
-                  _detailRow(
-                    'Profile Completed',
-                    walker.profileCompleted ? 'Yes' : 'No',
-                  ),
-                  _detailRow(
-                    'Aadhaar Front',
-                    walker.aadhaarFrontUploaded ? 'Uploaded' : 'Missing',
-                  ),
-                  _detailRow(
-                    'Aadhaar Back',
-                    walker.aadhaarBackUploaded ? 'Uploaded' : 'Missing',
-                  ),
-                  _detailRow(
-                    'Aadhaar Verified',
-                    walker.aadhaarVerified ? 'Yes' : 'No',
-                  ),
-                  _detailRow(
-                    'Selfie Verified',
-                    walker.selfieVerified ? 'Yes' : 'No',
-                  ),
-                  _detailRow(
-                    'Verification',
-                    walker.verificationStatus,
-                  ),
-                  const SizedBox(height: 8),
-                  _detailSection('Activity'),
-                  _detailRow('Online', walker.isOnline ? 'Yes' : 'No'),
-                  _detailRow('Active', walker.isActive ? 'Yes' : 'No'),
-                  _detailRow('Walks', '${walker.walks}'),
-                  _detailRow(
-                    'Active Walks',
-                    '${walker.activeWalks}',
-                  ),
-                  _detailRow(
-                    'Rating',
-                    walker.rating.toStringAsFixed(1),
-                  ),
-                  const SizedBox(height: 12),
-                  if (walker.profileSelfie.isNotEmpty)
-                    _imagePreview(
-                      title: 'Profile Selfie',
-                      url: walker.profileSelfie,
-                    ),
-                  if (walker.aadhaarFront.isNotEmpty)
-                    _imagePreview(
-                      title: 'Aadhaar Front',
-                      url: walker.aadhaarFront,
-                    ),
-                  if (walker.aadhaarBack.isNotEmpty)
-                    _imagePreview(
-                      title: 'Aadhaar Back',
-                      url: walker.aadhaarBack,
-                    ),
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            if (walker.verificationStatus == 'pending') ...[
-              _rejectButton(walker),
-              _approveButton(walker),
-            ],
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Close'),
-            ),
-          ],
+      isScrollControlled: true,
+      backgroundColor:
+          Colors.transparent,
+      builder: (sheetContext) {
+        return _WalkerDetailsSheet(
+          doc: doc,
+          data: data,
+          onApprove: () {
+            Navigator.pop(sheetContext);
+            _showApproveSheet(doc);
+          },
+          onReject: () {
+            Navigator.pop(sheetContext);
+            _showRejectSheet(doc);
+          },
         );
       },
     );
   }
 
-  Widget _detailSection(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w900,
-          color: dojoOrange,
-        ),
-      ),
-    );
-  }
-
-  Widget _detailRow(String title, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 9),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 125,
-            child: Text(
-              title,
-              style: const TextStyle(
-                color: dojoGrey,
-                fontSize: 12,
-              ),
-            ),
-          ),
-          Expanded(
-            child: SelectableText(
-              value.isEmpty ? '-' : value,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _imagePreview({
-    required String title,
-    required String url,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-              color: dojoDark,
-            ),
-          ),
-          const SizedBox(height: 7),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Image.network(
-              url,
-              width: double.infinity,
-              height: 180,
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) {
-                return Container(
-                  height: 100,
-                  alignment: Alignment.center,
-                  color: dojoBackground,
-                  child: const Text(
-                    'Image could not be loaded',
-                    style: TextStyle(color: dojoGrey),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _showApproveDialog(WalkerData walker) async {
-    bool aadhaarVerified = walker.aadhaarVerified;
-    bool selfieVerified = walker.selfieVerified;
-
-    final approved = await showDialog<bool>(
+  void _showApproveSheet(
+    QueryDocumentSnapshot<Map<String, dynamic>>
+        doc,
+  ) {
+    showModalBottomSheet(
       context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            final canApprove =
-                aadhaarVerified && selfieVerified;
+      isScrollControlled: true,
+      backgroundColor:
+          Colors.transparent,
+      builder: (sheetContext) {
+        return _ApproveSheet(
+          data: doc.data(),
+          onConfirm: (
+            aadhaarVerified,
+            selfieVerified,
+          ) async {
+            Navigator.pop(sheetContext);
 
-            return AlertDialog(
-              title: const Row(
-                children: [
-                  Icon(
-                    Icons.verified_outlined,
-                    color: dojoGreen,
-                  ),
-                  SizedBox(width: 9),
-                  Text(
-                    'Approve Walker',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ],
-              ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Verify the documents before approving ${walker.name.isEmpty ? 'this walker' : walker.name}.',
-                    style: const TextStyle(
-                      color: dojoGrey,
-                      fontSize: 13,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  CheckboxListTile(
-                    value: aadhaarVerified,
-                    onChanged: (value) {
-                      setDialogState(() {
-                        aadhaarVerified = value ?? false;
-                      });
-                    },
-                    title: const Text(
-                      'Aadhaar Verified',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    subtitle: Text(
-                      walker.aadhaar.isEmpty
-                          ? 'Aadhaar number not available'
-                          : 'Aadhaar: ${walker.aadhaar}',
-                    ),
-                    controlAffinity:
-                        ListTileControlAffinity.leading,
-                    contentPadding: EdgeInsets.zero,
-                    activeColor: dojoGreen,
-                  ),
-                  CheckboxListTile(
-                    value: selfieVerified,
-                    onChanged: (value) {
-                      setDialogState(() {
-                        selfieVerified = value ?? false;
-                      });
-                    },
-                    title: const Text(
-                      'Selfie Verified',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    subtitle: Text(
-                      walker.profileSelfie.isEmpty
-                          ? 'Profile selfie not available'
-                          : 'Profile selfie uploaded',
-                    ),
-                    controlAffinity:
-                        ListTileControlAffinity.leading,
-                    contentPadding: EdgeInsets.zero,
-                    activeColor: dojoGreen,
-                  ),
-                  if (!canApprove)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 8),
-                      child: Text(
-                        'Both Aadhaar and Selfie verification are required.',
-                        style: TextStyle(
-                          color: dojoRed,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(dialogContext, false),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: canApprove
-                      ? () => Navigator.pop(dialogContext, true)
-                      : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: dojoGreen,
-                    foregroundColor: Colors.white,
-                  ),
-                  child: const Text('Confirm Approval'),
-                ),
-              ],
+            await _approveWalker(
+              doc.id,
+              aadhaarVerified,
+              selfieVerified,
             );
           },
         );
       },
     );
+  }
 
-    if (approved != true || !mounted) return;
+  void _showRejectSheet(
+    QueryDocumentSnapshot<Map<String, dynamic>>
+        doc,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor:
+          Colors.transparent,
+      builder: (sheetContext) {
+        return _RejectSheet(
+          data: doc.data(),
+          onConfirm: () async {
+            Navigator.pop(sheetContext);
 
-    await _approveWalker(
-      walker,
-      aadhaarVerified: aadhaarVerified,
-      selfieVerified: selfieVerified,
+            await _rejectWalker(
+              doc.id,
+            );
+          },
+        );
+      },
     );
   }
 
   Future<void> _approveWalker(
-    WalkerData walker, {
-    required bool aadhaarVerified,
-    required bool selfieVerified,
-  }) async {
-    setState(() {
-      _busy = true;
-    });
-
+    String uid,
+    bool aadhaarVerified,
+    bool selfieVerified,
+  ) async {
     try {
-      await _firestore.collection('walkerProfiles').doc(walker.uid).set(
+      await _profiles.doc(uid).set(
         {
-          'verificationStatus': 'approved',
-          'aadhaarVerified': aadhaarVerified,
-          'selfieVerified': selfieVerified,
-          'isVerified': true,
-          'approvedAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
+          'aadhaarVerified':
+              aadhaarVerified,
+          'selfieVerified':
+              selfieVerified,
+          'approvalStatus':
+              'approved',
+          'approvedAt':
+              FieldValue.serverTimestamp(),
+          'updatedAt':
+              FieldValue.serverTimestamp(),
         },
         SetOptions(merge: true),
       );
 
       if (!mounted) return;
 
-      _showMessage(
-        'Walker approved successfully.',
-        dojoGreen,
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Walker approved successfully.',
+          ),
+          backgroundColor:
+              dojoGreen,
+        ),
       );
     } catch (e) {
       if (!mounted) return;
 
-      _showMessage(
-        'Approval failed: $e',
-        dojoRed,
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        SnackBar(
+          content: Text(
+            'Approval failed: $e',
+          ),
+          backgroundColor:
+              dojoRed,
+        ),
       );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _busy = false;
-        });
-      }
     }
-  }
-
-  Future<void> _showRejectDialog(WalkerData walker) async {
-    final reasonController = TextEditingController();
-
-    final rejected = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Row(
-            children: [
-              Icon(
-                Icons.cancel_outlined,
-                color: dojoRed,
-              ),
-              SizedBox(width: 9),
-              Text(
-                'Reject Walker?',
-                style: TextStyle(
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Are you sure you want to reject ${walker.name.isEmpty ? 'this walker' : walker.name}?',
-                style: const TextStyle(fontSize: 13),
-              ),
-              const SizedBox(height: 14),
-              TextField(
-                controller: reasonController,
-                maxLines: 3,
-                decoration: InputDecoration(
-                  labelText: 'Reason',
-                  hintText: 'Enter rejection reason',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: dojoRed,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Confirm Reject'),
-            ),
-          ],
-        );
-      },
-    );
-
-    final reason = reasonController.text.trim();
-    reasonController.dispose();
-
-    if (rejected != true || !mounted) return;
-
-    await _rejectWalker(
-      walker,
-      reason: reason,
-    );
   }
 
   Future<void> _rejectWalker(
-    WalkerData walker, {
-    required String reason,
-  }) async {
-    setState(() {
-      _busy = true;
-    });
-
+    String uid,
+  ) async {
     try {
-      await _firestore.collection('walkerProfiles').doc(walker.uid).set(
+      await _profiles.doc(uid).set(
         {
-          'verificationStatus': 'rejected',
-          'isVerified': false,
-          'rejectionReason': reason,
-          'rejectedAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
+          'approvalStatus':
+              'rejected',
+          'rejectedAt':
+              FieldValue.serverTimestamp(),
+          'updatedAt':
+              FieldValue.serverTimestamp(),
         },
         SetOptions(merge: true),
       );
 
       if (!mounted) return;
 
-      _showMessage(
-        'Walker rejected.',
-        dojoRed,
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Walker rejected.',
+          ),
+          backgroundColor:
+              dojoRed,
+        ),
       );
     } catch (e) {
       if (!mounted) return;
 
-      _showMessage(
-        'Rejection failed: $e',
-        dojoRed,
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _busy = false;
-        });
-      }
-    }
-  }
-
-  void _showMessage(String message, Color color) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         SnackBar(
-          content: Text(message),
-          backgroundColor: color,
-          behavior: SnackBarBehavior.floating,
+          content: Text(
+            'Rejection failed: $e',
+          ),
+          backgroundColor:
+              dojoRed,
         ),
       );
-  }
-
-  Widget _loadingState() {
-    return const SizedBox(
-      height: 350,
-      child: Center(
-        child: CircularProgressIndicator(
-          color: dojoOrange,
-        ),
-      ),
-    );
-  }
-
-  Widget _errorState(String error) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(17),
-        border: Border.all(color: dojoBorder),
-      ),
-      child: Column(
-        children: [
-          const Icon(
-            Icons.error_outline,
-            size: 48,
-            color: dojoRed,
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            'Unable to load walkers',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 7),
-          SelectableText(
-            error,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: dojoGrey,
-              fontSize: 11,
-            ),
-          ),
-        ],
-      ),
-    );
+    }
   }
 
   Widget _emptyState() {
@@ -1348,12 +1152,16 @@ class _WalkersScreenState extends State<WalkersScreen> {
       height: 300,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(17),
-        border: Border.all(color: dojoBorder),
+        borderRadius:
+            BorderRadius.circular(17),
+        border: Border.all(
+          color: dojoBorder,
+        ),
       ),
       child: const Center(
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize:
+              MainAxisSize.min,
           children: [
             Icon(
               Icons.badge_outlined,
@@ -1365,12 +1173,13 @@ class _WalkersScreenState extends State<WalkersScreen> {
               'No walkers found',
               style: TextStyle(
                 fontSize: 16,
-                fontWeight: FontWeight.w800,
+                fontWeight:
+                    FontWeight.w800,
               ),
             ),
             SizedBox(height: 5),
             Text(
-              'Walkers will appear here from Firebase.',
+              'Walker profiles will appear here.',
               style: TextStyle(
                 color: dojoGrey,
                 fontSize: 12,
@@ -1381,246 +1190,906 @@ class _WalkersScreenState extends State<WalkersScreen> {
       ),
     );
   }
+
+  Widget _errorState(String error) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(25),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius:
+            BorderRadius.circular(16),
+        border: Border.all(
+          color: dojoBorder,
+        ),
+      ),
+      child: Column(
+        children: [
+          const Icon(
+            Icons.error_outline,
+            color: dojoRed,
+            size: 42,
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'Unable to load walkers',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight:
+                  FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            error,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: dojoGrey,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
-class WalkerData {
-  final String uid;
-  final String walkerId;
-  final String name;
-  final String phone;
-  final String email;
-  final String dob;
-  final String address;
-  final String pincode;
-  final String aadhaar;
-  final String profileSelfie;
-  final String aadhaarFront;
-  final String aadhaarBack;
+class _WalkerDetailsSheet
+    extends StatelessWidget {
+  final QueryDocumentSnapshot<
+      Map<String, dynamic>> doc;
 
-  final bool profileCompleted;
-  final bool aadhaarFrontUploaded;
-  final bool aadhaarBackUploaded;
-  final bool aadhaarVerified;
-  final bool selfieVerified;
-  final bool isActive;
-  final bool isOnline;
-  final bool isVerified;
+  final Map<String, dynamic> data;
 
-  final String verificationStatus;
-  final String rejectionReason;
+  final VoidCallback onApprove;
+  final VoidCallback onReject;
 
-  final int walks;
-  final int activeWalks;
-  final double rating;
-
-  final DateTime? createdAt;
-  final DateTime? updatedAt;
-
-  const WalkerData({
-    required this.uid,
-    required this.walkerId,
-    required this.name,
-    required this.phone,
-    required this.email,
-    required this.dob,
-    required this.address,
-    required this.pincode,
-    required this.aadhaar,
-    required this.profileSelfie,
-    required this.aadhaarFront,
-    required this.aadhaarBack,
-    required this.profileCompleted,
-    required this.aadhaarFrontUploaded,
-    required this.aadhaarBackUploaded,
-    required this.aadhaarVerified,
-    required this.selfieVerified,
-    required this.isActive,
-    required this.isOnline,
-    required this.isVerified,
-    required this.verificationStatus,
-    required this.rejectionReason,
-    required this.walks,
-    required this.activeWalks,
-    required this.rating,
-    required this.createdAt,
-    required this.updatedAt,
+  const _WalkerDetailsSheet({
+    required this.doc,
+    required this.data,
+    required this.onApprove,
+    required this.onReject,
   });
 
-  factory WalkerData.fromFirestore(
-    DocumentSnapshot<Map<String, dynamic>> doc,
+  String value(
+    List<String> keys,
   ) {
-    final data = doc.data() ?? {};
+    for (final key in keys) {
+      final v = data[key];
 
-    return WalkerData(
-      uid: doc.id,
-      walkerId: _string(
-        data['Walker Id'] ??
-            data['Walker ID'] ??
-            data['walkerId'] ??
-            data['walkerID'],
+      if (v != null &&
+          v.toString().trim().isNotEmpty) {
+        return v.toString();
+      }
+    }
+
+    return '—';
+  }
+
+  bool boolValue(String key) {
+    return data[key] == true;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final name = value([
+      'Full Name',
+      'fullName',
+      'name',
+    ]);
+
+    final uid = value([
+      'Walker Uid',
+      'walkerUid',
+      'uid',
+    ]).replaceFirst(
+      '—',
+      doc.id,
+    );
+
+    final status = value([
+      'approvalStatus',
+      'status',
+    ]);
+
+    final selfie = value([
+      'Profile Selfie',
+      'profileSelfie',
+      'profileImage',
+      'profileImageUrl',
+    ]);
+
+    return Container(
+      constraints:
+          const BoxConstraints(
+        maxHeight: 750,
       ),
-      name: _string(
-        data['Full Name'] ??
-            data['fullName'] ??
-            data['name'],
+      decoration:
+          const BoxDecoration(
+        color: Colors.white,
+        borderRadius:
+            BorderRadius.vertical(
+          top: Radius.circular(25),
+        ),
       ),
-      phone: _string(
-        data['Mobile number'] ??
-            data['mobileNumber'] ??
-            data['mobile'] ??
-            data['phone'] ??
-            data['phoneNumber'],
+      child: SafeArea(
+        child: SingleChildScrollView(
+          padding:
+              const EdgeInsets.fromLTRB(
+            20,
+            12,
+            20,
+            20,
+          ),
+          child: Column(
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 45,
+                  height: 5,
+                  decoration:
+                      BoxDecoration(
+                    color: dojoBorder,
+                    borderRadius:
+                        BorderRadius.circular(
+                      10,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Container(
+                    width: 52,
+                    height: 52,
+                    clipBehavior:
+                        Clip.antiAlias,
+                    decoration:
+                        BoxDecoration(
+                      color:
+                          const Color(
+                        0xFFEAF0F7,
+                      ),
+                      borderRadius:
+                          BorderRadius.circular(
+                        15,
+                      ),
+                    ),
+                    child:
+                        selfie != '—'
+                            ? Image.network(
+                                selfie,
+                                fit: BoxFit.cover,
+                                errorBuilder:
+                                    (_, __, ___) {
+                                  return const Icon(
+                                    Icons.badge_outlined,
+                                    color:
+                                        dojoBlue,
+                                  );
+                                },
+                              )
+                            : const Icon(
+                                Icons.badge_outlined,
+                                color:
+                                    dojoBlue,
+                              ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          name,
+                          style:
+                              const TextStyle(
+                            fontSize: 18,
+                            fontWeight:
+                                FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(
+                          height: 3,
+                        ),
+                        Text(
+                          status,
+                          style:
+                              const TextStyle(
+                            color:
+                                dojoGrey,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              _sectionTitle(
+                'Identity',
+              ),
+              _detail(
+                'Walker UID',
+                uid,
+              ),
+              _detail(
+                'Walker ID',
+                value([
+                  'walkerId',
+                  'Walker Id',
+                  'Walker ID',
+                  'id',
+                ]),
+              ),
+              _detail(
+                'Full Name',
+                name,
+              ),
+              _detail(
+                'Mobile',
+                value([
+                  'Mobile number',
+                  'mobile',
+                  'phone',
+                  'phoneNumber',
+                ]),
+              ),
+              _detail(
+                'Date Of Birth',
+                value([
+                  'Date Of Birth',
+                  'dateOfBirth',
+                  'dob',
+                ]),
+              ),
+              _detail(
+                'Aadhaar Number',
+                value([
+                  'Aadhar Number',
+                  'Aadhaar Number',
+                  'aadhaarNumber',
+                ]),
+              ),
+              _detail(
+                'Address',
+                value([
+                  'Adress',
+                  'Address',
+                  'address',
+                ]),
+              ),
+              _detail(
+                'Pincode',
+                value([
+                  'Pincode',
+                  'pincode',
+                ]),
+              ),
+              const SizedBox(height: 10),
+              _sectionTitle(
+                'Verification',
+              ),
+              _verificationRow(
+                'Aadhaar Front Uploaded',
+                boolValue(
+                  'aadhaar_front_uploaded',
+                ),
+              ),
+              _verificationRow(
+                'Aadhaar Back Uploaded',
+                boolValue(
+                  'aadhaar_back_uploaded',
+                ),
+              ),
+              _verificationRow(
+                'Aadhaar Verified',
+                boolValue(
+                  'aadhaarVerified',
+                ),
+              ),
+              _verificationRow(
+                'Selfie Verified',
+                boolValue(
+                  'selfieVerified',
+                ),
+              ),
+              const SizedBox(height: 20),
+              if (status != 'approved' &&
+                  status != 'Approved')
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: onReject,
+                        style:
+                            OutlinedButton.styleFrom(
+                          foregroundColor:
+                              dojoRed,
+                          side:
+                              const BorderSide(
+                            color: dojoRed,
+                          ),
+                          padding:
+                              const EdgeInsets
+                                  .symmetric(
+                            vertical: 14,
+                          ),
+                        ),
+                        child:
+                            const Text(
+                          'Reject',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed:
+                            onApprove,
+                        style:
+                            ElevatedButton.styleFrom(
+                          backgroundColor:
+                              dojoOrange,
+                          foregroundColor:
+                              Colors.white,
+                          padding:
+                              const EdgeInsets
+                                  .symmetric(
+                            vertical: 14,
+                          ),
+                        ),
+                        child:
+                            const Text(
+                          'Approve',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+            ],
+          ),
+        ),
       ),
-      email: _string(data['email']),
-      dob: _string(
-        data['Date Of Birth'] ??
-            data['dateOfBirth'] ??
-            data['dob'],
-      ),
-      address: _string(
-        data['Adress'] ??
-            data['Address'] ??
-            data['address'],
-      ),
-      pincode: _string(
-        data['Pincode'] ??
-            data['pincode'] ??
-            data['pinCode'],
-      ),
-      aadhaar: _string(
-        data['Aadhar Number'] ??
-            data['Aadhaar Number'] ??
-            data['aadhaarNumber'] ??
-            data['aadhaar'],
-      ),
-      profileSelfie: _string(
-        data['Profile Selfie'] ??
-            data['profileSelfie'] ??
-            data['profileImage'] ??
-            data['profileImageUrl'],
-      ),
-      aadhaarFront: _string(
-        data['Aadhar Front'] ??
-            data['Aadhaar Front'] ??
-            data['aadhaarFront'] ??
-            data['aadhaarFrontUrl'],
-      ),
-      aadhaarBack: _string(
-        data['Aadhar Back'] ??
-            data['Aadhaar Back'] ??
-            data['aadhaarBack'] ??
-            data['aadhaarBackUrl'],
-      ),
-      profileCompleted: _bool(
-        data['profileCompleted'],
-      ),
-      aadhaarFrontUploaded: _bool(
-        data['aadhaar_front_uploaded'] ??
-            data['aadhaarFrontUploaded'],
-      ),
-      aadhaarBackUploaded: _bool(
-        data['aadhaar_back_uploaded'] ??
-            data['aadhaarBackUploaded'],
-      ),
-      aadhaarVerified: _bool(
-        data['aadhaarVerified'],
-      ),
-      selfieVerified: _bool(
-        data['selfieVerified'],
-      ),
-      isActive: _bool(
-        data['isActive'],
-        fallback: true,
-      ),
-      isOnline: _bool(
-        data['isOnline'],
-      ),
-      isVerified: _bool(
-        data['isVerified'],
-      ),
-      verificationStatus: _status(data),
-      rejectionReason: _string(
-        data['rejectionReason'],
-      ),
-      walks: _int(
-        data['totalWalks'] ??
-            data['completedWalks'] ??
-            data['walks'],
-      ),
-      activeWalks: _int(
-        data['activeWalks'],
-      ),
-      rating: _double(
-        data['rating'],
-      ),
-      createdAt: _date(data['createdAt']),
-      updatedAt: _date(data['updatedAt']),
     );
   }
 
-  static String _status(
-    Map<String, dynamic> data,
+  Widget _sectionTitle(
+    String title,
   ) {
-    final value = _string(
-      data['verificationStatus'] ??
-          data['verification_status'],
-    ).toLowerCase();
-
-    if (value == 'approved') return 'approved';
-    if (value == 'rejected') return 'rejected';
-
-    return 'pending';
+    return Padding(
+      padding:
+          const EdgeInsets.only(
+        bottom: 8,
+      ),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight:
+              FontWeight.w900,
+          color: dojoDark,
+        ),
+      ),
+    );
   }
 
-  static String _string(dynamic value) {
-    if (value == null) return '';
-    return value.toString();
+  Widget _detail(
+    String title,
+    String value,
+  ) {
+    return Padding(
+      padding:
+          const EdgeInsets.only(
+        bottom: 9,
+      ),
+      child: Row(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 125,
+            child: Text(
+              title,
+              style:
+                  const TextStyle(
+                color: dojoGrey,
+                fontSize: 11,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style:
+                  const TextStyle(
+                fontSize: 12,
+                fontWeight:
+                    FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
-  static bool _bool(
-    dynamic value, {
-    bool fallback = false,
-  }) {
-    if (value is bool) return value;
-    return fallback;
-  }
-
-  static int _int(dynamic value) {
-    if (value is num) return value.toInt();
-
-    return int.tryParse(
-          value?.toString() ?? '',
-        ) ??
-        0;
-  }
-
-  static double _double(dynamic value) {
-    if (value is num) return value.toDouble();
-
-    return double.tryParse(
-          value?.toString() ?? '',
-        ) ??
-        0;
-  }
-
-  static DateTime? _date(dynamic value) {
-    if (value is Timestamp) {
-      return value.toDate();
-    }
-
-    if (value is DateTime) {
-      return value;
-    }
-
-    if (value is String) {
-      return DateTime.tryParse(value);
-    }
-
-    return null;
+  Widget _verificationRow(
+    String title,
+    bool verified,
+  ) {
+    return Padding(
+      padding:
+          const EdgeInsets.only(
+        bottom: 8,
+      ),
+      child: Row(
+        children: [
+          Icon(
+            verified
+                ? Icons.check_circle
+                : Icons
+                    .radio_button_unchecked,
+            color: verified
+                ? dojoGreen
+                : dojoGrey,
+            size: 19,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            title,
+            style:
+                const TextStyle(
+              fontSize: 12,
+              fontWeight:
+                  FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
-class _SummaryCard extends StatelessWidget {
+class _ApproveSheet
+    extends StatefulWidget {
+  final Map<String, dynamic> data;
+
+  final Future<void> Function(
+    bool aadhaarVerified,
+    bool selfieVerified,
+  ) onConfirm;
+
+  const _ApproveSheet({
+    required this.data,
+    required this.onConfirm,
+  });
+
+  @override
+  State<_ApproveSheet> createState() =>
+      _ApproveSheetState();
+}
+
+class _ApproveSheetState
+    extends State<_ApproveSheet> {
+  bool aadhaarVerified = false;
+  bool selfieVerified = false;
+  bool loading = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    aadhaarVerified =
+        widget.data[
+                'aadhaarVerified'] ==
+            true;
+
+    selfieVerified =
+        widget.data[
+                'selfieVerified'] ==
+            true;
+  }
+
+  Future<void> confirm() async {
+    if (!aadhaarVerified ||
+        !selfieVerified ||
+        loading) {
+      return;
+    }
+
+    setState(() {
+      loading = true;
+    });
+
+    await widget.onConfirm(
+      aadhaarVerified,
+      selfieVerified,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final canConfirm =
+        aadhaarVerified &&
+            selfieVerified;
+
+    return Container(
+      decoration:
+          const BoxDecoration(
+        color: Colors.white,
+        borderRadius:
+            BorderRadius.vertical(
+          top: Radius.circular(25),
+        ),
+      ),
+      padding:
+          const EdgeInsets.fromLTRB(
+        20,
+        12,
+        20,
+        25,
+      ),
+      child: SafeArea(
+        child: Column(
+          mainAxisSize:
+              MainAxisSize.min,
+          crossAxisAlignment:
+              CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 45,
+                height: 5,
+                decoration:
+                    BoxDecoration(
+                  color: dojoBorder,
+                  borderRadius:
+                      BorderRadius.circular(
+                    10,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            const Text(
+              'Approve Walker',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight:
+                    FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 5),
+            const Text(
+              'Verify both documents before confirming approval.',
+              style: TextStyle(
+                color: dojoGrey,
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 18),
+            _checkRow(
+              title: 'Aadhaar Verified',
+              value: aadhaarVerified,
+              onChanged: (value) {
+                setState(() {
+                  aadhaarVerified =
+                      value;
+                });
+              },
+            ),
+            _checkRow(
+              title: 'Selfie Verified',
+              value: selfieVerified,
+              onChanged: (value) {
+                setState(() {
+                  selfieVerified =
+                      value;
+                });
+              },
+            ),
+            const SizedBox(height: 15),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed:
+                    canConfirm
+                        ? confirm
+                        : null,
+                style:
+                    ElevatedButton.styleFrom(
+                  backgroundColor:
+                      dojoGreen,
+                  disabledBackgroundColor:
+                      const Color(
+                    0xFFE0E0E0,
+                  ),
+                  foregroundColor:
+                      Colors.white,
+                  padding:
+                      const EdgeInsets
+                          .symmetric(
+                    vertical: 15,
+                  ),
+                  shape:
+                      RoundedRectangleBorder(
+                    borderRadius:
+                        BorderRadius.circular(
+                      12,
+                    ),
+                  ),
+                ),
+                child: loading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child:
+                            CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color:
+                              Colors.white,
+                        ),
+                      )
+                    : const Text(
+                        'Confirm',
+                        style:
+                            TextStyle(
+                          fontWeight:
+                              FontWeight.w800,
+                        ),
+                      ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _checkRow({
+    required String title,
+    required bool value,
+    required ValueChanged<bool>
+        onChanged,
+  }) {
+    return Container(
+      margin:
+          const EdgeInsets.only(
+        bottom: 10,
+      ),
+      decoration: BoxDecoration(
+        color: value
+            ? const Color(
+                0xFFF0F8F3,
+              )
+            : const Color(
+                0xFFF8F9FA,
+              ),
+        borderRadius:
+            BorderRadius.circular(12),
+        border: Border.all(
+          color: value
+              ? dojoGreen
+              : dojoBorder,
+        ),
+      ),
+      child: CheckboxListTile(
+        value: value,
+        onChanged: (checked) {
+          onChanged(
+            checked ?? false,
+          );
+        },
+        activeColor: dojoGreen,
+        title: Text(
+          title,
+          style:
+              const TextStyle(
+            fontSize: 13,
+            fontWeight:
+                FontWeight.w700,
+          ),
+        ),
+        secondary: Icon(
+          value
+              ? Icons
+                  .check_circle
+              : Icons
+                  .radio_button_unchecked,
+          color: value
+              ? dojoGreen
+              : dojoGrey,
+        ),
+        controlAffinity:
+            ListTileControlAffinity
+                .trailing,
+      ),
+    );
+  }
+}
+
+class _RejectSheet
+    extends StatefulWidget {
+  final Map<String, dynamic> data;
+  final Future<void> Function()
+      onConfirm;
+
+  const _RejectSheet({
+    required this.data,
+    required this.onConfirm,
+  });
+
+  @override
+  State<_RejectSheet> createState() =>
+      _RejectSheetState();
+}
+
+class _RejectSheetState
+    extends State<_RejectSheet> {
+  bool loading = false;
+
+  Future<void> confirm() async {
+    if (loading) return;
+
+    setState(() {
+      loading = true;
+    });
+
+    await widget.onConfirm();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration:
+          const BoxDecoration(
+        color: Colors.white,
+        borderRadius:
+            BorderRadius.vertical(
+          top: Radius.circular(25),
+        ),
+      ),
+      padding:
+          const EdgeInsets.fromLTRB(
+        20,
+        12,
+        20,
+        25,
+      ),
+      child: SafeArea(
+        child: Column(
+          mainAxisSize:
+              MainAxisSize.min,
+          children: [
+            Center(
+              child: Container(
+                width: 45,
+                height: 5,
+                decoration:
+                    BoxDecoration(
+                  color: dojoBorder,
+                  borderRadius:
+                      BorderRadius.circular(
+                    10,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Container(
+              width: 58,
+              height: 58,
+              decoration: BoxDecoration(
+                color:
+                    const Color(
+                  0xFFFFEBEE,
+                ),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.close_rounded,
+                color: dojoRed,
+                size: 30,
+              ),
+            ),
+            const SizedBox(height: 14),
+            const Text(
+              'Reject Walker?',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight:
+                    FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 7),
+            const Text(
+              'Are you sure you want to reject this walker profile?',
+              textAlign:
+                  TextAlign.center,
+              style: TextStyle(
+                color: dojoGrey,
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed:
+                        loading
+                            ? null
+                            : () =>
+                                Navigator.pop(
+                                  context,
+                                ),
+                    style:
+                        OutlinedButton.styleFrom(
+                      padding:
+                          const EdgeInsets
+                              .symmetric(
+                        vertical: 14,
+                      ),
+                    ),
+                    child:
+                        const Text(
+                      'Cancel',
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed:
+                        loading
+                            ? null
+                            : confirm,
+                    style:
+                        ElevatedButton.styleFrom(
+                      backgroundColor:
+                          dojoRed,
+                      foregroundColor:
+                          Colors.white,
+                      padding:
+                          const EdgeInsets
+                              .symmetric(
+                        vertical: 14,
+                      ),
+                    ),
+                    child: loading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child:
+                                CircularProgressIndicator(
+                              strokeWidth:
+                                  2,
+                              color:
+                                  Colors.white,
+                            ),
+                          )
+                        : const Text(
+                            'Confirm Reject',
+                          ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SummaryCard
+    extends StatelessWidget {
   final String title;
   final String value;
   final IconData icon;
@@ -1636,44 +2105,63 @@ class _SummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(15),
+      padding:
+          const EdgeInsets.all(17),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: dojoBorder),
+        borderRadius:
+            BorderRadius.circular(16),
+        border: Border.all(
+          color: dojoBorder,
+        ),
       ),
       child: Row(
         children: [
           Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: .10),
-              borderRadius: BorderRadius.circular(12),
+            width: 47,
+            height: 47,
+            decoration:
+                BoxDecoration(
+              color: color
+                  .withOpacity(.10),
+              borderRadius:
+                  BorderRadius.circular(
+                13,
+              ),
             ),
-            child: Icon(icon, color: color, size: 21),
+            child: Icon(
+              icon,
+              color: color,
+            ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment:
+                  MainAxisAlignment
+                      .center,
+              crossAxisAlignment:
+                  CrossAxisAlignment
+                      .start,
               children: [
                 Text(
                   title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 11,
+                  style:
+                      const TextStyle(
+                    fontSize: 12,
                     color: dojoGrey,
                   ),
                 ),
-                const SizedBox(height: 3),
+                const SizedBox(
+                  height: 4,
+                ),
                 Text(
                   value,
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
+                  style:
+                      const TextStyle(
+                    fontSize: 23,
+                    fontWeight:
+                        FontWeight.w900,
                     color: dojoDark,
                   ),
                 ),
