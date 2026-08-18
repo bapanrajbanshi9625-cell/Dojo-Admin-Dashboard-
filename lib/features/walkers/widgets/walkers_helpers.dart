@@ -17,11 +17,7 @@ class WalkersHelpers {
     }
 
     try {
-      final value = _readObjectValue(
-        walker,
-        key,
-      );
-
+      final value = _readObjectValue(walker, key);
       return value?.toString().trim() ?? '';
     } catch (_) {
       return '';
@@ -188,17 +184,7 @@ class WalkersHelpers {
     ]);
   }
 
-  /// Returns the normalized verification status.
-  ///
-  /// Supported values:
-  /// - pending
-  /// - approved
-  /// - rejected
-  /// - blocked
-  /// - suspended
-  static String verificationStatus(
-    dynamic walker,
-  ) {
+  static String verificationStatus(dynamic walker) {
     final value = _firstNonEmpty([
       _value(walker, 'verificationStatus'),
       _value(walker, 'approvalStatus'),
@@ -208,8 +194,7 @@ class WalkersHelpers {
       'pending',
     ]);
 
-    final normalized =
-        value.trim().toLowerCase();
+    final normalized = value.trim().toLowerCase();
 
     switch (normalized) {
       case 'approved':
@@ -234,9 +219,7 @@ class WalkersHelpers {
         return 'pending';
 
       default:
-        return normalized.isEmpty
-            ? 'pending'
-            : normalized;
+        return normalized.isEmpty ? 'pending' : normalized;
     }
   }
 
@@ -250,14 +233,12 @@ class WalkersHelpers {
     }
 
     if (walker is Map) {
-      final map = walker;
-
-      final directValues = [
-        map['isOnline'],
-        map['online'],
-        map['is_online'],
-        map['onlineStatus'],
-        map['walkerOnline'],
+      final directValues = <dynamic>[
+        walker['isOnline'],
+        walker['online'],
+        walker['is_online'],
+        walker['onlineStatus'],
+        walker['walkerOnline'],
       ];
 
       for (final value in directValues) {
@@ -269,33 +250,27 @@ class WalkersHelpers {
       }
 
       final statusValue = _firstNonEmpty([
-        map['status']?.toString() ?? '',
-        map['walkerStatus']?.toString() ?? '',
+        walker['status']?.toString() ?? '',
+        walker['walkerStatus']?.toString() ?? '',
       ]).toLowerCase();
 
-      if (statusValue == 'online') {
-        return true;
+      return statusValue == 'online';
+    }
+
+    try {
+      final objectValue = _readObjectValue(
+        walker,
+        'isOnline',
+      );
+
+      final result = _toBool(objectValue);
+
+      if (result != null) {
+        return result;
       }
+    } catch (_) {}
 
-      return false;
-    }
-
-    final objectValue = _readObjectValue(
-      walker,
-      'isOnline',
-    );
-
-    final result = _toBool(objectValue);
-
-    if (result != null) {
-      return result;
-    }
-
-    final statusValue = status(walker)
-        .trim()
-        .toLowerCase();
-
-    return statusValue == 'online';
+    return status(walker).trim().toLowerCase() == 'online';
   }
 
   static bool? _toBool(dynamic value) {
@@ -308,8 +283,7 @@ class WalkersHelpers {
     }
 
     if (value is String) {
-      final normalized =
-          value.trim().toLowerCase();
+      final normalized = value.trim().toLowerCase();
 
       if (normalized == 'true' ||
           normalized == 'yes' ||
@@ -337,16 +311,13 @@ class WalkersHelpers {
     final fullName = name(walker).trim();
 
     if (fullName.isEmpty ||
-        fullName.toLowerCase() ==
-            'unknown walker') {
+        fullName.toLowerCase() == 'unknown walker') {
       return 'W';
     }
 
     final parts = fullName
         .split(RegExp(r'\s+'))
-        .where(
-          (part) => part.isNotEmpty,
-        )
+        .where((part) => part.isNotEmpty)
         .toList();
 
     if (parts.isEmpty) {
@@ -354,9 +325,7 @@ class WalkersHelpers {
     }
 
     if (parts.length == 1) {
-      return parts.first
-          .substring(0, 1)
-          .toUpperCase();
+      return parts.first.substring(0, 1).toUpperCase();
     }
 
     return '${parts.first.substring(0, 1)}'
@@ -368,9 +337,7 @@ class WalkersHelpers {
   // STATUS COLOR
   // =========================================================
 
-  static Color statusColor(
-    String status,
-  ) {
+  static Color statusColor(String status) {
     switch (status.trim().toLowerCase()) {
       case 'approved':
       case 'active':
@@ -395,7 +362,7 @@ class WalkersHelpers {
   }
 
   // =========================================================
-  // HELPERS
+  // PRIVATE HELPERS
   // =========================================================
 
   static String _firstNonEmpty(
