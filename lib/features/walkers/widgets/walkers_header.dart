@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
-class WalkerHeader extends StatelessWidget {
+class WalkersHeader extends StatelessWidget {
   final int totalWalkers;
   final int pendingWalkers;
   final VoidCallback? onRefresh;
 
-  const WalkerHeader({
+  const WalkersHeader({
     super.key,
     this.totalWalkers = 0,
     this.pendingWalkers = 0,
