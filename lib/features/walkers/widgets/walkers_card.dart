@@ -1,59 +1,81 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
-class WalkerCard extends StatelessWidget {
-  final dynamic walker;
-  final VoidCallback? onTap;
+class WalkersCard extends StatelessWidget {
+  final DocumentSnapshot<Map<String, dynamic>> doc;
+  final VoidCallback? onView;
 
-  const WalkerCard({
+  const WalkersCard({
     super.key,
-    required this.walker,
-    this.onTap,
+    required this.doc,
+    this.onView,
   });
 
-  String _readValue(String key, [String fallback = '']) {
-    try {
-      final value = walker.toMap()[key];
-      if (value == null) return fallback;
-      return value.toString();
-    } catch (_) {
-      try {
-        final value = walker[key];
-        if (value == null) return fallback;
-        return value.toString();
-      } catch (_) {
-        return fallback;
+  Map<String, dynamic> get _data {
+    return doc.data() ?? <String, dynamic>{};
+  }
+
+  String _readValue(
+    List<String> keys, [
+    String fallback = '',
+  ]) {
+    for (final key in keys) {
+      final value = _data[key];
+
+      if (value != null &&
+          value.toString().trim().isNotEmpty) {
+        return value.toString().trim();
       }
     }
+
+    return fallback;
   }
 
   @override
   Widget build(BuildContext context) {
     final name = _readValue(
-      'Full Name',
-      _readValue('fullName', 'Unknown Walker'),
+      const [
+        'Full Name',
+        'fullName',
+        'name',
+        'walkerName',
+      ],
+      'Unknown Walker',
     );
 
     final mobile = _readValue(
-      'Mobile number',
-      _readValue('mobileNumber', ''),
+      const [
+        'Mobile number',
+        'mobileNumber',
+        'mobile',
+        'phone',
+        'phoneNumber',
+      ],
     );
 
     final status = _readValue(
-      'status',
+      const [
+        'status',
+        'verificationStatus',
+        'approvalStatus',
+        'walkerStatus',
+      ],
       'Pending',
     );
 
     final selfie = _readValue(
-      'Profile Selfie',
-      _readValue('profileSelfie', ''),
+      const [
+        'Profile Selfie',
+        'profileSelfie',
+        'profileImage',
+        'photoUrl',
+      ],
     );
 
-    final initials = name.trim().isEmpty
-        ? 'W'
-        : name.trim().substring(0, 1).toUpperCase();
+    final initials = _initials(name);
 
     return InkWell(
-      onTap: onTap,
+      onTap: onView,
       borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -74,13 +96,16 @@ class WalkerCard extends StatelessWidget {
         child: Row(
           children: [
             _avatar(
-              name: initials,
+              initials: initials,
               imageUrl: selfie,
             ),
+
             const SizedBox(width: 14),
+
             Expanded(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment:
+                    CrossAxisAlignment.start,
                 children: [
                   Text(
                     name,
@@ -92,6 +117,7 @@ class WalkerCard extends StatelessWidget {
                       color: Color(0xFF111827),
                     ),
                   ),
+
                   if (mobile.isNotEmpty) ...[
                     const SizedBox(height: 5),
                     Text(
@@ -104,12 +130,16 @@ class WalkerCard extends StatelessWidget {
                       ),
                     ),
                   ],
+
                   const SizedBox(height: 8),
+
                   _statusBadge(status),
                 ],
               ),
             ),
+
             const SizedBox(width: 8),
+
             const Icon(
               Icons.chevron_right_rounded,
               color: Color(0xFF9CA3AF),
@@ -120,24 +150,53 @@ class WalkerCard extends StatelessWidget {
     );
   }
 
+  String _initials(String name) {
+    final cleaned = name.trim();
+
+    if (cleaned.isEmpty ||
+        cleaned.toLowerCase() == 'unknown walker') {
+      return 'W';
+    }
+
+    final parts = cleaned
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .toList();
+
+    if (parts.length == 1) {
+      return parts.first
+          .substring(0, 1)
+          .toUpperCase();
+    }
+
+    return '${parts.first.substring(0, 1)}'
+            '${parts.last.substring(0, 1)}'
+        .toUpperCase();
+  }
+
   Widget _avatar({
-    required String name,
+    required String initials,
     required String imageUrl,
   }) {
     if (imageUrl.isNotEmpty) {
       return CircleAvatar(
         radius: 28,
-        backgroundColor: const Color(0xFFFFF1E8),
-        backgroundImage: NetworkImage(imageUrl),
-        onBackgroundImageError: (_, __) {},
+        backgroundColor:
+            const Color(0xFFFFF1E8),
+        backgroundImage:
+            NetworkImage(imageUrl),
+        onBackgroundImageError:
+            (_, __) {},
+        child: const SizedBox.shrink(),
       );
     }
 
     return CircleAvatar(
       radius: 28,
-      backgroundColor: const Color(0xFFFFF1E8),
+      backgroundColor:
+          const Color(0xFFFFF1E8),
       child: Text(
-        name,
+        initials,
         style: const TextStyle(
           color: Color(0xFFFF6600),
           fontSize: 20,
@@ -148,18 +207,39 @@ class WalkerCard extends StatelessWidget {
   }
 
   Widget _statusBadge(String status) {
-    final normalized = status.toLowerCase();
+    final displayStatus =
+        status.trim().isEmpty
+            ? 'Pending'
+            : status.trim();
 
-    Color color;
+    final normalized =
+        displayStatus.toLowerCase();
 
-    if (normalized == 'approved' || normalized == 'active') {
-      color = const Color(0xFF16A34A);
-    } else if (normalized == 'online') {
-      color = const Color(0xFF059669);
-    } else if (normalized == 'rejected') {
-      color = const Color(0xFFDC2626);
-    } else {
-      color = const Color(0xFFF59E0B);
+    final Color color;
+
+    switch (normalized) {
+      case 'approved':
+      case 'active':
+        color = const Color(0xFF16A34A);
+        break;
+
+      case 'online':
+        color = const Color(0xFF059669);
+        break;
+
+      case 'rejected':
+      case 'blocked':
+      case 'suspended':
+        color = const Color(0xFFDC2626);
+        break;
+
+      case 'pending':
+      case 'pending approval':
+        color = const Color(0xFFF59E0B);
+        break;
+
+      default:
+        color = const Color(0xFFF59E0B);
     }
 
     return Container(
@@ -169,10 +249,11 @@ class WalkerCard extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius:
+            BorderRadius.circular(20),
       ),
       child: Text(
-        status.isEmpty ? 'Pending' : status,
+        displayStatus,
         style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w700,
