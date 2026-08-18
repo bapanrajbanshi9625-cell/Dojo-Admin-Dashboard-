@@ -8,7 +8,12 @@ const Color dojoGrey = Color(0xFF6B7280);
 const Color dojoBorder = Color(0xFFE7E9ED);
 const Color rejectedColor = Color(0xFFC62828);
 
-Future<void> showWalkerApprovalSheet({
+/// Shows the walker approval bottom sheet.
+///
+/// Approval is allowed only after both:
+/// - Aadhaar verification
+/// - Selfie verification
+Future<void> showWalkersApprovalSheet({
   required BuildContext context,
   required DocumentSnapshot<Map<String, dynamic>> doc,
 }) async {
@@ -16,7 +21,7 @@ Future<void> showWalkerApprovalSheet({
 
   bool aadhaarVerified = _readBool(
     data,
-    [
+    const [
       'aadhaarVerified',
       'aadharVerified',
       'aadhaar_verified',
@@ -25,25 +30,34 @@ Future<void> showWalkerApprovalSheet({
 
   bool selfieVerified = _readBool(
     data,
-    [
+    const [
       'selfieVerified',
       'selfie_verified',
     ],
   );
 
-  await showModalBottomSheet(
+  await showModalBottomSheet<void>(
     context: context,
     backgroundColor: Colors.transparent,
     isScrollControlled: true,
-    builder: (context) {
+    builder: (sheetContext) {
       return StatefulBuilder(
         builder: (
           context,
           setModalState,
         ) {
           final canApprove =
-              aadhaarVerified &&
-              selfieVerified;
+              aadhaarVerified && selfieVerified;
+
+          final walkerName = _readString(
+            data,
+            const [
+              'Full Name',
+              'fullName',
+              'name',
+              'walkerName',
+            ],
+          );
 
           return Container(
             padding: const EdgeInsets.fromLTRB(
@@ -90,25 +104,9 @@ Future<void> showWalkerApprovalSheet({
                   const SizedBox(height: 7),
 
                   Text(
-                    _readString(
-                      data,
-                      [
-                        'Full Name',
-                        'fullName',
-                        'name',
-                        'walkerName',
-                      ],
-                    ).isEmpty
+                    walkerName.isEmpty
                         ? 'Walker verification'
-                        : _readString(
-                            data,
-                            [
-                              'Full Name',
-                              'fullName',
-                              'name',
-                              'walkerName',
-                            ],
-                          ),
+                        : walkerName,
                     style: const TextStyle(
                       color: dojoGrey,
                       fontSize: 13,
@@ -167,11 +165,11 @@ Future<void> showWalkerApprovalSheet({
                     child: ElevatedButton.icon(
                       onPressed: canApprove
                           ? () async {
-                              Navigator.pop(
-                                context,
-                              );
+                              Navigator.of(
+                                sheetContext,
+                              ).pop();
 
-                              await approveWalker(
+                              await approveWalkers(
                                 doc: doc,
                                 aadhaarVerified:
                                     aadhaarVerified,
@@ -186,16 +184,12 @@ Future<void> showWalkerApprovalSheet({
                       label: const Text(
                         'Confirm Approval',
                         style: TextStyle(
-                          fontWeight:
-                              FontWeight.w900,
+                          fontWeight: FontWeight.w900,
                         ),
                       ),
-                      style:
-                          ElevatedButton.styleFrom(
-                        backgroundColor:
-                            dojoGreen,
-                        foregroundColor:
-                            Colors.white,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: dojoGreen,
+                        foregroundColor: Colors.white,
                         disabledBackgroundColor:
                             dojoBorder,
                         disabledForegroundColor:
@@ -203,9 +197,7 @@ Future<void> showWalkerApprovalSheet({
                         shape:
                             RoundedRectangleBorder(
                           borderRadius:
-                              BorderRadius.circular(
-                            12,
-                          ),
+                              BorderRadius.circular(12),
                         ),
                       ),
                     ),
@@ -220,7 +212,11 @@ Future<void> showWalkerApprovalSheet({
   );
 }
 
-Future<void> approveWalker({
+/// Approves a walker in Firestore.
+///
+/// Existing fields are preserved because [SetOptions]
+/// with merge is used.
+Future<void> approveWalkers({
   required DocumentSnapshot<Map<String, dynamic>> doc,
   required bool aadhaarVerified,
   required bool selfieVerified,
@@ -247,10 +243,8 @@ Future<void> approveWalker({
       'isActive': true,
 
       'approvedBy': adminUid,
-      'approvedAt':
-          FieldValue.serverTimestamp(),
-      'updatedAt':
-          FieldValue.serverTimestamp(),
+      'approvedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
     },
     SetOptions(merge: true),
   );
@@ -268,7 +262,7 @@ bool _readBool(
     }
 
     if (value is String) {
-      return value.toLowerCase() == 'true';
+      return value.trim().toLowerCase() == 'true';
     }
   }
 
