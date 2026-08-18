@@ -1,3 +1,4 @@
+:::writing{variant="document" id="61482" title="walkers_document_card.dart"}
 import 'package:flutter/material.dart';
 
 const Color dojoOrange = Color(0xFFD35435);
@@ -5,12 +6,12 @@ const Color dojoBlue = Color(0xFF3F6FA5);
 const Color dojoGrey = Color(0xFF6B7280);
 const Color dojoBorder = Color(0xFFE7E9ED);
 
-class WalkerDocumentCard extends StatelessWidget {
+class WalkersDocumentCard extends StatelessWidget {
   final String title;
   final IconData icon;
   final String url;
 
-  const WalkerDocumentCard({
+  const WalkersDocumentCard({
     super.key,
     required this.title,
     required this.icon,
@@ -53,9 +54,7 @@ class WalkerDocumentCard extends StatelessWidget {
                 ),
               ],
             ),
-
             const SizedBox(height: 10),
-
             _preview(),
           ],
         ),
@@ -64,7 +63,9 @@ class WalkerDocumentCard extends StatelessWidget {
   }
 
   Widget _preview() {
-    if (url.trim().isEmpty) {
+    final documentUrl = url.trim();
+
+    if (documentUrl.isEmpty) {
       return _placeholder(
         'Document URL not available',
       );
@@ -73,7 +74,7 @@ class WalkerDocumentCard extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(10),
       child: Image.network(
-        url,
+        documentUrl,
         width: double.infinity,
         height: 180,
         fit: BoxFit.contain,
@@ -119,6 +120,7 @@ class WalkerDocumentCard extends StatelessWidget {
       ),
       child: Text(
         text,
+        textAlign: TextAlign.center,
         style: const TextStyle(
           color: dojoGrey,
           fontSize: 11,
@@ -127,3 +129,4 @@ class WalkerDocumentCard extends StatelessWidget {
     );
   }
 }
+:::
