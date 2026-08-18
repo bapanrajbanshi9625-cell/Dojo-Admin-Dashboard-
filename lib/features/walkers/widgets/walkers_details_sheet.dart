@@ -1,168 +1,693 @@
+:::writing{variant="document" id="48317" title="walkers_details_sheet.dart"}
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
-class WalkerHelpers {
-  WalkerHelpers._();
+class WalkersDetailsSheet extends StatelessWidget {
+  final DocumentSnapshot<Map<String, dynamic>> doc;
 
-  static String _value(dynamic walker, String key) {
-    if (walker == null) return '';
+  const WalkersDetailsSheet({
+    super.key,
+    required this.doc,
+  });
 
-    if (walker is Map) {
-      final value = walker[key];
-      return value?.toString().trim() ?? '';
-    }
-
-    try {
-      final value = _readObjectValue(walker, key);
-      return value?.toString().trim() ?? '';
-    } catch (_) {
-      return '';
-    }
+  Map<String, dynamic> get _data {
+    return doc.data() ?? <String, dynamic>{};
   }
 
-  static dynamic _readObjectValue(dynamic object, String key) {
-    switch (key) {
-      case 'Full Name':
-        try {
-          return object.name;
-        } catch (_) {}
+  String _readValue(
+    List<String> keys, [
+    String fallback = '',
+  ]) {
+    for (final key in keys) {
+      final value = _data[key];
 
-      case 'Mobile number':
-        try {
-          return object.mobile;
-        } catch (_) {}
-
-      case 'Adress':
-        try {
-          return object.address;
-        } catch (_) {}
-
-      case 'Pincode':
-        try {
-          return object.pincode;
-        } catch (_) {}
-
-      case 'Date Of Birth':
-        try {
-          return object.dateOfBirth;
-        } catch (_) {}
-
-      case 'Aadhar Number':
-        try {
-          return object.aadhaarNumber;
-        } catch (_) {}
-
-      case 'Walker Uid':
-        try {
-          return object.walkerUid;
-        } catch (_) {}
-
-      case 'Profile Selfie':
-        try {
-          return object.profileSelfie;
-        } catch (_) {}
-
-      case 'status':
-        try {
-          return object.status;
-        } catch (_) {}
+      if (value != null &&
+          value.toString().trim().isNotEmpty) {
+        return value.toString().trim();
+      }
     }
 
-    return null;
+    return fallback;
   }
 
-  static String name(dynamic walker) {
-    return _firstNonEmpty([
-      _value(walker, 'Full Name'),
-      _value(walker, 'fullName'),
-      _value(walker, 'name'),
+  String get _name {
+    return _readValue(
+      const [
+        'Full Name',
+        'fullName',
+        'name',
+        'walkerName',
+      ],
       'Unknown Walker',
-    ]);
+    );
   }
 
-  static String mobile(dynamic walker) {
-    return _firstNonEmpty([
-      _value(walker, 'Mobile number'),
-      _value(walker, 'mobile'),
-      _value(walker, 'phone'),
-      _value(walker, 'phoneNumber'),
-    ]);
+  String get _mobile {
+    return _readValue(
+      const [
+        'Mobile number',
+        'mobileNumber',
+        'mobile',
+        'phone',
+        'phoneNumber',
+      ],
+    );
   }
 
-  static String address(dynamic walker) {
-    return _firstNonEmpty([
-      _value(walker, 'Adress'),
-      _value(walker, 'Address'),
-      _value(walker, 'address'),
-    ]);
+  String get _address {
+    return _readValue(
+      const [
+        'Adress',
+        'Address',
+        'address',
+      ],
+    );
   }
 
-  static String pincode(dynamic walker) {
-    return _firstNonEmpty([
-      _value(walker, 'Pincode'),
-      _value(walker, 'pincode'),
-      _value(walker, 'pinCode'),
-      _value(walker, 'postalCode'),
-    ]);
+  String get _pincode {
+    return _readValue(
+      const [
+        'Pincode',
+        'pincode',
+        'pinCode',
+        'postalCode',
+      ],
+    );
   }
 
-  static String dateOfBirth(dynamic walker) {
-    return _firstNonEmpty([
-      _value(walker, 'Date Of Birth'),
-      _value(walker, 'dateOfBirth'),
-      _value(walker, 'dob'),
-    ]);
+  String get _dateOfBirth {
+    return _readValue(
+      const [
+        'Date Of Birth',
+        'dateOfBirth',
+        'dob',
+      ],
+    );
   }
 
-  static String aadhaarNumber(dynamic walker) {
-    return _firstNonEmpty([
-      _value(walker, 'Aadhar Number'),
-      _value(walker, 'Aadhaar Number'),
-      _value(walker, 'aadhaarNumber'),
-      _value(walker, 'aadharNumber'),
-    ]);
+  String get _aadhaarNumber {
+    return _readValue(
+      const [
+        'Aadhar Number',
+        'Aadhaar Number',
+        'aadhaarNumber',
+        'aadharNumber',
+      ],
+    );
   }
 
-  static String walkerUid(dynamic walker) {
-    return _firstNonEmpty([
-      _value(walker, 'Walker Uid'),
-      _value(walker, 'walkerUid'),
-      _value(walker, 'uid'),
-      _value(walker, 'id'),
-    ]);
+  String get _walkerUid {
+    return _readValue(
+      const [
+        'Walker Uid',
+        'walkerUid',
+        'uid',
+      ],
+      doc.id,
+    );
   }
 
-  static String profileSelfie(dynamic walker) {
-    return _firstNonEmpty([
-      _value(walker, 'Profile Selfie'),
-      _value(walker, 'profileSelfie'),
-      _value(walker, 'profileImage'),
-      _value(walker, 'photoUrl'),
-    ]);
+  String get _selfie {
+    return _readValue(
+      const [
+        'Profile Selfie',
+        'profileSelfie',
+        'profileImage',
+        'photoUrl',
+      ],
+    );
   }
 
-  static String status(dynamic walker) {
-    return _firstNonEmpty([
-      _value(walker, 'status'),
-      _value(walker, 'Status'),
-      _value(walker, 'walkerStatus'),
-    ]);
+  String get _status {
+    final status = _readValue(
+      const [
+        'status',
+        'verificationStatus',
+        'approvalStatus',
+        'walkerStatus',
+      ],
+      'Pending',
+    );
+
+    return status.isEmpty ? 'Pending' : status;
   }
 
-  static String initials(dynamic walker) {
-    final fullName = name(walker).trim();
+  bool get _isApproved {
+    final value = _data['approved'];
 
-    if (fullName.isEmpty ||
-        fullName.toLowerCase() == 'unknown walker') {
+    if (value is bool) {
+      return value;
+    }
+
+    final isApproved = _data['isApproved'];
+
+    if (isApproved is bool) {
+      return isApproved;
+    }
+
+    return _status.toLowerCase() == 'approved';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final statusColor = _getStatusColor(_status);
+
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        constraints: const BoxConstraints(
+          maxHeight: 700,
+        ),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(24),
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 10),
+
+              _handle(),
+
+              const SizedBox(height: 18),
+
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                ),
+                child: Row(
+                  children: [
+                    _avatar(),
+
+                    const SizedBox(width: 14),
+
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment:
+                            CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFF263238),
+                            ),
+                          ),
+
+                          if (_mobile.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              _mobile,
+                              maxLines: 1,
+                              overflow:
+                                  TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: Color(0xFF6B7280),
+                              ),
+                            ),
+                          ],
+
+                          const SizedBox(height: 8),
+
+                          _statusBadge(
+                            _status,
+                            statusColor,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(
+                    20,
+                    0,
+                    20,
+                    24,
+                  ),
+                  child: Column(
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start,
+                    children: [
+                      _sectionTitle(
+                        'Walker Information',
+                      ),
+
+                      const SizedBox(height: 10),
+
+                      _infoCard(
+                        children: [
+                          _infoRow(
+                            icon: Icons.phone_outlined,
+                            label: 'Mobile Number',
+                            value: _mobile,
+                          ),
+                          _divider(),
+                          _infoRow(
+                            icon:
+                                Icons.location_on_outlined,
+                            label: 'Address',
+                            value: _address,
+                          ),
+                          _divider(),
+                          _infoRow(
+                            icon:
+                                Icons.pin_drop_outlined,
+                            label: 'Pincode',
+                            value: _pincode,
+                          ),
+                          _divider(),
+                          _infoRow(
+                            icon:
+                                Icons.calendar_today_outlined,
+                            label: 'Date Of Birth',
+                            value: _dateOfBirth,
+                          ),
+                          _divider(),
+                          _infoRow(
+                            icon:
+                                Icons.badge_outlined,
+                            label: 'Aadhaar Number',
+                            value: _aadhaarNumber,
+                          ),
+                          _divider(),
+                          _infoRow(
+                            icon: Icons.fingerprint,
+                            label: 'Walker UID',
+                            value: _walkerUid,
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      _sectionTitle(
+                        'Verification',
+                      ),
+
+                      const SizedBox(height: 10),
+
+                      _infoCard(
+                        children: [
+                          _verificationRow(
+                            label: 'Aadhaar Verified',
+                            value: _readBool(
+                              const [
+                                'aadhaarVerified',
+                                'aadharVerified',
+                                'aadhaar_verified',
+                              ],
+                            ),
+                          ),
+                          _divider(),
+                          _verificationRow(
+                            label: 'Selfie Verified',
+                            value: _readBool(
+                              const [
+                                'selfieVerified',
+                                'selfie_verified',
+                              ],
+                            ),
+                          ),
+                          _divider(),
+                          _verificationRow(
+                            label: 'Profile Completed',
+                            value: _readBool(
+                              const [
+                                'profileCompleted',
+                              ],
+                            ),
+                          ),
+                          _divider(),
+                          _verificationRow(
+                            label: 'Active',
+                            value: _readBool(
+                              const [
+                                'isActive',
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      if (_selfie.isNotEmpty) ...[
+                        const SizedBox(height: 20),
+
+                        _sectionTitle(
+                          'Profile Selfie',
+                        ),
+
+                        const SizedBox(height: 10),
+
+                        ClipRRect(
+                          borderRadius:
+                              BorderRadius.circular(16),
+                          child: AspectRatio(
+                            aspectRatio: 1.4,
+                            child: Image.network(
+                              _selfie,
+                              fit: BoxFit.cover,
+                              errorBuilder: (
+                                context,
+                                error,
+                                stackTrace,
+                              ) {
+                                return Container(
+                                  color:
+                                      const Color(0xFFF3F4F6),
+                                  alignment:
+                                      Alignment.center,
+                                  child: const Icon(
+                                    Icons
+                                        .broken_image_outlined,
+                                    size: 40,
+                                    color:
+                                        Color(0xFF9CA3AF),
+                                  ),
+                                );
+                              },
+                              loadingBuilder: (
+                                context,
+                                child,
+                                loadingProgress,
+                              ) {
+                                if (loadingProgress ==
+                                    null) {
+                                  return child;
+                                }
+
+                                return Container(
+                                  color:
+                                      const Color(0xFFF3F4F6),
+                                  alignment:
+                                      Alignment.center,
+                                  child:
+                                      const CircularProgressIndicator(),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      ],
+
+                      const SizedBox(height: 24),
+
+                      SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: OutlinedButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                          },
+                          style:
+                              OutlinedButton.styleFrom(
+                            foregroundColor:
+                                const Color(0xFF374151),
+                            side: const BorderSide(
+                              color: Color(0xFFE5E7EB),
+                            ),
+                            shape:
+                                RoundedRectangleBorder(
+                              borderRadius:
+                                  BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text(
+                            'Close',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      if (_isApproved) ...[
+                        const SizedBox(height: 8),
+                        const Center(
+                          child: Text(
+                            'This walker is approved.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF16A34A),
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _avatar() {
+    if (_selfie.isNotEmpty) {
+      return CircleAvatar(
+        radius: 32,
+        backgroundColor: const Color(0xFFFFF1E8),
+        backgroundImage: NetworkImage(_selfie),
+        onBackgroundImageError: (_, __) {},
+      );
+    }
+
+    return CircleAvatar(
+      radius: 32,
+      backgroundColor: const Color(0xFFFFF1E8),
+      child: Text(
+        _initials(_name),
+        style: const TextStyle(
+          color: Color(0xFFFF6600),
+          fontSize: 22,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+
+  Widget _handle() {
+    return Center(
+      child: Container(
+        width: 42,
+        height: 4,
+        decoration: BoxDecoration(
+          color: const Color(0xFFE7E9ED),
+          borderRadius: BorderRadius.circular(10),
+        ),
+      ),
+    );
+  }
+
+  Widget _sectionTitle(String title) {
+    return Text(
+      title,
+      style: const TextStyle(
+        fontSize: 15,
+        fontWeight: FontWeight.w900,
+        color: Color(0xFF263238),
+      ),
+    );
+  }
+
+  Widget _infoCard({
+    required List<Widget> children,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        horizontal: 14,
+        vertical: 4,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFFE5E7EB),
+        ),
+      ),
+      child: Column(
+        children: children,
+      ),
+    );
+  }
+
+  Widget _infoRow({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    final displayValue =
+        value.trim().isEmpty ? 'Not available' : value;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        vertical: 11,
+      ),
+      child: Row(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        children: [
+          Icon(
+            icon,
+            size: 20,
+            color: const Color(0xFF6B7280),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFF9CA3AF),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  displayValue,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFF111827),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _verificationRow({
+    required String label,
+    required bool value,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        vertical: 11,
+      ),
+      child: Row(
+        children: [
+          Icon(
+            value
+                ? Icons.check_circle
+                : Icons.cancel_outlined,
+            size: 20,
+            color: value
+                ? const Color(0xFF16A34A)
+                : const Color(0xFFDC2626),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF111827),
+              ),
+            ),
+          ),
+          Text(
+            value ? 'Verified' : 'Not Verified',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              color: value
+                  ? const Color(0xFF16A34A)
+                  : const Color(0xFFDC2626),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _statusBadge(
+    String status,
+    Color color,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 9,
+        vertical: 4,
+      ),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        status,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+          color: color,
+        ),
+      ),
+    );
+  }
+
+  Widget _divider() {
+    return const Divider(
+      height: 1,
+      color: Color(0xFFE5E7EB),
+    );
+  }
+
+  bool _readBool(List<String> keys) {
+    for (final key in keys) {
+      final value = _data[key];
+
+      if (value is bool) {
+        return value;
+      }
+
+      if (value is String) {
+        return value.trim().toLowerCase() == 'true';
+      }
+    }
+
+    return false;
+  }
+
+  String _initials(String name) {
+    final cleaned = name.trim();
+
+    if (cleaned.isEmpty ||
+        cleaned.toLowerCase() == 'unknown walker') {
       return 'W';
     }
 
-    final parts = fullName
+    final parts = cleaned
         .split(RegExp(r'\s+'))
         .where((part) => part.isNotEmpty)
         .toList();
 
     if (parts.length == 1) {
-      return parts.first.substring(0, 1).toUpperCase();
+      return parts.first
+          .substring(0, 1)
+          .toUpperCase();
     }
 
     return '${parts.first.substring(0, 1)}'
@@ -170,7 +695,7 @@ class WalkerHelpers {
         .toUpperCase();
   }
 
-  static Color statusColor(String status) {
+  Color _getStatusColor(String status) {
     switch (status.trim().toLowerCase()) {
       case 'approved':
       case 'active':
@@ -193,16 +718,5 @@ class WalkerHelpers {
         return const Color(0xFFF59E0B);
     }
   }
-
-  static String _firstNonEmpty(List<String> values) {
-    for (final value in values) {
-      final cleaned = value.trim();
-
-      if (cleaned.isNotEmpty) {
-        return cleaned;
-      }
-    }
-
-    return '';
-  }
 }
+:::
