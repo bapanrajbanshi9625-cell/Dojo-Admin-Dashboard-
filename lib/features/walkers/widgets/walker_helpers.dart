@@ -3,10 +3,6 @@ import 'package:flutter/material.dart';
 class WalkerHelpers {
   WalkerHelpers._();
 
-  // ============================================================
-  // BASIC VALUE READER
-  // ============================================================
-
   static String _value(dynamic walker, String key) {
     if (walker == null) return '';
 
@@ -28,64 +24,79 @@ class WalkerHelpers {
       case 'Full Name':
         try {
           return object.name;
-        } catch (_) {}
-        break;
+        } catch (_) {
+          return null;
+        }
 
       case 'Mobile number':
         try {
           return object.mobile;
-        } catch (_) {}
-        break;
+        } catch (_) {
+          return null;
+        }
 
       case 'Adress':
         try {
           return object.address;
-        } catch (_) {}
-        break;
+        } catch (_) {
+          return null;
+        }
 
       case 'Pincode':
         try {
           return object.pincode;
-        } catch (_) {}
-        break;
+        } catch (_) {
+          return null;
+        }
 
       case 'Date Of Birth':
         try {
           return object.dateOfBirth;
-        } catch (_) {}
-        break;
+        } catch (_) {
+          return null;
+        }
 
       case 'Aadhar Number':
         try {
           return object.aadhaarNumber;
-        } catch (_) {}
-        break;
+        } catch (_) {
+          return null;
+        }
 
       case 'Walker Uid':
         try {
           return object.walkerUid;
-        } catch (_) {}
-        break;
+        } catch (_) {
+          return null;
+        }
 
       case 'Profile Selfie':
         try {
           return object.profileSelfie;
-        } catch (_) {}
-        break;
+        } catch (_) {
+          return null;
+        }
 
       case 'status':
         try {
           return object.status;
-        } catch (_) {}
-        break;
+        } catch (_) {
+          return null;
+        }
     }
 
     return null;
   }
 
-  // ============================================================
-  // WALKER INFORMATION
-  // ============================================================
+  static String _firstNonEmpty(List<String> values) {
+    for (final value in values) {
+      final cleaned = value.trim();
+      if (cleaned.isNotEmpty) {
+        return cleaned;
+      }
+    }
+    return '';
+  }
 
   static String name(dynamic walker) {
     return _firstNonEmpty([
@@ -157,98 +168,40 @@ class WalkerHelpers {
     ]);
   }
 
-  // ============================================================
-  // STATUS
-  // ============================================================
-
   static String status(dynamic walker) {
     return _firstNonEmpty([
       _value(walker, 'status'),
       _value(walker, 'Status'),
       _value(walker, 'walkerStatus'),
       _value(walker, 'verificationStatus'),
-      _value(walker, 'Verification Status'),
-      'Pending',
     ]);
   }
 
   static String verificationStatus(dynamic walker) {
-    final value = status(walker).trim().toLowerCase();
+    final value = status(walker).toLowerCase();
 
-    if (value.isEmpty) {
-      return 'pending';
+    if (value.contains('approved') || value == 'active') {
+      return 'approved';
     }
 
-    switch (value) {
-      case 'approved':
-      case 'approve':
-      case 'active':
-      case 'verified':
-        return 'approved';
-
-      case 'rejected':
-      case 'reject':
-        return 'rejected';
-
-      case 'pending':
-      case 'pending approval':
-      case 'waiting':
-      case 'under review':
-        return 'pending';
-
-      default:
-        return value;
+    if (value.contains('rejected') ||
+        value == 'blocked' ||
+        value == 'suspended') {
+      return 'rejected';
     }
+
+    return 'pending';
   }
-
-  // ============================================================
-  // ONLINE STATUS
-  // ============================================================
 
   static bool isOnline(dynamic walker) {
-    if (walker == null) return false;
+    final online = _value(walker, 'online').toLowerCase();
 
-    if (walker is Map) {
-      final value = walker['isOnline'];
+    if (online == 'true') return true;
 
-      if (value is bool) {
-        return value;
-      }
+    final statusValue = status(walker).toLowerCase();
 
-      if (value != null) {
-        return value.toString().toLowerCase() == 'true';
-      }
-
-      final statusValue =
-          walker['status'] ?? walker['Status'];
-
-      if (statusValue != null) {
-        return statusValue
-                .toString()
-                .trim()
-                .toLowerCase() ==
-            'online';
-      }
-
-      return false;
-    }
-
-    try {
-      final value = walker.isOnline;
-
-      if (value is bool) {
-        return value;
-      }
-
-      return value?.toString().toLowerCase() == 'true';
-    } catch (_) {
-      return false;
-    }
+    return statusValue == 'online';
   }
-
-  // ============================================================
-  // SEARCH
-  // ============================================================
 
   static bool matchesSearch(
     dynamic walker,
@@ -256,76 +209,52 @@ class WalkerHelpers {
   ) {
     final query = search.trim().toLowerCase();
 
-    if (query.isEmpty) {
-      return true;
-    }
+    if (query.isEmpty) return true;
 
-    final searchableValues = <String>[
+    final values = <String>[
       name(walker),
       mobile(walker),
       address(walker),
       pincode(walker),
-      dateOfBirth(walker),
-      aadhaarNumber(walker),
       walkerUid(walker),
-      status(walker),
+      aadhaarNumber(walker),
     ];
 
-    return searchableValues.any(
+    return values.any(
       (value) => value.toLowerCase().contains(query),
     );
   }
-
-  // ============================================================
-  // FILTER
-  // ============================================================
 
   static bool matchesFilter(
     dynamic walker,
     String filter,
   ) {
-    final normalizedFilter =
-        filter.trim().toLowerCase();
+    switch (filter.toLowerCase()) {
+      case 'all':
+        return true;
 
-    if (normalizedFilter.isEmpty ||
-        normalizedFilter == 'all') {
-      return true;
-    }
-
-    switch (normalizedFilter) {
       case 'online':
         return isOnline(walker);
 
-      case 'offline':
-        return !isOnline(walker);
-
       case 'pending':
-        return verificationStatus(walker) ==
-            'pending';
+        return verificationStatus(walker) == 'pending';
 
       case 'approved':
-        return verificationStatus(walker) ==
-            'approved';
+        return verificationStatus(walker) == 'approved';
 
       case 'rejected':
-        return verificationStatus(walker) ==
-            'rejected';
+        return verificationStatus(walker) == 'rejected';
 
       default:
         return true;
     }
   }
 
-  // ============================================================
-  // INITIALS
-  // ============================================================
-
   static String initials(dynamic walker) {
     final fullName = name(walker).trim();
 
     if (fullName.isEmpty ||
-        fullName.toLowerCase() ==
-            'unknown walker') {
+        fullName.toLowerCase() == 'unknown walker') {
       return 'W';
     }
 
@@ -335,19 +264,13 @@ class WalkerHelpers {
         .toList();
 
     if (parts.length == 1) {
-      return parts.first
-          .substring(0, 1)
-          .toUpperCase();
+      return parts.first.substring(0, 1).toUpperCase();
     }
 
     return '${parts.first.substring(0, 1)}'
-            '${parts.last.substring(0, 1)}'
+        '${parts.last.substring(0, 1)}'
         .toUpperCase();
   }
-
-  // ============================================================
-  // STATUS COLOR
-  // ============================================================
 
   static Color statusColor(String status) {
     switch (status.trim().toLowerCase()) {
@@ -373,125 +296,63 @@ class WalkerHelpers {
     }
   }
 
-  // ============================================================
-  // EMPTY STATE
-  // ============================================================
-
   static Widget emptyState() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(
-        horizontal: 24,
-        vertical: 50,
-      ),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color(0xFFE5E7EB),
+    return const Center(
+      child: Padding(
+        padding: EdgeInsets.all(50),
+        child: Column(
+          children: [
+            Icon(
+              Icons.person_search_outlined,
+              size: 52,
+              color: Color(0xFF9CA3AF),
+            ),
+            SizedBox(height: 12),
+            Text(
+              'No walkers found',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF374151),
+              ),
+            ),
+          ],
         ),
-      ),
-      child: const Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.people_outline,
-            size: 52,
-            color: Color(0xFF9CA3AF),
-          ),
-          SizedBox(height: 14),
-          Text(
-            'No walkers found',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.w800,
-              color: Color(0xFF111827),
-            ),
-          ),
-          SizedBox(height: 6),
-          Text(
-            'Try changing your search or filter.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 13,
-              color: Color(0xFF6B7280),
-            ),
-          ),
-        ],
       ),
     );
   }
-
-  // ============================================================
-  // ERROR STATE
-  // ============================================================
 
   static Widget errorState(String message) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: const Color(0xFFFECACA),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.error_outline,
+              size: 48,
+              color: Color(0xFFDC2626),
             ),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.error_outline,
-                size: 48,
-                color: Color(0xFFDC2626),
+            const SizedBox(height: 12),
+            const Text(
+              'Unable to load walkers',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
               ),
-              const SizedBox(height: 12),
-              const Text(
-                'Unable to load walkers',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF111827),
-                ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Color(0xFF6B7280),
               ),
-              const SizedBox(height: 8),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                maxLines: 5,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Color(0xFF6B7280),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
-  }
-
-  // ============================================================
-  // FIRST NON-EMPTY
-  // ============================================================
-
-  static String _firstNonEmpty(
-    List<String> values,
-  ) {
-    for (final value in values) {
-      final cleaned = value.trim();
-
-      if (cleaned.isNotEmpty) {
-        return cleaned;
-      }
-    }
-
-    return '';
   }
 }
