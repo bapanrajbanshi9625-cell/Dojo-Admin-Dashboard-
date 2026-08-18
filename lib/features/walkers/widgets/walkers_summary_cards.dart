@@ -77,8 +77,7 @@ class WalkersSummaryCards extends StatelessWidget {
             crossAxisCount: columns,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
-            childAspectRatio:
-                width < 600 ? 1.55 : 2.0,
+            childAspectRatio: width < 600 ? 1.55 : 2.0,
           ),
           itemBuilder: (context, index) {
             final item = cards[index];
@@ -157,10 +156,8 @@ class _WalkersSummaryCard extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Column(
-              mainAxisAlignment:
-                  MainAxisAlignment.center,
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
