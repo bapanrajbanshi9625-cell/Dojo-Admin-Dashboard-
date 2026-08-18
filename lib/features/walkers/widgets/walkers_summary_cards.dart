@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
-class WalkerSummaryCards extends StatelessWidget {
+class WalkersSummaryCards extends StatelessWidget {
   final int total;
   final int online;
   final int pending;
   final int approved;
   final int rejected;
 
-  const WalkerSummaryCards({
+  const WalkersSummaryCards({
     super.key,
     required this.total,
     required this.online,
@@ -21,31 +21,26 @@ class WalkerSummaryCards extends StatelessWidget {
     final cards = <_SummaryItem>[
       const _SummaryItem(
         title: 'Total',
-        value: 0,
         icon: Icons.people_alt_rounded,
         color: Color(0xFF2563EB),
       ),
       const _SummaryItem(
         title: 'Online',
-        value: 0,
         icon: Icons.circle,
         color: Color(0xFF16A34A),
       ),
       const _SummaryItem(
         title: 'Pending',
-        value: 0,
         icon: Icons.pending_actions_rounded,
         color: Color(0xFFF59E0B),
       ),
       const _SummaryItem(
         title: 'Approved',
-        value: 0,
         icon: Icons.verified_rounded,
         color: Color(0xFF059669),
       ),
       const _SummaryItem(
         title: 'Rejected',
-        value: 0,
         icon: Icons.cancel_rounded,
         color: Color(0xFFDC2626),
       ),
@@ -63,7 +58,7 @@ class WalkerSummaryCards extends StatelessWidget {
       builder: (context, constraints) {
         final width = constraints.maxWidth;
 
-        int columns;
+        final int columns;
 
         if (width >= 1200) {
           columns = 5;
@@ -77,16 +72,18 @@ class WalkerSummaryCards extends StatelessWidget {
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           itemCount: cards.length,
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          gridDelegate:
+              SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: columns,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
-            childAspectRatio: width < 600 ? 1.55 : 2.0,
+            childAspectRatio:
+                width < 600 ? 1.55 : 2.0,
           ),
           itemBuilder: (context, index) {
             final item = cards[index];
 
-            return _SummaryCard(
+            return _WalkersSummaryCard(
               title: item.title,
               value: values[index],
               icon: item.icon,
@@ -101,25 +98,23 @@ class WalkerSummaryCards extends StatelessWidget {
 
 class _SummaryItem {
   final String title;
-  final int value;
   final IconData icon;
   final Color color;
 
   const _SummaryItem({
     required this.title,
-    required this.value,
     required this.icon,
     required this.color,
   });
 }
 
-class _SummaryCard extends StatelessWidget {
+class _WalkersSummaryCard extends StatelessWidget {
   final String title;
   final int value;
   final IconData icon;
   final Color color;
 
-  const _SummaryCard({
+  const _WalkersSummaryCard({
     required this.title,
     required this.value,
     required this.icon,
@@ -162,8 +157,10 @@ class _SummaryCard extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment:
+                  MainAxisAlignment.center,
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
