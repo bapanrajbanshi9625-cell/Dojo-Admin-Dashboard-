@@ -7,15 +7,16 @@ const Color dojoGrey = Color(0xFF6B7280);
 const Color dojoBorder = Color(0xFFE7E9ED);
 const Color rejectedColor = Color(0xFFC62828);
 
-Future<void> showWalkerRejectionSheet({
+/// Shows the walker rejection confirmation sheet.
+Future<void> showWalkersRejectionSheet({
   required BuildContext context,
   required DocumentSnapshot<Map<String, dynamic>> doc,
 }) async {
-  final data = doc.data() ?? {};
+  final data = doc.data() ?? <String, dynamic>{};
 
   final name = _readString(
     data,
-    [
+    const [
       'Full Name',
       'fullName',
       'name',
@@ -23,10 +24,11 @@ Future<void> showWalkerRejectionSheet({
     ],
   );
 
-  await showModalBottomSheet(
+  await showModalBottomSheet<void>(
     context: context,
     backgroundColor: Colors.transparent,
-    builder: (context) {
+    isScrollControlled: true,
+    builder: (sheetContext) {
       return Container(
         padding: const EdgeInsets.fromLTRB(
           20,
@@ -43,8 +45,7 @@ Future<void> showWalkerRejectionSheet({
         child: SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _handle(),
 
@@ -87,10 +88,23 @@ Future<void> showWalkerRejectionSheet({
                   Expanded(
                     child: OutlinedButton(
                       onPressed: () {
-                        Navigator.pop(context);
+                        Navigator.of(sheetContext).pop();
                       },
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: dojoDark,
+                        side: const BorderSide(
+                          color: dojoBorder,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.circular(12),
+                        ),
+                      ),
                       child: const Text(
                         'Cancel',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ),
@@ -100,18 +114,17 @@ Future<void> showWalkerRejectionSheet({
                   Expanded(
                     child: ElevatedButton(
                       onPressed: () async {
-                        Navigator.pop(context);
+                        Navigator.of(sheetContext).pop();
 
                         try {
-                          await rejectWalker(doc);
+                          await rejectWalkers(doc);
 
                           if (!context.mounted) {
                             return;
                           }
 
-                          ScaffoldMessenger.of(
-                            context,
-                          ).showSnackBar(
+                          ScaffoldMessenger.of(context)
+                              .showSnackBar(
                             const SnackBar(
                               content: Text(
                                 'Walker rejected.',
@@ -125,9 +138,8 @@ Future<void> showWalkerRejectionSheet({
                             return;
                           }
 
-                          ScaffoldMessenger.of(
-                            context,
-                          ).showSnackBar(
+                          ScaffoldMessenger.of(context)
+                              .showSnackBar(
                             SnackBar(
                               content: Text(
                                 'Rejection failed: $e',
@@ -138,18 +150,21 @@ Future<void> showWalkerRejectionSheet({
                           );
                         }
                       },
-                      style:
-                          ElevatedButton.styleFrom(
+                      style: ElevatedButton.styleFrom(
                         backgroundColor:
                             rejectedColor,
                         foregroundColor:
                             Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.circular(12),
+                        ),
                       ),
                       child: const Text(
                         'Reject',
                         style: TextStyle(
-                          fontWeight:
-                              FontWeight.w800,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                     ),
@@ -164,7 +179,11 @@ Future<void> showWalkerRejectionSheet({
   );
 }
 
-Future<void> rejectWalker(
+/// Marks the walker as rejected in Firestore.
+///
+/// Existing walker fields are preserved by using
+/// SetOptions(merge: true).
+Future<void> rejectWalkers(
   DocumentSnapshot<Map<String, dynamic>> doc,
 ) async {
   final adminUid =
@@ -184,10 +203,8 @@ Future<void> rejectWalker(
       'isRejected': true,
 
       'rejectedBy': adminUid,
-      'rejectedAt':
-          FieldValue.serverTimestamp(),
-      'updatedAt':
-          FieldValue.serverTimestamp(),
+      'rejectedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
     },
     SetOptions(merge: true),
   );
