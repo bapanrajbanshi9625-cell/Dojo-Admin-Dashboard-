@@ -228,6 +228,7 @@ Future<void> approveWalkers({
     {
       'verificationStatus': 'approved',
       'approvalStatus': 'approved',
+      'status': 'approved',
 
       'approved': true,
       'isApproved': true,
