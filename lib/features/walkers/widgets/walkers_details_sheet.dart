@@ -1,4 +1,4 @@
-:::writing{variant="document" id="48317" title="walkers_details_sheet.dart"}
+writing{variant="document" id="48317" title="walkers_details_sheet.dart"}
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
@@ -719,4 +719,3 @@ class WalkersDetailsSheet extends StatelessWidget {
     }
   }
 }
-:::
