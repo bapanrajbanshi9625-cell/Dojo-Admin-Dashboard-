@@ -1,11 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
-import '../features/walkers/widgets/walker_card.dart';
-import '../features/walkers/widgets/walker_details_sheet.dart';
-import '../features/walkers/widgets/walker_helpers.dart';
-import '../features/walkers/widgets/walker_summary_cards.dart';
-import '../features/walkers/widgets/walker_toolbar.dart';
+import '../features/walkers/widgets/walkers_card.dart';
+import '../features/walkers/widgets/walkers_details_sheet.dart';
+import '../features/walkers/widgets/walkers_helpers.dart';
+import '../features/walkers/widgets/walkers_summary_cards.dart';
+import '../features/walkers/widgets/walkers_toolbar.dart';
 
 class WalkersScreen extends StatefulWidget {
   const WalkersScreen({super.key});
@@ -32,9 +32,23 @@ class _WalkersScreenState extends State<WalkersScreen> {
           _walkerProfiles.snapshots();
 
   @override
+  void initState() {
+    super.initState();
+
+    searchController.addListener(_onSearchChanged);
+  }
+
+  @override
   void dispose() {
+    searchController.removeListener(_onSearchChanged);
     searchController.dispose();
     super.dispose();
+  }
+
+  void _onSearchChanged() {
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   @override
@@ -58,55 +72,58 @@ class _WalkersScreenState extends State<WalkersScreen> {
           );
         }
 
-        final allDocs =
-            snapshot.data?.docs ??
+        final allDocs = snapshot.data?.docs ??
             <QueryDocumentSnapshot<Map<String, dynamic>>>[];
 
         final filteredDocs = allDocs.where((doc) {
-          final searchMatch =
-              _matchesSearch(
-            doc,
-            searchController.text.trim(),
-          );
-
-          final filterMatch =
+          return _matchesSearch(
+                doc,
+                searchController.text.trim(),
+              ) &&
               _matchesFilter(
-            doc,
-            selectedFilter,
-          );
-
-          return searchMatch && filterMatch;
+                doc,
+                selectedFilter,
+              );
         }).toList();
 
         final online = allDocs.where((doc) {
-          return WalkerHelpers.isOnline(doc.data());
+          return WalkersHelpers.isOnline(
+            doc.data(),
+          );
         }).length;
 
         final pending = allDocs.where((doc) {
-          return WalkerHelpers.verificationStatus(
+          return WalkersHelpers.verificationStatus(
                 doc.data(),
               ) ==
               'pending';
         }).length;
 
         final approved = allDocs.where((doc) {
-          return WalkerHelpers.verificationStatus(
+          return WalkersHelpers.verificationStatus(
                 doc.data(),
               ) ==
               'approved';
         }).length;
 
         final rejected = allDocs.where((doc) {
-          return WalkerHelpers.verificationStatus(
+          return WalkersHelpers.verificationStatus(
                 doc.data(),
               ) ==
               'rejected';
         }).length;
 
         return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment:
+              CrossAxisAlignment.start,
           children: [
-            const _WalkersHeader(),
+            WalkersHeader(
+              totalWalkers: allDocs.length,
+              pendingWalkers: pending,
+              onRefresh: () {
+                setState(() {});
+              },
+            ),
 
             const SizedBox(height: 20),
 
@@ -120,13 +137,16 @@ class _WalkersScreenState extends State<WalkersScreen> {
 
             const SizedBox(height: 20),
 
-            WalkerToolbar(
+            WalkersToolbar(
               searchController: searchController,
               selectedFilter: selectedFilter,
-              onStatusChanged: (value) {
+              onFilterChanged: (value) {
                 setState(() {
                   selectedFilter = value;
                 });
+              },
+              onClearSearch: () {
+                searchController.clear();
               },
             ),
 
@@ -136,17 +156,20 @@ class _WalkersScreenState extends State<WalkersScreen> {
               _emptyState()
             else
               ...filteredDocs.map(
-                (doc) => Padding(
-                  padding: const EdgeInsets.only(
-                    bottom: 12,
-                  ),
-                  child: WalkerCard(
-                    doc: doc,
-                    onView: () {
-                      _showWalkerDetails(doc);
-                    },
-                  ),
-                ),
+                (doc) {
+                  return Padding(
+                    padding:
+                        const EdgeInsets.only(
+                      bottom: 12,
+                    ),
+                    child: WalkersCard(
+                      doc: doc,
+                      onView: () {
+                        _showWalkerDetails(doc);
+                      },
+                    ),
+                  );
+                },
               ),
           ],
         );
@@ -164,32 +187,44 @@ class _WalkersScreenState extends State<WalkersScreen> {
 
     final data = doc.data() ?? {};
 
-    final values = [
+    final values = <dynamic>[
       doc.id,
       data['Full Name'],
       data['fullName'],
       data['name'],
+      data['walkerName'],
       data['Mobile number'],
+      data['mobileNumber'],
       data['mobile'],
       data['phone'],
+      data['phoneNumber'],
       data['Walker Uid'],
       data['walkerUid'],
       data['uid'],
       data['Aadhar Number'],
+      data['Aadhaar Number'],
       data['aadhaarNumber'],
+      data['aadharNumber'],
       data['Adress'],
       data['Address'],
       data['address'],
       data['Pincode'],
       data['pincode'],
+      data['pinCode'],
     ];
 
     final searchText = values
         .where((value) => value != null)
-        .map((value) => value.toString().toLowerCase())
+        .map(
+          (value) => value
+              .toString()
+              .toLowerCase(),
+        )
         .join(' ');
 
-    return searchText.contains(query.toLowerCase());
+    return searchText.contains(
+      query.toLowerCase(),
+    );
   }
 
   bool _matchesFilter(
@@ -202,19 +237,26 @@ class _WalkersScreenState extends State<WalkersScreen> {
 
     final data = doc.data() ?? {};
 
-    final status =
-        WalkerHelpers.verificationStatus(data);
-
-    if (filter.toLowerCase() ==
-        status.toLowerCase()) {
-      return true;
-    }
-
     if (filter == 'Online') {
-      return WalkerHelpers.isOnline(data);
+      return WalkersHelpers.isOnline(data);
     }
 
-    return false;
+    final status =
+        WalkersHelpers.verificationStatus(data);
+
+    switch (filter) {
+      case 'Pending':
+        return status == 'pending';
+
+      case 'Approved':
+        return status == 'approved';
+
+      case 'Rejected':
+        return status == 'rejected';
+
+      default:
+        return true;
+    }
   }
 
   Widget _errorState(String message) {
@@ -261,7 +303,8 @@ class _WalkersScreenState extends State<WalkersScreen> {
       ),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius:
+            BorderRadius.circular(16),
         border: Border.all(
           color: const Color(0xFFE5E7EB),
         ),
@@ -300,7 +343,7 @@ class _WalkersScreenState extends State<WalkersScreen> {
   ) {
     final data = doc.data() ?? {};
 
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -328,7 +371,9 @@ class _WalkersScreenState extends State<WalkersScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Approve Walker'),
+          title: const Text(
+            'Approve Walker',
+          ),
           content: const Text(
             'Are you sure you want to approve this walker?',
           ),
@@ -367,7 +412,9 @@ class _WalkersScreenState extends State<WalkersScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Reject Walker'),
+          title: const Text(
+            'Reject Walker',
+          ),
           content: const Text(
             'Are you sure you want to reject this walker?',
           ),
@@ -404,21 +451,58 @@ class _WalkersScreenState extends State<WalkersScreen> {
     String status,
   ) async {
     try {
-      await _walkerProfiles.doc(doc.id).update({
+      final updateData =
+          <String, dynamic>{
         'status': status,
         'verificationStatus': status,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+        'approvalStatus': status,
+        'updatedAt':
+            FieldValue.serverTimestamp(),
+      };
+
+      if (status == 'approved') {
+        updateData.addAll({
+          'approved': true,
+          'isApproved': true,
+          'isActive': true,
+          'rejected': false,
+          'isRejected': false,
+          'approvedAt':
+              FieldValue.serverTimestamp(),
+        });
+      } else if (status == 'rejected') {
+        updateData.addAll({
+          'approved': false,
+          'isApproved': false,
+          'isActive': false,
+          'rejected': true,
+          'isRejected': true,
+          'rejectedAt':
+              FieldValue.serverTimestamp(),
+        });
+      }
+
+      await doc.reference.set(
+        updateData,
+        SetOptions(merge: true),
+      );
 
       if (!mounted) {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         SnackBar(
           content: Text(
-            'Walker ${status == 'approved' ? 'approved' : 'rejected'} successfully.',
+            status == 'approved'
+                ? 'Walker approved successfully.'
+                : 'Walker rejected successfully.',
           ),
+          backgroundColor:
+              status == 'approved'
+                  ? const Color(0xFF16A34A)
+                  : const Color(0xFFDC2626),
         ),
       );
     } catch (e) {
@@ -426,42 +510,16 @@ class _WalkersScreenState extends State<WalkersScreen> {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         SnackBar(
           content: Text(
             'Failed to update walker: $e',
           ),
+          backgroundColor:
+              const Color(0xFFDC2626),
         ),
       );
     }
-  }
-}
-
-class _WalkersHeader extends StatelessWidget {
-  const _WalkersHeader();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Walkers',
-          style: TextStyle(
-            fontSize: 29,
-            fontWeight: FontWeight.w900,
-            color: Color(0xFF263238),
-          ),
-        ),
-        SizedBox(height: 5),
-        Text(
-          'Manage walker profiles, verification and activity',
-          style: TextStyle(
-            color: Color(0xFF6B7280),
-            fontSize: 14,
-          ),
-        ),
-      ],
-    );
   }
 }
