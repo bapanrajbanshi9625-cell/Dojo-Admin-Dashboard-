@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../features/walkers/widgets/walkers_card.dart';
 import '../features/walkers/widgets/walkers_details_sheet.dart';
 import '../features/walkers/widgets/walkers_helpers.dart';
+import '../features/walkers/widgets/walkers_header.dart';
 import '../features/walkers/widgets/walkers_summary_cards.dart';
 import '../features/walkers/widgets/walkers_toolbar.dart';
 
@@ -34,7 +35,6 @@ class _WalkersScreenState extends State<WalkersScreen> {
   @override
   void initState() {
     super.initState();
-
     searchController.addListener(_onSearchChanged);
   }
 
@@ -46,9 +46,8 @@ class _WalkersScreenState extends State<WalkersScreen> {
   }
 
   void _onSearchChanged() {
-    if (mounted) {
-      setState(() {});
-    }
+    if (!mounted) return;
+    setState(() {});
   }
 
   @override
@@ -127,7 +126,7 @@ class _WalkersScreenState extends State<WalkersScreen> {
 
             const SizedBox(height: 20),
 
-            WalkerSummaryCards(
+            WalkersSummaryCards(
               total: allDocs.length,
               online: online,
               pending: pending,
@@ -158,8 +157,7 @@ class _WalkersScreenState extends State<WalkersScreen> {
               ...filteredDocs.map(
                 (doc) {
                   return Padding(
-                    padding:
-                        const EdgeInsets.only(
+                    padding: const EdgeInsets.only(
                       bottom: 12,
                     ),
                     child: WalkersCard(
@@ -185,40 +183,51 @@ class _WalkersScreenState extends State<WalkersScreen> {
       return true;
     }
 
-    final data = doc.data() ?? {};
+    final data = doc.data() ?? <String, dynamic>{};
 
     final values = <dynamic>[
       doc.id,
+
+      // Name
       data['Full Name'],
       data['fullName'],
       data['name'],
       data['walkerName'],
+
+      // Mobile
       data['Mobile number'],
       data['mobileNumber'],
       data['mobile'],
       data['phone'],
       data['phoneNumber'],
+
+      // UID
       data['Walker Uid'],
       data['walkerUid'],
       data['uid'],
+
+      // Aadhaar
       data['Aadhar Number'],
       data['Aadhaar Number'],
       data['aadhaarNumber'],
       data['aadharNumber'],
+
+      // Address
       data['Adress'],
       data['Address'],
       data['address'],
+
+      // Pincode
       data['Pincode'],
       data['pincode'],
       data['pinCode'],
+      data['postalCode'],
     ];
 
     final searchText = values
         .where((value) => value != null)
         .map(
-          (value) => value
-              .toString()
-              .toLowerCase(),
+          (value) => value.toString().toLowerCase(),
         )
         .join(' ');
 
@@ -235,7 +244,7 @@ class _WalkersScreenState extends State<WalkersScreen> {
       return true;
     }
 
-    final data = doc.data() ?? {};
+    final data = doc.data() ?? <String, dynamic>{};
 
     if (filter == 'Online') {
       return WalkersHelpers.isOnline(data);
@@ -303,8 +312,7 @@ class _WalkersScreenState extends State<WalkersScreen> {
       ),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius:
-            BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: const Color(0xFFE5E7EB),
         ),
@@ -341,7 +349,8 @@ class _WalkersScreenState extends State<WalkersScreen> {
   void _showWalkerDetails(
     DocumentSnapshot<Map<String, dynamic>> doc,
   ) {
-    final data = doc.data() ?? {};
+    final data =
+        doc.data() ?? <String, dynamic>{};
 
     showModalBottomSheet<void>(
       context: context,
@@ -477,6 +486,7 @@ class _WalkersScreenState extends State<WalkersScreen> {
           'isActive': false,
           'rejected': true,
           'isRejected': true,
+          'approvedAt': null,
           'rejectedAt':
               FieldValue.serverTimestamp(),
         });
@@ -491,8 +501,7 @@ class _WalkersScreenState extends State<WalkersScreen> {
         return;
       }
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             status == 'approved'
@@ -510,8 +519,7 @@ class _WalkersScreenState extends State<WalkersScreen> {
         return;
       }
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             'Failed to update walker: $e',
