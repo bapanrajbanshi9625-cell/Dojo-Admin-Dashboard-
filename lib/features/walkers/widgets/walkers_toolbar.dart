@@ -27,70 +27,89 @@ class WalkersToolbar extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        TextField(
-          controller: searchController,
-          onChanged: (_) {
-            // Parent listens to controller changes through
-            // its own listener / rebuild mechanism.
+        ValueListenableBuilder<TextEditingValue>(
+          valueListenable: searchController,
+          builder: (
+            context,
+            value,
+            child,
+          ) {
+            return TextField(
+              controller: searchController,
+              textInputAction: TextInputAction.search,
+              decoration: InputDecoration(
+                hintText: 'Search walkers...',
+                prefixIcon: const Icon(
+                  Icons.search,
+                  color: Color(0xFF6B7280),
+                ),
+                suffixIcon: value.text.isNotEmpty
+                    ? IconButton(
+                        tooltip: 'Clear search',
+                        onPressed: () {
+                          searchController.clear();
+                          onClearSearch?.call();
+                        },
+                        icon: const Icon(
+                          Icons.clear_rounded,
+                        ),
+                      )
+                    : null,
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding:
+                    const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius:
+                      BorderRadius.circular(12),
+                  borderSide: const BorderSide(
+                    color: Color(0xFFE5E7EB),
+                  ),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius:
+                      BorderRadius.circular(12),
+                  borderSide: const BorderSide(
+                    color: Color(0xFFE5E7EB),
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius:
+                      BorderRadius.circular(12),
+                  borderSide: const BorderSide(
+                    color: Color(0xFFFF6600),
+                    width: 1.5,
+                  ),
+                ),
+              ),
+            );
           },
-          decoration: InputDecoration(
-            hintText: 'Search walkers...',
-            prefixIcon: const Icon(
-              Icons.search,
-              color: Color(0xFF6B7280),
-            ),
-            suffixIcon: searchController.text.isNotEmpty
-                ? IconButton(
-                    onPressed: () {
-                      searchController.clear();
-                      onClearSearch?.call();
-                    },
-                    icon: const Icon(Icons.clear),
-                  )
-                : null,
-            filled: true,
-            fillColor: Colors.white,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 14,
-            ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(
-                color: Color(0xFFE5E7EB),
-              ),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(
-                color: Color(0xFFE5E7EB),
-              ),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(
-                color: Color(0xFFFF6600),
-                width: 1.5,
-              ),
-            ),
-          ),
         ),
+
         const SizedBox(height: 12),
+
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
             children: filters.map((filter) {
-              final selected = selectedFilter == filter;
+              final selected =
+                  selectedFilter == filter;
 
               return Padding(
-                padding: const EdgeInsets.only(right: 8),
+                padding: const EdgeInsets.only(
+                  right: 8,
+                ),
                 child: ChoiceChip(
                   label: Text(filter),
                   selected: selected,
                   onSelected: (_) {
                     onFilterChanged(filter);
                   },
-                  selectedColor: const Color(0xFFFF6600),
+                  selectedColor:
+                      const Color(0xFFFF6600),
                   backgroundColor: Colors.white,
                   side: BorderSide(
                     color: selected
@@ -102,6 +121,10 @@ class WalkersToolbar extends StatelessWidget {
                         ? Colors.white
                         : const Color(0xFF374151),
                     fontWeight: FontWeight.w700,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius:
+                        BorderRadius.circular(20),
                   ),
                 ),
               );
