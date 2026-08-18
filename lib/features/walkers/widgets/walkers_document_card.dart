@@ -1,4 +1,3 @@
-:::writing{variant="document" id="61482" title="walkers_document_card.dart"}
 import 'package:flutter/material.dart';
 
 const Color dojoOrange = Color(0xFFD35435);
@@ -32,8 +31,7 @@ class WalkersDocumentCard extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(10),
         child: Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
@@ -129,4 +127,3 @@ class WalkersDocumentCard extends StatelessWidget {
     );
   }
 }
-:::
