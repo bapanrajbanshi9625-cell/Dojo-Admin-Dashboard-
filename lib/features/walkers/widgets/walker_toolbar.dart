@@ -1,159 +1,159 @@
 import 'package:flutter/material.dart';
 
 class WalkerToolbar extends StatelessWidget {
-  final TextEditingController searchController;
-  final String selectedStatus;
   final ValueChanged<String> onStatusChanged;
-  final ValueChanged<String>? onSearchChanged;
-  final VoidCallback? onClearSearch;
+  final TextEditingController searchController;
+  final String? controller;
+  final String? selectedFilter;
+  final ValueChanged<String?> onFilterChanged;
 
   const WalkerToolbar({
     super.key,
-    required this.searchController,
-    this.selectedStatus = 'All',
     required this.onStatusChanged,
-    this.onSearchChanged,
-    this.onClearSearch,
+    required this.searchController,
+    this.controller,
+    this.selectedFilter,
+    required this.onFilterChanged,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        TextField(
-          controller: searchController,
-          onChanged: onSearchChanged,
-          decoration: InputDecoration(
-            hintText: 'Search walkers...',
-            prefixIcon: const Icon(
-              Icons.search_rounded,
-            ),
-            suffixIcon: searchController.text.isNotEmpty
-                ? IconButton(
-                    onPressed: () {
-                      searchController.clear();
-                      onSearchChanged?.call('');
-                      onClearSearch?.call();
-                    },
-                    icon: const Icon(
-                      Icons.clear_rounded,
-                    ),
-                  )
-                : null,
-            filled: true,
-            fillColor: Colors.white,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 14,
-            ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(
-                color: Colors.grey.shade200,
-              ),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(
-                color: Colors.grey.shade200,
-              ),
-            ),
-            focusedBorder: const OutlineInputBorder(
-              borderRadius: BorderRadius.all(
-                Radius.circular(14),
-              ),
-              borderSide: BorderSide(
-                color: Color(0xFFFF6600),
-                width: 1.5,
-              ),
-            ),
-          ),
+    final currentFilter = selectedFilter ?? controller ?? 'All';
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFFE5E7EB),
         ),
-        const SizedBox(height: 12),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 650;
+
+          if (compact) {
+            return Column(
+              children: [
+                _searchField(),
+                const SizedBox(height: 12),
+                _filterField(currentFilter),
+              ],
+            );
+          }
+
+          return Row(
             children: [
-              _FilterButton(
-                label: 'All',
-                selected: selectedStatus == 'All',
-                onTap: () => onStatusChanged('All'),
-              ),
-              const SizedBox(width: 8),
-              _FilterButton(
-                label: 'Pending',
-                selected: selectedStatus == 'Pending',
-                onTap: () => onStatusChanged('Pending'),
-              ),
-              const SizedBox(width: 8),
-              _FilterButton(
-                label: 'Approved',
-                selected: selectedStatus == 'Approved',
-                onTap: () => onStatusChanged('Approved'),
-              ),
-              const SizedBox(width: 8),
-              _FilterButton(
-                label: 'Rejected',
-                selected: selectedStatus == 'Rejected',
-                onTap: () => onStatusChanged('Rejected'),
+              Expanded(child: _searchField()),
+              const SizedBox(width: 12),
+              SizedBox(
+                width: 180,
+                child: _filterField(currentFilter),
               ),
             ],
-          ),
-        ),
-      ],
+          );
+        },
+      ),
     );
   }
-}
 
-class _FilterButton extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
+  Widget _searchField() {
+    return TextField(
+      controller: searchController,
+      onChanged: onStatusChanged,
+      decoration: InputDecoration(
+        hintText: 'Search walkers...',
+        prefixIcon: const Icon(
+          Icons.search_rounded,
+          color: Color(0xFF6B7280),
+        ),
+        suffixIcon: ValueListenableBuilder<TextEditingValue>(
+          valueListenable: searchController,
+          builder: (context, value, child) {
+            if (value.text.isEmpty) {
+              return const SizedBox.shrink();
+            }
 
-  const _FilterButton({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: AnimatedContainer(
-          duration: const Duration(
-            milliseconds: 180,
+            return IconButton(
+              tooltip: 'Clear',
+              onPressed: () {
+                searchController.clear();
+                onStatusChanged('');
+              },
+              icon: const Icon(Icons.close_rounded),
+            );
+          },
+        ),
+        filled: true,
+        fillColor: const Color(0xFFF9FAFB),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(
+            color: Color(0xFFE5E7EB),
           ),
-          padding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 9,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(
+            color: Color(0xFFE5E7EB),
           ),
-          decoration: BoxDecoration(
-            color: selected
-                ? const Color(0xFFFF6600)
-                : Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: selected
-                  ? const Color(0xFFFF6600)
-                  : Colors.grey.shade300,
-            ),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              color: selected
-                  ? Colors.white
-                  : const Color(0xFF374151),
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-            ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(
+            color: Color(0xFFFF6600),
+            width: 1.5,
           ),
         ),
       ),
+    );
+  }
+
+  Widget _filterField(String currentFilter) {
+    const filters = <String>[
+      'All',
+      'Online',
+      'Pending',
+      'Approved',
+      'Rejected',
+      'Offline',
+    ];
+
+    final safeValue =
+        filters.contains(currentFilter) ? currentFilter : 'All';
+
+    return DropdownButtonFormField<String>(
+      value: safeValue,
+      isExpanded: true,
+      decoration: InputDecoration(
+        labelText: 'Status',
+        prefixIcon: const Icon(
+          Icons.filter_list_rounded,
+          color: Color(0xFF6B7280),
+        ),
+        filled: true,
+        fillColor: const Color(0xFFF9FAFB),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(
+            color: Color(0xFFE5E7EB),
+          ),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(
+            color: Color(0xFFE5E7EB),
+          ),
+        ),
+      ),
+      items: filters.map((filter) {
+        return DropdownMenuItem<String>(
+          value: filter,
+          child: Text(filter),
+        );
+      }).toList(),
+      onChanged: onFilterChanged,
     );
   }
 }
