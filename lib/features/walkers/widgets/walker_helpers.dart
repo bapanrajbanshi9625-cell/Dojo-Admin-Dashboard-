@@ -88,16 +88,6 @@ class WalkerHelpers {
     return null;
   }
 
-  static String _firstNonEmpty(List<String> values) {
-    for (final value in values) {
-      final cleaned = value.trim();
-      if (cleaned.isNotEmpty) {
-        return cleaned;
-      }
-    }
-    return '';
-  }
-
   static String name(dynamic walker) {
     return _firstNonEmpty([
       _value(walker, 'Full Name'),
@@ -178,29 +168,18 @@ class WalkerHelpers {
   }
 
   static String verificationStatus(dynamic walker) {
-    final value = status(walker).toLowerCase();
-
-    if (value.contains('approved') || value == 'active') {
-      return 'approved';
-    }
-
-    if (value.contains('rejected') ||
-        value == 'blocked' ||
-        value == 'suspended') {
-      return 'rejected';
-    }
-
-    return 'pending';
+    return status(walker).toLowerCase().trim();
   }
 
   static bool isOnline(dynamic walker) {
-    final online = _value(walker, 'online').toLowerCase();
+    final value = _value(walker, 'isOnline').toLowerCase();
 
-    if (online == 'true') return true;
+    if (value == 'true') return true;
 
-    final statusValue = status(walker).toLowerCase();
+    final currentStatus = status(walker).toLowerCase();
 
-    return statusValue == 'online';
+    return currentStatus == 'online' ||
+        currentStatus == 'active';
   }
 
   static bool matchesSearch(
@@ -211,13 +190,14 @@ class WalkerHelpers {
 
     if (query.isEmpty) return true;
 
-    final values = <String>[
+    final values = [
       name(walker),
       mobile(walker),
       address(walker),
       pincode(walker),
-      walkerUid(walker),
+      dateOfBirth(walker),
       aadhaarNumber(walker),
+      walkerUid(walker),
     ];
 
     return values.any(
@@ -229,47 +209,23 @@ class WalkerHelpers {
     dynamic walker,
     String filter,
   ) {
-    switch (filter.toLowerCase()) {
-      case 'all':
-        return true;
+    final selected = filter.trim().toLowerCase();
 
-      case 'online':
-        return isOnline(walker);
-
-      case 'pending':
-        return verificationStatus(walker) == 'pending';
-
-      case 'approved':
-        return verificationStatus(walker) == 'approved';
-
-      case 'rejected':
-        return verificationStatus(walker) == 'rejected';
-
-      default:
-        return true;
-    }
-  }
-
-  static String initials(dynamic walker) {
-    final fullName = name(walker).trim();
-
-    if (fullName.isEmpty ||
-        fullName.toLowerCase() == 'unknown walker') {
-      return 'W';
+    if (selected.isEmpty || selected == 'all') {
+      return true;
     }
 
-    final parts = fullName
-        .split(RegExp(r'\s+'))
-        .where((part) => part.isNotEmpty)
-        .toList();
+    final currentStatus = verificationStatus(walker);
 
-    if (parts.length == 1) {
-      return parts.first.substring(0, 1).toUpperCase();
+    if (selected == 'online') {
+      return isOnline(walker);
     }
 
-    return '${parts.first.substring(0, 1)}'
-        '${parts.last.substring(0, 1)}'
-        .toUpperCase();
+    if (selected == 'offline') {
+      return !isOnline(walker);
+    }
+
+    return currentStatus == selected;
   }
 
   static Color statusColor(String status) {
@@ -296,24 +252,50 @@ class WalkerHelpers {
     }
   }
 
-  static Widget emptyState() {
-    return const Center(
+  static String initials(dynamic walker) {
+    final fullName = name(walker).trim();
+
+    if (fullName.isEmpty ||
+        fullName.toLowerCase() == 'unknown walker') {
+      return 'W';
+    }
+
+    final parts = fullName
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .toList();
+
+    if (parts.length == 1) {
+      return parts.first.substring(0, 1).toUpperCase();
+    }
+
+    return '${parts.first.substring(0, 1)}'
+            '${parts.last.substring(0, 1)}'
+        .toUpperCase();
+  }
+
+  static Widget emptyState({
+    String message = 'No walkers found',
+  }) {
+    return Center(
       child: Padding(
-        padding: EdgeInsets.all(50),
+        padding: const EdgeInsets.all(40),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
+            const Icon(
               Icons.person_search_outlined,
               size: 52,
               color: Color(0xFF9CA3AF),
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             Text(
-              'No walkers found',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF374151),
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF6B7280),
               ),
             ),
           ],
@@ -325,7 +307,7 @@ class WalkerHelpers {
   static Widget errorState(String message) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(30),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -339,7 +321,7 @@ class WalkerHelpers {
               'Unable to load walkers',
               style: TextStyle(
                 fontSize: 16,
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w700,
               ),
             ),
             const SizedBox(height: 6),
@@ -347,6 +329,7 @@ class WalkerHelpers {
               message,
               textAlign: TextAlign.center,
               style: const TextStyle(
+                fontSize: 12,
                 color: Color(0xFF6B7280),
               ),
             ),
@@ -354,5 +337,17 @@ class WalkerHelpers {
         ),
       ),
     );
+  }
+
+  static String _firstNonEmpty(List<String> values) {
+    for (final value in values) {
+      final cleaned = value.trim();
+
+      if (cleaned.isNotEmpty) {
+        return cleaned;
+      }
+    }
+
+    return '';
   }
 }
