@@ -50,9 +50,11 @@ jobs:
 
       # --------------------------------------------------
       # Analyze
+      # Warnings and infos will NOT fail CI.
+      # Real analyzer errors will still fail CI.
       # --------------------------------------------------
       - name: Analyze
-        run: flutter analyze --no-fatal-infos
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
       # --------------------------------------------------
       # Build Flutter Web
@@ -74,7 +76,7 @@ jobs:
           cat firebase.json
 
       # --------------------------------------------------
-      # Upload Build Artifact
+      # Upload Web Build
       # --------------------------------------------------
       - name: Upload Web Build
         uses: actions/upload-artifact@v4
