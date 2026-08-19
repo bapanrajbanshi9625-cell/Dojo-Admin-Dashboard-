@@ -10,6 +10,7 @@ class WalkerDetailsScreen extends StatelessWidget {
     required this.onReject,
     required this.onActivate,
     required this.onDeactivate,
+    required this.onRelease,
   });
 
   final DocumentSnapshot<Map<String, dynamic>> doc;
@@ -19,6 +20,7 @@ class WalkerDetailsScreen extends StatelessWidget {
   final VoidCallback onReject;
   final VoidCallback onActivate;
   final VoidCallback onDeactivate;
+  final VoidCallback onRelease;
 
   static const Color orange = Color(0xFFFF6600);
   static const Color green = Color(0xFF16A34A);
@@ -195,7 +197,9 @@ class WalkerDetailsScreen extends StatelessWidget {
                         onPressed: () {
                           Navigator.of(dialogContext).pop();
                         },
-                        icon: const Icon(Icons.close_rounded),
+                        icon: const Icon(
+                          Icons.close_rounded,
+                        ),
                       ),
                     ],
                   ),
@@ -598,6 +602,10 @@ class WalkerDetailsScreen extends StatelessWidget {
 
     final List<Widget> buttons = [];
 
+    // ==========================================================
+    // PENDING
+    // ==========================================================
+
     if (status == 'Pending') {
       buttons.add(
         _actionButton(
@@ -617,7 +625,23 @@ class WalkerDetailsScreen extends StatelessWidget {
           filled: true,
         ),
       );
-    } else if (status == 'Rejected') {
+    }
+
+    // ==========================================================
+    // REJECTED
+    // ==========================================================
+
+    else if (status == 'Rejected') {
+      buttons.add(
+        _actionButton(
+          label: 'Release',
+          icon: Icons.lock_open_rounded,
+          color: orange,
+          onPressed: onRelease,
+          filled: true,
+        ),
+      );
+
       buttons.add(
         _actionButton(
           label: 'Approve',
@@ -627,7 +651,13 @@ class WalkerDetailsScreen extends StatelessWidget {
           filled: true,
         ),
       );
-    } else if (status == 'Approved') {
+    }
+
+    // ==========================================================
+    // APPROVED
+    // ==========================================================
+
+    else if (status == 'Approved') {
       if (active) {
         buttons.add(
           _actionButton(
