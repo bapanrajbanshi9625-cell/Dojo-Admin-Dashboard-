@@ -1,167 +1,375 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 
-class WalkersHelpers {
-  static String readValue(
-    Map<String, dynamic> data,
-    List<String> keys, [
-    String fallback = '',
-  ]) {
-    for (final key in keys) {
-      final value = data[key];
+// ============================================================
+// WALKER DETAILS COLORS
+// ============================================================
 
-      if (value != null &&
-          value.toString().trim().isNotEmpty) {
-        return value.toString().trim();
-      }
+const Color walkerDetailsOrange = Color(0xFFFF6600);
+const Color walkerDetailsGreen = Color(0xFF16A34A);
+const Color walkerDetailsRed = Color(0xFFDC2626);
+const Color walkerDetailsBlue = Color(0xFF2563EB);
+
+const Color walkerDetailsTextDark = Color(0xFF111827);
+const Color walkerDetailsTextGrey = Color(0xFF6B7280);
+const Color walkerDetailsBorder = Color(0xFFE5E7EB);
+const Color walkerDetailsPageBg = Color(0xFFF7F8FA);
+
+// ============================================================
+// READ STRING VALUE
+// ============================================================
+
+String walkerValue(
+  Map<String, dynamic> data,
+  List<String> keys, {
+  String fallback = 'Not available',
+}) {
+  for (final key in keys) {
+    final value = data[key];
+
+    if (value == null) {
+      continue;
     }
 
-    return fallback;
-  }
+    final text = value.toString().trim();
 
-  static bool readBool(
-    Map<String, dynamic> data,
-    List<String> keys,
-  ) {
-    for (final key in keys) {
-      final value = data[key];
-
-      if (value is bool) {
-        return value;
-      }
-
-      if (value is num) {
-        return value != 0;
-      }
-
-      if (value is String) {
-        final normalized = value.trim().toLowerCase();
-
-        if (normalized == 'true' ||
-            normalized == 'yes' ||
-            normalized == '1') {
-          return true;
-        }
-
-        if (normalized == 'false' ||
-            normalized == 'no' ||
-            normalized == '0') {
-          return false;
-        }
-      }
-    }
-
-    return false;
-  }
-
-  static String readTimestamp(
-    Map<String, dynamic> data,
-    List<String> keys,
-  ) {
-    for (final key in keys) {
-      final value = data[key];
-
-      if (value == null) continue;
-
-      if (value is Timestamp) {
-        return formatDateTime(value.toDate());
-      }
-
-      if (value is DateTime) {
-        return formatDateTime(value);
-      }
-
-      final text = value.toString().trim();
-
-      if (text.isNotEmpty) {
-        return text;
-      }
-    }
-
-    return '';
-  }
-
-  static String formatDateTime(DateTime date) {
-    final d = date.day.toString().padLeft(2, '0');
-    final m = date.month.toString().padLeft(2, '0');
-    final y = date.year.toString();
-
-    final hour = date.hour.toString().padLeft(2, '0');
-    final minute = date.minute.toString().padLeft(2, '0');
-
-    return '$d/$m/$y $hour:$minute';
-  }
-
-  static String initials(String name) {
-    final cleaned = name.trim();
-
-    if (cleaned.isEmpty ||
-        cleaned.toLowerCase() == 'unknown walker') {
-      return 'W';
-    }
-
-    final parts = cleaned
-        .split(RegExp(r'\s+'))
-        .where((part) => part.isNotEmpty)
-        .toList();
-
-    if (parts.length == 1) {
-      return parts.first.substring(0, 1).toUpperCase();
-    }
-
-    return '${parts.first.substring(0, 1)}'
-            '${parts.last.substring(0, 1)}'
-        .toUpperCase();
-  }
-
-  // =========================================================
-  // ONLINE STATUS
-  // =========================================================
-
-  static bool isOnline(
-    Map<String, dynamic> data,
-  ) {
-    return readBool(
-      data,
-      const [
-        'isOnline',
-        'online',
-        'walkerOnline',
-        'onlineStatus',
-      ],
-    );
-  }
-
-  // =========================================================
-  // VERIFICATION STATUS
-  // =========================================================
-
-  static String verificationStatus(
-    Map<String, dynamic> data,
-  ) {
-    final status = readValue(
-      data,
-      const [
-        'verificationStatus',
-        'status',
-        'approvalStatus',
-        'walkerStatus',
-      ],
-      'pending',
-    ).trim().toLowerCase();
-
-    switch (status) {
-      case 'approved':
-      case 'active':
-      case 'online':
-        return 'approved';
-
-      case 'rejected':
-      case 'blocked':
-      case 'suspended':
-        return 'rejected';
-
-      default:
-        return 'pending';
+    if (text.isNotEmpty && text.toLowerCase() != 'null') {
+      return text;
     }
   }
+
+  return fallback;
+}
+
+// ============================================================
+// READ BOOLEAN VALUE
+// ============================================================
+
+bool walkerBool(
+  Map<String, dynamic> data,
+  List<String> keys,
+) {
+  for (final key in keys) {
+    final value = data[key];
+
+    if (value is bool) {
+      return value;
+    }
+
+    if (value is num) {
+      return value != 0;
+    }
+
+    if (value != null) {
+      final text = value.toString().trim().toLowerCase();
+
+      if (text == 'true' ||
+          text == '1' ||
+          text == 'yes') {
+        return true;
+      }
+
+      if (text == 'false' ||
+          text == '0' ||
+          text == 'no') {
+        return false;
+      }
+    }
+  }
+
+  return false;
+}
+
+// ============================================================
+// IMAGE URL
+// ============================================================
+
+String walkerImageUrl(
+  Map<String, dynamic> data,
+  List<String> keys,
+) {
+  return walkerValue(
+    data,
+    keys,
+    fallback: '',
+  );
+}
+
+// ============================================================
+// STATUS
+// ============================================================
+
+String walkerStatus(
+  Map<String, dynamic> data,
+) {
+  final status = walkerValue(
+    data,
+    const [
+      'verificationStatus',
+      'approvalStatus',
+      'status',
+    ],
+    fallback: '',
+  ).toLowerCase().trim();
+
+  if (status == 'approved') {
+    return 'Approved';
+  }
+
+  if (status == 'rejected') {
+    return 'Rejected';
+  }
+
+  if (status == 'pending') {
+    return 'Pending';
+  }
+
+  if (walkerBool(
+    data,
+    const [
+      'approved',
+      'isApproved',
+      'adminApproved',
+    ],
+  )) {
+    return 'Approved';
+  }
+
+  if (walkerBool(
+    data,
+    const [
+      'rejected',
+      'isRejected',
+      'adminRejected',
+    ],
+  )) {
+    return 'Rejected';
+  }
+
+  return 'Pending';
+}
+
+// ============================================================
+// ACTIVE STATUS
+// ============================================================
+
+bool walkerIsActive(
+  Map<String, dynamic> data,
+) {
+  return walkerBool(
+    data,
+    const [
+      'isActive',
+      'active',
+    ],
+  );
+}
+
+// ============================================================
+// STATUS COLOR
+// ============================================================
+
+Color walkerStatusColor(
+  String status,
+) {
+  switch (status) {
+    case 'Approved':
+      return walkerDetailsGreen;
+
+    case 'Rejected':
+      return walkerDetailsRed;
+
+    default:
+      return walkerDetailsOrange;
+  }
+}
+
+// ============================================================
+// WALKER NAME
+// ============================================================
+
+String walkerName(
+  Map<String, dynamic> data,
+) {
+  return walkerValue(
+    data,
+    const [
+      'Full Name',
+      'fullName',
+      'name',
+      'walkerName',
+    ],
+    fallback: 'Walker',
+  );
+}
+
+// ============================================================
+// MOBILE
+// ============================================================
+
+String walkerMobile(
+  Map<String, dynamic> data,
+) {
+  return walkerValue(
+    data,
+    const [
+      'Mobile number',
+      'mobileNumber',
+      'mobile',
+      'phone',
+      'phoneNumber',
+    ],
+  );
+}
+
+// ============================================================
+// WALKER ID
+// ============================================================
+
+String walkerId(
+  Map<String, dynamic> data, {
+  String fallback = 'Not available',
+}) {
+  return walkerValue(
+    data,
+    const [
+      'Walker ID',
+      'walkerId',
+    ],
+    fallback: fallback,
+  );
+}
+
+// ============================================================
+// WALKER UID
+// ============================================================
+
+String walkerUid(
+  Map<String, dynamic> data,
+) {
+  return walkerValue(
+    data,
+    const [
+      'Walker Uid',
+      'walkerUid',
+      'authUid',
+      'uid',
+    ],
+  );
+}
+
+// ============================================================
+// PROFILE SELFIE
+// ============================================================
+
+String walkerSelfie(
+  Map<String, dynamic> data,
+) {
+  return walkerImageUrl(
+    data,
+    const [
+      'Profile Selfie',
+      'profileSelfie',
+      'profileSelfieUrl',
+      'profile_selfie',
+      'profile_selfie_url',
+      'selfie',
+      'selfieUrl',
+    ],
+  );
+}
+
+// ============================================================
+// AADHAAR FRONT
+// ============================================================
+
+String walkerAadhaarFront(
+  Map<String, dynamic> data,
+) {
+  return walkerImageUrl(
+    data,
+    const [
+      'Aadhar Front',
+      'Aadhaar Front',
+      'Aadhar Front URL',
+      'Aadhaar Front URL',
+      'aadhaarFront',
+      'aadhaarFrontUrl',
+      'aadhaar_front',
+      'aadhaar_front_url',
+    ],
+  );
+}
+
+// ============================================================
+// AADHAAR BACK
+// ============================================================
+
+String walkerAadhaarBack(
+  Map<String, dynamic> data,
+) {
+  return walkerImageUrl(
+    data,
+    const [
+      'Aadhar Back',
+      'Aadhaar Back',
+      'Aadhar Back URL',
+      'Aadhaar Back URL',
+      'aadhaarBack',
+      'aadhaarBackUrl',
+      'aadhaar_back',
+      'aadhaar_back_url',
+    ],
+  );
+}
+
+// ============================================================
+// PROFILE COMPLETED
+// ============================================================
+
+bool walkerProfileCompleted(
+  Map<String, dynamic> data,
+) {
+  return walkerBool(
+    data,
+    const [
+      'profileCompleted',
+      'profile_completed',
+    ],
+  );
+}
+
+// ============================================================
+// AADHAAR FRONT UPLOADED
+// ============================================================
+
+bool walkerAadhaarFrontUploaded(
+  Map<String, dynamic> data,
+) {
+  return walkerBool(
+    data,
+    const [
+      'aadhaar_front_uploaded',
+      'aadhar_front_uploaded',
+      'aadhaarFrontUploaded',
+      'aadharFrontUploaded',
+    ],
+  );
+}
+
+// ============================================================
+// AADHAAR BACK UPLOADED
+// ============================================================
+
+bool walkerAadhaarBackUploaded(
+  Map<String, dynamic> data,
+) {
+  return walkerBool(
+    data,
+    const [
+      'aadhaar_back_uploaded',
+      'aadhar_back_uploaded',
+      'aadhaarBackUploaded',
+      'aadharBackUploaded',
+    ],
+  );
 }
