@@ -5,7 +5,7 @@ import '../features/walkers/widgets/walkers_card.dart';
 import '../features/walkers/widgets/walkers_helpers.dart';
 import '../features/walkers/widgets/walkers_summary_cards.dart';
 import '../features/walkers/widgets/walkers_toolbar.dart';
-import '../features/walkers/widgets/walker_details_screen.dart';
+import '../features/walkers/widgets/walkers_details_screen.dart';
 
 class WalkersScreen extends StatefulWidget {
   const WalkersScreen({super.key});
