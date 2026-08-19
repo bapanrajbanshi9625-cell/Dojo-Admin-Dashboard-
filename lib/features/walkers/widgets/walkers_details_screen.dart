@@ -1,13 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
-import 'walker_details_actions.dart';
-import 'walker_details_documents.dart';
-import 'walker_details_image_viewer.dart';
-import 'walker_details_row.dart';
-import 'walker_details_section.dart';
-import 'walker_details_upload_service.dart';
-import 'walkers_details_helpers.dart';
+import 'walkers_details_actions.dart';
+import 'walkers_details_documents.dart';
+import 'walkers_details_image_viewer.dart';
+import 'walkers_details_row.dart';
+import 'walkers_details_section.dart';
+import 'walkers_details_upload_service.dart';
+import 'walkers_helpers.dart';
 
 class WalkerDetailsScreen extends StatefulWidget {
   const WalkerDetailsScreen({
@@ -33,8 +33,7 @@ class WalkerDetailsScreen extends StatefulWidget {
       _WalkerDetailsScreenState();
 }
 
-class _WalkerDetailsScreenState
-    extends State<WalkerDetailsScreen> {
+class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
   // ============================================================
   // SERVICES
   // ============================================================
@@ -54,15 +53,37 @@ class _WalkerDetailsScreenState
 
   Map<String, dynamic> get data => widget.data;
 
-  DocumentSnapshot<Map<String, dynamic>> get doc =>
-      widget.doc;
+  DocumentSnapshot<Map<String, dynamic>> get doc => widget.doc;
+
+  // ============================================================
+  // SAFE BOOLEAN - MULTIPLE POSSIBLE FIRESTORE FIELD NAMES
+  // ============================================================
+
+  bool _boolAny(
+    List<String> keys, {
+    bool fallback = false,
+  }) {
+    for (final key in keys) {
+      if (!data.containsKey(key)) {
+        continue;
+      }
+
+      return walkerDetailsBool(
+        data,
+        key,
+        fallback: fallback,
+      );
+    }
+
+    return fallback;
+  }
 
   // ============================================================
   // BASIC VALUES
   // ============================================================
 
   String get name {
-    return walkerDetailsValue(
+    return walkerDetailsFirstValue(
       data,
       const [
         'Full Name',
@@ -75,7 +96,7 @@ class _WalkerDetailsScreenState
   }
 
   String get mobile {
-    return walkerDetailsValue(
+    return walkerDetailsFirstValue(
       data,
       const [
         'Mobile number',
@@ -88,7 +109,7 @@ class _WalkerDetailsScreenState
   }
 
   String get walkerId {
-    return walkerDetailsValue(
+    return walkerDetailsFirstValue(
       data,
       const [
         'Walker ID',
@@ -99,7 +120,7 @@ class _WalkerDetailsScreenState
   }
 
   String get walkerUid {
-    return walkerDetailsValue(
+    return walkerDetailsFirstValue(
       data,
       const [
         'Walker Uid',
@@ -115,7 +136,7 @@ class _WalkerDetailsScreenState
   // ============================================================
 
   String get selfie {
-    return walkerDetailsImageUrl(
+    return walkerDetailsFirstImage(
       data,
       const [
         'Profile Selfie',
@@ -130,7 +151,7 @@ class _WalkerDetailsScreenState
   }
 
   String get aadhaarFront {
-    return walkerDetailsImageUrl(
+    return walkerDetailsFirstImage(
       data,
       const [
         'Aadhar Front',
@@ -146,7 +167,7 @@ class _WalkerDetailsScreenState
   }
 
   String get aadhaarBack {
-    return walkerDetailsImageUrl(
+    return walkerDetailsFirstImage(
       data,
       const [
         'Aadhar Back',
@@ -170,8 +191,7 @@ class _WalkerDetailsScreenState
   }
 
   bool get isActive {
-    return walkerDetailsBool(
-      data,
+    return _boolAny(
       const [
         'isActive',
         'active',
@@ -184,8 +204,7 @@ class _WalkerDetailsScreenState
   // ============================================================
 
   bool get profileCompleted {
-    return walkerDetailsBool(
-      data,
+    return _boolAny(
       const [
         'profileCompleted',
         'profile_completed',
@@ -194,8 +213,7 @@ class _WalkerDetailsScreenState
   }
 
   bool get aadhaarFrontUploaded {
-    return walkerDetailsBool(
-      data,
+    return _boolAny(
       const [
         'aadhaar_front_uploaded',
         'aadhar_front_uploaded',
@@ -206,8 +224,7 @@ class _WalkerDetailsScreenState
   }
 
   bool get aadhaarBackUploaded {
-    return walkerDetailsBool(
-      data,
+    return _boolAny(
       const [
         'aadhaar_back_uploaded',
         'aadhar_back_uploaded',
@@ -348,8 +365,7 @@ class _WalkerDetailsScreenState
             30,
           ),
           child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // ==================================================
               // HEADER
@@ -360,8 +376,7 @@ class _WalkerDetailsScreenState
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius:
-                      BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(18),
                   border: Border.all(
                     color: walkerDetailsBorder,
                   ),
@@ -382,30 +397,22 @@ class _WalkerDetailsScreenState
                               Text(
                                 name,
                                 maxLines: 1,
-                                overflow:
-                                    TextOverflow.ellipsis,
+                                overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
                                   fontSize: 18,
-                                  fontWeight:
-                                      FontWeight.w800,
-                                  color:
-                                      walkerDetailsTextDark,
+                                  fontWeight: FontWeight.w800,
+                                  color: walkerDetailsTextDark,
                                 ),
                               ),
-
                               const SizedBox(height: 4),
-
                               Text(
                                 walkerId,
                                 maxLines: 1,
-                                overflow:
-                                    TextOverflow.ellipsis,
+                                overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
                                   fontSize: 11,
-                                  color:
-                                      walkerDetailsTextGrey,
-                                  fontWeight:
-                                      FontWeight.w600,
+                                  color: walkerDetailsTextGrey,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ],
@@ -424,16 +431,11 @@ class _WalkerDetailsScreenState
 
                     if (selfie.isEmpty) ...[
                       const SizedBox(height: 12),
-
                       Align(
-                        alignment:
-                            Alignment.centerLeft,
-                        child:
-                            _smallUploadButton(
-                          fieldName:
-                              'Profile Selfie',
-                          title:
-                              'Profile Selfie',
+                        alignment: Alignment.centerLeft,
+                        child: _smallUploadButton(
+                          fieldName: 'Profile Selfie',
+                          title: 'Profile Selfie',
                         ),
                       ),
                     ],
@@ -454,14 +456,10 @@ class _WalkerDetailsScreenState
                     WalkerDetailsActions(
                       status: status,
                       isActive: isActive,
-                      onApprove:
-                          widget.onApprove,
-                      onReject:
-                          widget.onReject,
-                      onActivate:
-                          widget.onActivate,
-                      onDeactivate:
-                          widget.onDeactivate,
+                      onApprove: widget.onApprove,
+                      onReject: widget.onReject,
+                      onActivate: widget.onActivate,
+                      onDeactivate: widget.onDeactivate,
                     ),
                   ],
                 ),
@@ -502,15 +500,15 @@ class _WalkerDetailsScreenState
 
                   WalkerDetailsRow(
                     label: 'Role',
-                    value: walkerDetailsValue(
+                    value: walkerDetailsFirstValue(
                       data,
-                      const ['role'],
+                      const ['role', 'Role'],
                     ),
                   ),
 
                   WalkerDetailsRow(
                     label: 'Gender',
-                    value: walkerDetailsValue(
+                    value: walkerDetailsFirstValue(
                       data,
                       const [
                         'Gender',
@@ -521,7 +519,7 @@ class _WalkerDetailsScreenState
 
                   WalkerDetailsRow(
                     label: 'Date Of Birth',
-                    value: walkerDetailsValue(
+                    value: walkerDetailsFirstValue(
                       data,
                       const [
                         'Date Of Birth',
@@ -538,15 +536,12 @@ class _WalkerDetailsScreenState
               // ==================================================
 
               WalkerDetailsSection(
-                title:
-                    'Identity & Verification',
-                icon:
-                    Icons.verified_user_outlined,
+                title: 'Identity & Verification',
+                icon: Icons.verified_user_outlined,
                 children: [
                   WalkerDetailsRow(
                     label: 'Aadhaar Number',
-                    value:
-                        walkerDetailsValue(
+                    value: walkerDetailsFirstValue(
                       data,
                       const [
                         'Aadhar Number',
@@ -565,50 +560,35 @@ class _WalkerDetailsScreenState
 
                   WalkerDetailsRow(
                     label: 'Active',
-                    value:
-                        isActive ? 'Yes' : 'No',
+                    value: isActive ? 'Yes' : 'No',
                   ),
 
                   WalkerDetailsRow(
                     label: 'Profile Completed',
-                    value:
-                        profileCompleted
-                            ? 'Yes'
-                            : 'No',
+                    value: profileCompleted ? 'Yes' : 'No',
                   ),
 
                   WalkerDetailsRow(
-                    label:
-                        'Aadhaar Front Uploaded',
+                    label: 'Aadhaar Front Uploaded',
                     value:
-                        aadhaarFrontUploaded
-                            ? 'Yes'
-                            : 'No',
+                        aadhaarFrontUploaded ? 'Yes' : 'No',
                   ),
 
                   WalkerDetailsRow(
-                    label:
-                        'Aadhaar Back Uploaded',
+                    label: 'Aadhaar Back Uploaded',
                     value:
-                        aadhaarBackUploaded
-                            ? 'Yes'
-                            : 'No',
+                        aadhaarBackUploaded ? 'Yes' : 'No',
                   ),
 
                   const SizedBox(height: 8),
 
                   WalkerDetailsDocuments(
                     selfie: selfie,
-                    aadhaarFront:
-                        aadhaarFront,
-                    aadhaarBack:
-                        aadhaarBack,
-                    uploadingFields:
-                        _uploadingFields,
-                    onOpenImage:
-                        _openImage,
-                    onUploadSelfie:
-                        _uploadSelfie,
+                    aadhaarFront: aadhaarFront,
+                    aadhaarBack: aadhaarBack,
+                    uploadingFields: _uploadingFields,
+                    onOpenImage: _openImage,
+                    onUploadSelfie: _uploadSelfie,
                     onUploadAadhaarFront:
                         _uploadAadhaarFront,
                     onUploadAadhaarBack:
@@ -623,13 +603,11 @@ class _WalkerDetailsScreenState
 
               WalkerDetailsSection(
                 title: 'Address',
-                icon:
-                    Icons.location_on_outlined,
+                icon: Icons.location_on_outlined,
                 children: [
                   WalkerDetailsRow(
                     label: 'Address',
-                    value:
-                        walkerDetailsValue(
+                    value: walkerDetailsFirstValue(
                       data,
                       const [
                         'Adress',
@@ -641,8 +619,7 @@ class _WalkerDetailsScreenState
 
                   WalkerDetailsRow(
                     label: 'Village',
-                    value:
-                        walkerDetailsValue(
+                    value: walkerDetailsFirstValue(
                       data,
                       const [
                         'Village',
@@ -653,8 +630,7 @@ class _WalkerDetailsScreenState
 
                   WalkerDetailsRow(
                     label: 'City',
-                    value:
-                        walkerDetailsValue(
+                    value: walkerDetailsFirstValue(
                       data,
                       const [
                         'City',
@@ -665,8 +641,7 @@ class _WalkerDetailsScreenState
 
                   WalkerDetailsRow(
                     label: 'District',
-                    value:
-                        walkerDetailsValue(
+                    value: walkerDetailsFirstValue(
                       data,
                       const [
                         'District',
@@ -677,8 +652,7 @@ class _WalkerDetailsScreenState
 
                   WalkerDetailsRow(
                     label: 'State',
-                    value:
-                        walkerDetailsValue(
+                    value: walkerDetailsFirstValue(
                       data,
                       const [
                         'State',
@@ -689,8 +663,7 @@ class _WalkerDetailsScreenState
 
                   WalkerDetailsRow(
                     label: 'Pincode',
-                    value:
-                        walkerDetailsValue(
+                    value: walkerDetailsFirstValue(
                       data,
                       const [
                         'Pincode',
@@ -709,15 +682,12 @@ class _WalkerDetailsScreenState
               // ==================================================
 
               WalkerDetailsSection(
-                title:
-                    'Emergency Contact',
-                icon:
-                    Icons.emergency_outlined,
+                title: 'Emergency Contact',
+                icon: Icons.emergency_outlined,
                 children: [
                   WalkerDetailsRow(
                     label: 'Name',
-                    value:
-                        walkerDetailsValue(
+                    value: walkerDetailsFirstValue(
                       data,
                       const [
                         'Emergency Name',
@@ -728,8 +698,7 @@ class _WalkerDetailsScreenState
 
                   WalkerDetailsRow(
                     label: 'Mobile',
-                    value:
-                        walkerDetailsValue(
+                    value: walkerDetailsFirstValue(
                       data,
                       const [
                         'Emergency Mobile',
@@ -748,57 +717,49 @@ class _WalkerDetailsScreenState
 
               WalkerDetailsSection(
                 title: 'Account Status',
-                icon:
-                    Icons.account_circle_outlined,
+                icon: Icons.account_circle_outlined,
                 children: [
                   WalkerDetailsRow(
                     label: 'Approved',
-                    value:
-                        walkerDetailsBool(
-                      data,
+                    value: _boolAny(
                       const [
                         'approved',
                         'isApproved',
                         'adminApproved',
                       ],
                     )
-                            ? 'Yes'
-                            : 'No',
+                        ? 'Yes'
+                        : 'No',
                   ),
 
                   WalkerDetailsRow(
                     label: 'Rejected',
-                    value:
-                        walkerDetailsBool(
-                      data,
+                    value: _boolAny(
                       const [
                         'rejected',
                         'isRejected',
                         'adminRejected',
                       ],
                     )
-                            ? 'Yes'
-                            : 'No',
+                        ? 'Yes'
+                        : 'No',
                   ),
 
                   WalkerDetailsRow(
                     label: 'Active',
-                    value:
-                        isActive ? 'Yes' : 'No',
+                    value: isActive ? 'Yes' : 'No',
                   ),
 
                   WalkerDetailsRow(
                     label: 'Online',
-                    value:
-                        walkerDetailsBool(
-                      data,
+                    value: _boolAny(
                       const [
                         'isOnline',
                         'online',
                       ],
                     )
-                            ? 'Online'
-                            : 'Offline',
+                        ? 'Online'
+                        : 'Offline',
                   ),
                 ],
               ),
@@ -814,21 +775,18 @@ class _WalkerDetailsScreenState
   // ============================================================
 
   Widget _avatar() {
-    final hasImage =
-        selfie.trim().isNotEmpty;
+    final hasImage = selfie.trim().isNotEmpty;
 
     return Container(
       height: 56,
       width: 56,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color:
-            walkerDetailsOrange.withValues(
+        color: walkerDetailsOrange.withValues(
           alpha: 0.10,
         ),
         border: Border.all(
-          color:
-              walkerDetailsOrange.withValues(
+          color: walkerDetailsOrange.withValues(
             alpha: 0.20,
           ),
         ),
@@ -838,16 +796,14 @@ class _WalkerDetailsScreenState
               child: Image.network(
                 selfie,
                 fit: BoxFit.cover,
-                errorBuilder:
-                    (
+                errorBuilder: (
                   context,
                   error,
                   stackTrace,
                 ) {
                   return const Icon(
                     Icons.person_rounded,
-                    color:
-                        walkerDetailsOrange,
+                    color: walkerDetailsOrange,
                     size: 32,
                   );
                 },
@@ -866,12 +822,10 @@ class _WalkerDetailsScreenState
   // ============================================================
 
   Widget _statusBadge() {
-    final color =
-        walkerDetailsStatusColor(status);
+    final color = walkerDetailsStatusColor(status);
 
     return Container(
-      padding:
-          const EdgeInsets.symmetric(
+      padding: const EdgeInsets.symmetric(
         horizontal: 11,
         vertical: 6,
       ),
@@ -879,8 +833,7 @@ class _WalkerDetailsScreenState
         color: color.withValues(
           alpha: 0.10,
         ),
-        borderRadius:
-            BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(30),
         border: Border.all(
           color: color.withValues(
             alpha: 0.25,
@@ -906,8 +859,7 @@ class _WalkerDetailsScreenState
             style: TextStyle(
               color: color,
               fontSize: 11,
-              fontWeight:
-                  FontWeight.w800,
+              fontWeight: FontWeight.w800,
             ),
           ),
         ],
@@ -924,9 +876,7 @@ class _WalkerDetailsScreenState
     required String title,
   }) {
     final uploading =
-        _uploadingFields.contains(
-      fieldName,
-    );
+        _uploadingFields.contains(fieldName);
 
     return SizedBox(
       height: 34,
@@ -943,11 +893,9 @@ class _WalkerDetailsScreenState
             ? const SizedBox(
                 height: 14,
                 width: 14,
-                child:
-                    CircularProgressIndicator(
+                child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color:
-                      walkerDetailsOrange,
+                  color: walkerDetailsOrange,
                 ),
               )
             : const Icon(
@@ -955,34 +903,24 @@ class _WalkerDetailsScreenState
                 size: 16,
               ),
         label: Text(
-          uploading
-              ? 'Uploading...'
-              : 'Upload',
+          uploading ? 'Uploading...' : 'Upload',
           style: const TextStyle(
             fontSize: 11,
-            fontWeight:
-                FontWeight.w800,
+            fontWeight: FontWeight.w800,
           ),
         ),
-        style:
-            OutlinedButton.styleFrom(
-          foregroundColor:
-              walkerDetailsOrange,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: walkerDetailsOrange,
           side: BorderSide(
-            color:
-                walkerDetailsOrange
-                    .withValues(
+            color: walkerDetailsOrange.withValues(
               alpha: 0.55,
             ),
           ),
-          padding:
-              const EdgeInsets.symmetric(
+          padding: const EdgeInsets.symmetric(
             horizontal: 10,
           ),
-          shape:
-              RoundedRectangleBorder(
-            borderRadius:
-                BorderRadius.circular(8),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
           ),
         ),
       ),
