@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'walker_details_action_button.dart';
+import 'walkers_details_action_button.dart';
 import 'walkers_details_helpers.dart';
 
 class WalkerDetailsActions extends StatelessWidget {
