@@ -32,7 +32,6 @@ class _WalkersScreenState extends State<WalkersScreen> {
   @override
   void initState() {
     super.initState();
-
     searchController.addListener(_onSearchChanged);
   }
 
@@ -40,13 +39,11 @@ class _WalkersScreenState extends State<WalkersScreen> {
   void dispose() {
     searchController.removeListener(_onSearchChanged);
     searchController.dispose();
-
     super.dispose();
   }
 
   void _onSearchChanged() {
     if (!mounted) return;
-
     setState(() {});
   }
 
@@ -183,34 +180,41 @@ class _WalkersScreenState extends State<WalkersScreen> {
     final values = <dynamic>[
       doc.id,
 
+      // Name
       data['Full Name'],
       data['fullName'],
       data['name'],
       data['walkerName'],
 
+      // Mobile
       data['Mobile number'],
       data['mobileNumber'],
       data['mobile'],
       data['phone'],
       data['phoneNumber'],
 
+      // Walker ID
       data['Walker ID'],
       data['walkerId'],
 
+      // UID
       data['Walker Uid'],
       data['walkerUid'],
       data['authUid'],
       data['uid'],
 
+      // Aadhaar
       data['Aadhar Number'],
       data['Aadhaar Number'],
       data['aadhaarNumber'],
       data['aadharNumber'],
 
+      // Address
       data['Adress'],
       data['Address'],
       data['address'],
 
+      // Pincode
       data['Pincode'],
       data['pincode'],
       data['pinCode'],
@@ -290,6 +294,7 @@ class _WalkersScreenState extends State<WalkersScreen> {
             // --------------------------------------------------
             // APPROVE
             // --------------------------------------------------
+
             onApprove: () {
               _showApproveDialog(doc);
             },
@@ -297,6 +302,7 @@ class _WalkersScreenState extends State<WalkersScreen> {
             // --------------------------------------------------
             // REJECT
             // --------------------------------------------------
+
             onReject: () {
               _showRejectDialog(doc);
             },
@@ -304,6 +310,7 @@ class _WalkersScreenState extends State<WalkersScreen> {
             // --------------------------------------------------
             // ACTIVATE
             // --------------------------------------------------
+
             onActivate: () {
               _showActivateDialog(doc);
             },
@@ -311,15 +318,9 @@ class _WalkersScreenState extends State<WalkersScreen> {
             // --------------------------------------------------
             // DEACTIVATE
             // --------------------------------------------------
+
             onDeactivate: () {
               _showDeactivateDialog(doc);
-            },
-
-            // --------------------------------------------------
-            // RELEASE
-            // --------------------------------------------------
-            onRelease: () {
-              _showReleaseDialog(doc);
             },
           );
         },
@@ -366,6 +367,7 @@ class _WalkersScreenState extends State<WalkersScreen> {
                   ),
                 ],
               ),
+
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment:
@@ -380,10 +382,6 @@ class _WalkersScreenState extends State<WalkersScreen> {
                   ),
 
                   const SizedBox(height: 14),
-
-                  // ------------------------------------------------
-                  // SELFIE
-                  // ------------------------------------------------
 
                   CheckboxListTile(
                     value: selfieVerified,
@@ -410,10 +408,6 @@ class _WalkersScreenState extends State<WalkersScreen> {
                     ),
                   ),
 
-                  // ------------------------------------------------
-                  // AADHAAR FRONT
-                  // ------------------------------------------------
-
                   CheckboxListTile(
                     value:
                         aadhaarFrontVerified,
@@ -439,10 +433,6 @@ class _WalkersScreenState extends State<WalkersScreen> {
                       color: Color(0xFF2563EB),
                     ),
                   ),
-
-                  // ------------------------------------------------
-                  // AADHAAR BACK
-                  // ------------------------------------------------
 
                   CheckboxListTile(
                     value:
@@ -484,6 +474,7 @@ class _WalkersScreenState extends State<WalkersScreen> {
                   ],
                 ],
               ),
+
               actions: [
                 TextButton(
                   onPressed: () {
@@ -494,6 +485,7 @@ class _WalkersScreenState extends State<WalkersScreen> {
                     'Cancel',
                   ),
                 ),
+
                 FilledButton.icon(
                   onPressed: canApprove
                       ? () {
@@ -556,6 +548,7 @@ class _WalkersScreenState extends State<WalkersScreen> {
                 'Cancel',
               ),
             ),
+
             FilledButton(
               onPressed: () {
                 Navigator.of(context).pop(true);
@@ -609,6 +602,7 @@ class _WalkersScreenState extends State<WalkersScreen> {
                 'Cancel',
               ),
             ),
+
             FilledButton(
               onPressed: () {
                 Navigator.of(context).pop(true);
@@ -662,6 +656,7 @@ class _WalkersScreenState extends State<WalkersScreen> {
                 'Cancel',
               ),
             ),
+
             FilledButton(
               onPressed: () {
                 Navigator.of(context).pop(true);
@@ -690,71 +685,7 @@ class _WalkersScreenState extends State<WalkersScreen> {
   }
 
   // ============================================================
-  // RELEASE DIALOG
-  // ============================================================
-
-  Future<void> _showReleaseDialog(
-    DocumentSnapshot<Map<String, dynamic>> doc,
-  ) async {
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Row(
-            children: [
-              Icon(
-                Icons.restart_alt_rounded,
-                color: Color(0xFF2563EB),
-              ),
-              SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Release Walker',
-                ),
-              ),
-            ],
-          ),
-          content: const Text(
-            'Release this rejected walker for document re-submission and re-verification?\n\n'
-            'This will not activate the Walker ID.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop(false);
-              },
-              child: const Text(
-                'Cancel',
-              ),
-            ),
-            FilledButton(
-              onPressed: () {
-                Navigator.of(context).pop(true);
-              },
-              style: FilledButton.styleFrom(
-                backgroundColor:
-                    const Color(0xFF2563EB),
-              ),
-              child: const Text(
-                'Release',
-              ),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (result != true) {
-      return;
-    }
-
-    await _releaseWalker(
-      doc,
-    );
-  }
-
-  // ============================================================
-  // SET WALKER ACTIVE / INACTIVE
+  // SET ACTIVE / INACTIVE
   // ============================================================
 
   Future<void> _setWalkerActive(
@@ -775,7 +706,6 @@ class _WalkersScreenState extends State<WalkersScreen> {
           'deactivatedAt':
               FieldValue.delete(),
 
-          // Keep approval state untouched.
           'approved': true,
           'isApproved': true,
           'adminApproved': true,
@@ -828,88 +758,6 @@ class _WalkersScreenState extends State<WalkersScreen> {
   }
 
   // ============================================================
-  // RELEASE WALKER FOR RE-SUBMISSION
-  // ============================================================
-
-  Future<void> _releaseWalker(
-    DocumentSnapshot<Map<String, dynamic>> doc,
-  ) async {
-    try {
-      await doc.reference.set(
-        {
-          // ----------------------------------------------------
-          // Re-submission / re-verification state.
-          // This does NOT activate the Walker ID.
-          // ----------------------------------------------------
-
-          'status': 'resubmission',
-          'verificationStatus': 'resubmission',
-          'approvalStatus': 'resubmission',
-
-          'approved': false,
-          'isApproved': false,
-          'adminApproved': false,
-
-          'rejected': false,
-          'isRejected': false,
-          'adminRejected': false,
-
-          'isActive': false,
-          'active': false,
-
-          'releasedAt':
-              FieldValue.serverTimestamp(),
-
-          'updatedAt':
-              FieldValue.serverTimestamp(),
-
-          // ----------------------------------------------------
-          // Previous admin verification must be completed again
-          // after the walker submits documents again.
-          // ----------------------------------------------------
-
-          'selfieVerified': false,
-          'aadhaarFrontVerified': false,
-          'aadhaarBackVerified': false,
-
-          'approvedAt':
-              FieldValue.delete(),
-
-          'deactivatedAt':
-              FieldValue.delete(),
-        },
-        SetOptions(merge: true),
-      );
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Walker released for document re-submission.',
-          ),
-          backgroundColor:
-              Color(0xFF2563EB),
-        ),
-      );
-
-      setState(() {});
-    } catch (e) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Failed to release walker: $e',
-          ),
-          backgroundColor:
-              const Color(0xFFDC2626),
-        ),
-      );
-    }
-  }
-
-  // ============================================================
   // APPROVE / REJECT STATUS
   // ============================================================
 
@@ -937,7 +785,6 @@ class _WalkersScreenState extends State<WalkersScreen> {
           'isApproved': true,
           'adminApproved': true,
 
-          // Approved walker becomes active.
           'isActive': true,
           'active': true,
 
@@ -953,12 +800,6 @@ class _WalkersScreenState extends State<WalkersScreen> {
 
           'deactivatedAt':
               FieldValue.delete(),
-
-          // ----------------------------------------------------
-          // Admin verification records.
-          // The dialog only allows approval after all
-          // three checks are completed.
-          // ----------------------------------------------------
 
           'selfieVerified': true,
           'aadhaarFrontVerified': true,
@@ -979,7 +820,6 @@ class _WalkersScreenState extends State<WalkersScreen> {
           'isApproved': false,
           'adminApproved': false,
 
-          // Rejected walker becomes inactive.
           'isActive': false,
           'active': false,
 
@@ -1009,9 +849,10 @@ class _WalkersScreenState extends State<WalkersScreen> {
                 ? 'Walker approved successfully.'
                 : 'Walker rejected successfully.',
           ),
-          backgroundColor: status == 'approved'
-              ? const Color(0xFF16A34A)
-              : const Color(0xFFDC2626),
+          backgroundColor:
+              status == 'approved'
+                  ? const Color(0xFF16A34A)
+                  : const Color(0xFFDC2626),
         ),
       );
 
@@ -1047,7 +888,9 @@ class _WalkersScreenState extends State<WalkersScreen> {
               size: 48,
               color: Color(0xFFDC2626),
             ),
+
             const SizedBox(height: 12),
+
             const Text(
               'Unable to load walkers',
               style: TextStyle(
@@ -1055,7 +898,9 @@ class _WalkersScreenState extends State<WalkersScreen> {
                 fontWeight: FontWeight.w800,
               ),
             ),
+
             const SizedBox(height: 8),
+
             Text(
               message,
               textAlign: TextAlign.center,
@@ -1095,7 +940,9 @@ class _WalkersScreenState extends State<WalkersScreen> {
             size: 50,
             color: Color(0xFF9CA3AF),
           ),
+
           SizedBox(height: 12),
+
           Text(
             'No walkers found',
             style: TextStyle(
@@ -1104,7 +951,9 @@ class _WalkersScreenState extends State<WalkersScreen> {
               color: Color(0xFF374151),
             ),
           ),
+
           SizedBox(height: 6),
+
           Text(
             'Try changing the search or filter.',
             textAlign: TextAlign.center,
