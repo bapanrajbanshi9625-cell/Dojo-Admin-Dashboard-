@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
@@ -40,9 +38,9 @@ class _WalkerDetailsScreenState
   static const Color border = Color(0xFFE5E7EB);
   static const Color pageBg = Color(0xFFF7F8FA);
 
-  final ImagePicker _imagePicker = ImagePicker();
+  final ImagePicker _picker = ImagePicker();
 
-  final Set<String> _uploading = <String>{};
+  final Set<String> _uploadingFields = {};
 
   Map<String, dynamic> get data => widget.data;
 
@@ -85,7 +83,8 @@ class _WalkerDetailsScreenState
       }
 
       if (value != null) {
-        final text = value.toString().toLowerCase().trim();
+        final text =
+            value.toString().toLowerCase().trim();
 
         if (text == 'true' || text == '1') {
           return true;
@@ -218,7 +217,8 @@ class _WalkerDetailsScreenState
             ),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
+              borderRadius:
+                  BorderRadius.circular(20),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -245,7 +245,9 @@ class _WalkerDetailsScreenState
                       IconButton(
                         tooltip: 'Close',
                         onPressed: () {
-                          Navigator.of(dialogContext).pop();
+                          Navigator.of(
+                            dialogContext,
+                          ).pop();
                         },
                         icon: const Icon(
                           Icons.close_rounded,
@@ -260,7 +262,8 @@ class _WalkerDetailsScreenState
                 ),
                 Flexible(
                   child: Padding(
-                    padding: const EdgeInsets.all(18),
+                    padding:
+                        const EdgeInsets.all(18),
                     child: InteractiveViewer(
                       minScale: 0.8,
                       maxScale: 4,
@@ -270,13 +273,13 @@ class _WalkerDetailsScreenState
                         child: Image.network(
                           imageUrl,
                           fit: BoxFit.contain,
-                          loadingBuilder:
-                              (
-                                context,
-                                child,
-                                loadingProgress,
-                              ) {
-                            if (loadingProgress == null) {
+                          loadingBuilder: (
+                            context,
+                            child,
+                            loadingProgress,
+                          ) {
+                            if (loadingProgress ==
+                                null) {
                               return child;
                             }
 
@@ -288,12 +291,11 @@ class _WalkerDetailsScreenState
                               ),
                             );
                           },
-                          errorBuilder:
-                              (
-                                context,
-                                error,
-                                stackTrace,
-                              ) {
+                          errorBuilder: (
+                            context,
+                            error,
+                            stackTrace,
+                          ) {
                             return const SizedBox(
                               height: 350,
                               child: Center(
@@ -305,15 +307,21 @@ class _WalkerDetailsScreenState
                                       Icons
                                           .broken_image_outlined,
                                       size: 55,
-                                      color: Colors.grey,
+                                      color:
+                                          Colors.grey,
                                     ),
-                                    SizedBox(height: 10),
+                                    SizedBox(
+                                      height: 10,
+                                    ),
                                     Text(
                                       'Unable to load image',
-                                      style: TextStyle(
-                                        color: textGrey,
+                                      style:
+                                          TextStyle(
+                                        color:
+                                            textGrey,
                                         fontWeight:
-                                            FontWeight.w600,
+                                            FontWeight
+                                                .w600,
                                       ),
                                     ),
                                   ],
@@ -342,7 +350,8 @@ class _WalkerDetailsScreenState
     double size = 56,
     String? imageUrl,
   }) {
-    if (imageUrl != null && imageUrl.isNotEmpty) {
+    if (imageUrl != null &&
+        imageUrl.isNotEmpty) {
       return CircleAvatar(
         radius: size / 2,
         backgroundColor:
@@ -359,24 +368,28 @@ class _WalkerDetailsScreenState
         shape: BoxShape.circle,
         color: orange.withValues(alpha: 0.10),
         border: Border.all(
-          color: orange.withValues(alpha: 0.22),
-          width: 1,
+          color:
+              orange.withValues(alpha: 0.25),
+          width: 1.2,
         ),
       ),
       child: Stack(
         alignment: Alignment.center,
         children: [
           Container(
-            height: size * 0.76,
-            width: size * 0.76,
+            height: size * 0.78,
+            width: size * 0.78,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: orange.withValues(alpha: 0.08),
+              color:
+                  orange.withValues(alpha: 0.08),
             ),
           ),
+
+          // Branded default walker avatar
           Icon(
             Icons.person_rounded,
-            size: size * 0.56,
+            size: size * 0.58,
             color: orange,
           ),
         ],
@@ -385,77 +398,100 @@ class _WalkerDetailsScreenState
   }
 
   // ============================================================
-  // UPLOAD IMAGE
+  // UPLOAD PHOTO
   // ============================================================
 
-  Future<void> _uploadImage({
-    required String uploadType,
+  Future<void> _uploadPhoto({
+    required String fieldName,
     required String title,
-    required List<String> firestoreKeys,
-    required String storageName,
   }) async {
-    if (_uploading.contains(uploadType)) {
+    if (_uploadingFields.contains(fieldName)) {
       return;
     }
 
     try {
-      setState(() {
-        _uploading.add(uploadType);
-      });
-
-      final XFile? pickedFile =
-          await _imagePicker.pickImage(
+      final XFile? picked =
+          await _picker.pickImage(
         source: ImageSource.gallery,
-        imageQuality: 88,
-        maxWidth: 1800,
-        maxHeight: 1800,
+        imageQuality: 90,
       );
 
-      if (pickedFile == null) {
-        if (mounted) {
-          setState(() {
-            _uploading.remove(uploadType);
-          });
-        }
+      if (picked == null) {
         return;
       }
 
-      final File file = File(pickedFile.path);
-
-      final String walkerId = doc.id;
-
-      final Reference storageRef =
-          FirebaseStorage.instance
-              .ref()
-              .child('walkers')
-              .child(walkerId)
-              .child('admin_uploads')
-              .child(storageName);
-
-      await storageRef.putFile(file);
-
-      final String downloadUrl =
-          await storageRef.getDownloadURL();
-
-      final Map<String, dynamic> updateData =
-          <String, dynamic>{};
-
-      for (final key in firestoreKeys) {
-        updateData[key] = downloadUrl;
-      }
-
-      await doc.reference.update(updateData);
-
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       setState(() {
-        for (final key in firestoreKeys) {
-          data[key] = downloadUrl;
-        }
+        _uploadingFields.add(fieldName);
+      });
 
-        _uploading.remove(uploadType);
+      final bytes = await picked.readAsBytes();
+
+      if (bytes.isEmpty) {
+        throw Exception(
+          'Selected image is empty.',
+        );
+      }
+
+      String extension = 'jpg';
+
+      final fileName =
+          picked.name.toLowerCase();
+
+      if (fileName.endsWith('.png')) {
+        extension = 'png';
+      } else if (fileName.endsWith('.webp')) {
+        extension = 'webp';
+      } else if (fileName.endsWith('.jpeg')) {
+        extension = 'jpeg';
+      } else if (fileName.endsWith('.jpg')) {
+        extension = 'jpg';
+      }
+
+      final timestamp =
+          DateTime.now().millisecondsSinceEpoch;
+
+      final storagePath =
+          'walkers/${doc.id}/admin_uploads/'
+          '${fieldName}_$timestamp.$extension';
+
+      final storageRef =
+          FirebaseStorage.instance.ref().child(
+                storagePath,
+              );
+
+      String contentType =
+          'image/jpeg';
+
+      if (extension == 'png') {
+        contentType = 'image/png';
+      } else if (extension == 'webp') {
+        contentType = 'image/webp';
+      }
+
+      await storageRef.putData(
+        bytes,
+        SettableMetadata(
+          contentType: contentType,
+        ),
+      );
+
+      final downloadUrl =
+          await storageRef.getDownloadURL();
+
+      // Save URL into Firestore.
+      await doc.reference.update({
+        fieldName: downloadUrl,
+      });
+
+      // Update current screen immediately.
+      data[fieldName] = downloadUrl;
+
+      if (!mounted) return;
+
+      setState(() {
+        _uploadingFields.remove(fieldName);
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -467,18 +503,16 @@ class _WalkerDetailsScreenState
         ),
       );
     } catch (e) {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       setState(() {
-        _uploading.remove(uploadType);
+        _uploadingFields.remove(fieldName);
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Unable to upload $title.',
+            'Upload failed: $e',
           ),
           backgroundColor: red,
         ),
@@ -491,54 +525,54 @@ class _WalkerDetailsScreenState
   // ============================================================
 
   Widget _uploadButton({
-    required String uploadType,
+    required String fieldName,
     required String title,
-    required List<String> firestoreKeys,
-    required String storageName,
   }) {
-    final bool uploading =
-        _uploading.contains(uploadType);
+    final uploading =
+        _uploadingFields.contains(fieldName);
 
     return SizedBox(
-      height: 30,
+      height: 34,
       child: OutlinedButton.icon(
         onPressed: uploading
             ? null
             : () {
-                _uploadImage(
-                  uploadType: uploadType,
+                _uploadPhoto(
+                  fieldName: fieldName,
                   title: title,
-                  firestoreKeys: firestoreKeys,
-                  storageName: storageName,
                 );
               },
         icon: uploading
             ? const SizedBox(
-                height: 13,
-                width: 13,
-                child: CircularProgressIndicator(
+                height: 14,
+                width: 14,
+                child:
+                    CircularProgressIndicator(
                   strokeWidth: 2,
                 ),
               )
             : const Icon(
                 Icons.upload_rounded,
-                size: 14,
+                size: 16,
               ),
         label: Text(
-          uploading ? 'Uploading...' : 'Upload',
+          uploading
+              ? 'Uploading...'
+              : 'Upload',
           style: const TextStyle(
-            fontSize: 10,
+            fontSize: 11,
             fontWeight: FontWeight.w800,
           ),
         ),
         style: OutlinedButton.styleFrom(
           foregroundColor: orange,
           side: BorderSide(
-            color: orange.withValues(alpha: 0.45),
+            color:
+                orange.withValues(alpha: 0.55),
           ),
           padding:
               const EdgeInsets.symmetric(
-            horizontal: 9,
+            horizontal: 10,
           ),
           shape:
               RoundedRectangleBorder(
@@ -559,19 +593,17 @@ class _WalkerDetailsScreenState
     required String title,
     required String imageUrl,
     required IconData icon,
-    required String uploadType,
-    required List<String> firestoreKeys,
-    required String storageName,
+    required String uploadField,
   }) {
-    final bool uploading =
-        _uploading.contains(uploadType);
+    final hasImage = imageUrl.isNotEmpty;
 
     return Container(
-      width: 118,
-      padding: const EdgeInsets.all(7),
+      width: 150,
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: const Color(0xFFF9FAFB),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius:
+            BorderRadius.circular(12),
         border: Border.all(
           color: border,
         ),
@@ -581,58 +613,61 @@ class _WalkerDetailsScreenState
           InkWell(
             borderRadius:
                 BorderRadius.circular(9),
-            onTap: imageUrl.isEmpty
-                ? null
-                : () {
+            onTap: hasImage
+                ? () {
                     _openImage(
                       context,
                       title,
                       imageUrl,
                     );
-                  },
+                  }
+                : null,
             child: Container(
-              height: 82,
+              height: 95,
               width: double.infinity,
               decoration: BoxDecoration(
-                color: const Color(0xFFF3F4F6),
+                color:
+                    const Color(0xFFF3F4F6),
                 borderRadius:
                     BorderRadius.circular(9),
               ),
-              child: imageUrl.isEmpty
-                  ? Icon(
-                      icon,
-                      size: 34,
-                      color: Colors.grey,
-                    )
-                  : ClipRRect(
+              child: hasImage
+                  ? ClipRRect(
                       borderRadius:
-                          BorderRadius.circular(9),
+                          BorderRadius.circular(
+                        9,
+                      ),
                       child: Image.network(
                         imageUrl,
                         fit: BoxFit.cover,
-                        errorBuilder:
-                            (
-                              context,
-                              error,
-                              stackTrace,
-                            ) {
+                        errorBuilder: (
+                          context,
+                          error,
+                          stackTrace,
+                        ) {
                           return Icon(
                             icon,
-                            size: 34,
+                            size: 38,
                             color: Colors.grey,
                           );
                         },
                       ),
+                    )
+                  : Icon(
+                      icon,
+                      size: 38,
+                      color: Colors.grey,
                     ),
             ),
           ),
 
-          const SizedBox(height: 7),
+          const SizedBox(height: 8),
 
           Text(
             title,
             maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+            overflow:
+                TextOverflow.ellipsis,
             style: const TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w700,
@@ -640,27 +675,31 @@ class _WalkerDetailsScreenState
             ),
           ),
 
-          const SizedBox(height: 4),
+          const SizedBox(height: 5),
 
-          if (imageUrl.isNotEmpty)
-            const Text(
-              'Tap to view',
-              style: TextStyle(
-                fontSize: 9,
-                color: orange,
-                fontWeight: FontWeight.w700,
+          if (hasImage)
+            InkWell(
+              onTap: () {
+                _openImage(
+                  context,
+                  title,
+                  imageUrl,
+                );
+              },
+              child: const Text(
+                'Tap to view',
+                style: TextStyle(
+                  fontSize: 9,
+                  color: orange,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             )
           else
             _uploadButton(
-              uploadType: uploadType,
+              fieldName: uploadField,
               title: title,
-              firestoreKeys: firestoreKeys,
-              storageName: storageName,
             ),
-
-          if (uploading)
-            const SizedBox(height: 2),
         ],
       ),
     );
@@ -690,7 +729,9 @@ class _WalkerDetailsScreenState
         boxShadow: [
           BoxShadow(
             color:
-                Colors.black.withValues(alpha: 0.035),
+                Colors.black.withValues(
+              alpha: 0.035,
+            ),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -701,7 +742,8 @@ class _WalkerDetailsScreenState
             CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(
+            padding:
+                const EdgeInsets.fromLTRB(
               18,
               16,
               18,
@@ -714,9 +756,13 @@ class _WalkerDetailsScreenState
                   width: 36,
                   decoration: BoxDecoration(
                     color:
-                        orange.withValues(alpha: 0.10),
+                        orange.withValues(
+                      alpha: 0.10,
+                    ),
                     borderRadius:
-                        BorderRadius.circular(10),
+                        BorderRadius.circular(
+                      10,
+                    ),
                   ),
                   child: Icon(
                     icon,
@@ -737,12 +783,15 @@ class _WalkerDetailsScreenState
               ],
             ),
           ),
+
           const Divider(
             height: 1,
             color: border,
           ),
+
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding:
+                const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment:
                   CrossAxisAlignment.start,
@@ -801,7 +850,9 @@ class _WalkerDetailsScreenState
               fontWeight: FontWeight.w600,
             ),
           ),
+
           const SizedBox(height: 4),
+
           valueWidget,
         ],
       ),
@@ -817,16 +868,19 @@ class _WalkerDetailsScreenState
     final color = _statusColor(status);
 
     return Container(
-      padding: const EdgeInsets.symmetric(
+      padding:
+          const EdgeInsets.symmetric(
         horizontal: 11,
         vertical: 6,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
+        color:
+            color.withValues(alpha: 0.10),
         borderRadius:
             BorderRadius.circular(30),
         border: Border.all(
-          color: color.withValues(alpha: 0.25),
+          color:
+              color.withValues(alpha: 0.25),
         ),
       ),
       child: Row(
@@ -840,13 +894,16 @@ class _WalkerDetailsScreenState
               shape: BoxShape.circle,
             ),
           ),
+
           const SizedBox(width: 7),
+
           Text(
             status,
             style: TextStyle(
               color: color,
               fontSize: 11,
-              fontWeight: FontWeight.w800,
+              fontWeight:
+                  FontWeight.w800,
             ),
           ),
         ],
@@ -878,12 +935,15 @@ class _WalkerDetailsScreenState
             label,
             style: const TextStyle(
               fontSize: 12,
-              fontWeight: FontWeight.w800,
+              fontWeight:
+                  FontWeight.w800,
             ),
           ),
-          style: FilledButton.styleFrom(
+          style:
+              FilledButton.styleFrom(
             backgroundColor: color,
-            foregroundColor: Colors.white,
+            foregroundColor:
+                Colors.white,
             padding:
                 const EdgeInsets.symmetric(
               horizontal: 13,
@@ -891,7 +951,9 @@ class _WalkerDetailsScreenState
             shape:
                 RoundedRectangleBorder(
               borderRadius:
-                  BorderRadius.circular(9),
+                  BorderRadius.circular(
+                9,
+              ),
             ),
           ),
         ),
@@ -910,14 +972,18 @@ class _WalkerDetailsScreenState
           label,
           style: const TextStyle(
             fontSize: 12,
-            fontWeight: FontWeight.w800,
+            fontWeight:
+                FontWeight.w800,
           ),
         ),
-        style: OutlinedButton.styleFrom(
+        style:
+            OutlinedButton.styleFrom(
           foregroundColor: color,
           side: BorderSide(
             color:
-                color.withValues(alpha: 0.55),
+                color.withValues(
+              alpha: 0.55,
+            ),
           ),
           padding:
               const EdgeInsets.symmetric(
@@ -926,7 +992,9 @@ class _WalkerDetailsScreenState
           shape:
               RoundedRectangleBorder(
             borderRadius:
-                BorderRadius.circular(9),
+                BorderRadius.circular(
+              9,
+            ),
           ),
         ),
       ),
@@ -1004,7 +1072,8 @@ class _WalkerDetailsScreenState
     }
 
     return Wrap(
-      alignment: WrapAlignment.end,
+      alignment:
+          WrapAlignment.end,
       spacing: 8,
       runSpacing: 8,
       children: buttons,
@@ -1035,7 +1104,8 @@ class _WalkerDetailsScreenState
       'selfieUrl',
     ]);
 
-    final aadhaarFront = _imageUrl([
+    final aadhaarFront =
+        _imageUrl([
       'Aadhar Front',
       'Aadhaar Front',
       'aadhaarFront',
@@ -1044,7 +1114,8 @@ class _WalkerDetailsScreenState
       'aadhaar_front_url',
     ]);
 
-    final aadhaarBack = _imageUrl([
+    final aadhaarBack =
+        _imageUrl([
       'Aadhar Back',
       'Aadhaar Back',
       'aadhaarBack',
@@ -1058,10 +1129,17 @@ class _WalkerDetailsScreenState
 
     return Scaffold(
       backgroundColor: pageBg,
+
+      // ========================================================
+      // APP BAR
+      // ========================================================
+
       appBar: AppBar(
         backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
+        surfaceTintColor:
+            Colors.white,
         elevation: 0,
+
         leading: IconButton(
           onPressed: () {
             Navigator.of(context).pop();
@@ -1070,18 +1148,26 @@ class _WalkerDetailsScreenState
             Icons.arrow_back_rounded,
           ),
         ),
+
         title: const Text(
           'Walker Details',
           style: TextStyle(
             fontSize: 19,
-            fontWeight: FontWeight.w800,
+            fontWeight:
+                FontWeight.w800,
             color: textDark,
           ),
         ),
       ),
+
+      // ========================================================
+      // BODY
+      // ========================================================
+
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(
+          padding:
+              const EdgeInsets.fromLTRB(
             16,
             16,
             16,
@@ -1097,11 +1183,17 @@ class _WalkerDetailsScreenState
 
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
+                padding:
+                    const EdgeInsets.all(
+                  16,
+                ),
+                decoration:
+                    BoxDecoration(
                   color: Colors.white,
                   borderRadius:
-                      BorderRadius.circular(18),
+                      BorderRadius.circular(
+                    18,
+                  ),
                   border: Border.all(
                     color: border,
                   ),
@@ -1110,6 +1202,10 @@ class _WalkerDetailsScreenState
                   children: [
                     Row(
                       children: [
+                        // ----------------------------------------
+                        // WALKER PHOTO / AVATAR
+                        // ----------------------------------------
+
                         _walkerAvatar(
                           size: 56,
                           imageUrl:
@@ -1117,25 +1213,38 @@ class _WalkerDetailsScreenState
                                   ? selfie
                                   : null,
                         ),
-                        const SizedBox(width: 13),
+
+                        const SizedBox(
+                          width: 13,
+                        ),
+
                         Expanded(
                           child: Column(
                             crossAxisAlignment:
-                                CrossAxisAlignment.start,
+                                CrossAxisAlignment
+                                    .start,
                             children: [
                               Text(
                                 name,
                                 maxLines: 1,
                                 overflow:
-                                    TextOverflow.ellipsis,
-                                style: const TextStyle(
+                                    TextOverflow
+                                        .ellipsis,
+                                style:
+                                    const TextStyle(
                                   fontSize: 18,
                                   fontWeight:
-                                      FontWeight.w800,
-                                  color: textDark,
+                                      FontWeight
+                                          .w800,
+                                  color:
+                                      textDark,
                                 ),
                               ),
-                              const SizedBox(height: 4),
+
+                              const SizedBox(
+                                height: 4,
+                              ),
+
                               Text(
                                 _value(
                                   [
@@ -1147,36 +1256,67 @@ class _WalkerDetailsScreenState
                                 ),
                                 maxLines: 1,
                                 overflow:
-                                    TextOverflow.ellipsis,
-                                style: const TextStyle(
+                                    TextOverflow
+                                        .ellipsis,
+                                style:
+                                    const TextStyle(
                                   fontSize: 11,
-                                  color: textGrey,
+                                  color:
+                                      textGrey,
                                   fontWeight:
-                                      FontWeight.w600,
+                                      FontWeight
+                                          .w600,
                                 ),
                               ),
                             ],
                           ),
                         ),
+
                         _statusBadge(),
                       ],
                     ),
 
-                    const SizedBox(height: 14),
+                    // --------------------------------------------
+                    // ADMIN UPLOAD PROFILE PHOTO
+                    // --------------------------------------------
+
+                    if (selfie.isEmpty) ...[
+                      const SizedBox(
+                        height: 12,
+                      ),
+                      Align(
+                        alignment:
+                            Alignment.centerLeft,
+                        child: _uploadButton(
+                          fieldName:
+                              'Profile Selfie',
+                          title:
+                              'Profile Selfie',
+                        ),
+                      ),
+                    ],
+
+                    const SizedBox(
+                      height: 14,
+                    ),
 
                     const Divider(
                       height: 1,
                       color: border,
                     ),
 
-                    const SizedBox(height: 14),
+                    const SizedBox(
+                      height: 14,
+                    ),
 
                     Row(
                       crossAxisAlignment:
-                          CrossAxisAlignment.start,
+                          CrossAxisAlignment
+                              .start,
                       children: [
                         Expanded(
-                          child: _topActions(),
+                          child:
+                              _topActions(),
                         ),
                       ],
                     ),
@@ -1184,7 +1324,9 @@ class _WalkerDetailsScreenState
                 ),
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(
+                height: 16,
+              ),
 
               // ==================================================
               // BASIC DETAILS
@@ -1198,6 +1340,7 @@ class _WalkerDetailsScreenState
                     'Full Name',
                     name,
                   ),
+
                   _row(
                     'Mobile Number',
                     _value([
@@ -1209,6 +1352,7 @@ class _WalkerDetailsScreenState
                     ]),
                     selectable: true,
                   ),
+
                   _row(
                     'Walker ID',
                     _value(
@@ -1216,10 +1360,12 @@ class _WalkerDetailsScreenState
                         'Walker ID',
                         'walkerId',
                       ],
-                      fallback: doc.id,
+                      fallback:
+                          doc.id,
                     ),
                     selectable: true,
                   ),
+
                   _row(
                     'Walker UID',
                     _value([
@@ -1230,12 +1376,14 @@ class _WalkerDetailsScreenState
                     ]),
                     selectable: true,
                   ),
+
                   _row(
                     'Role',
                     _value([
                       'role',
                     ]),
                   ),
+
                   _row(
                     'Gender',
                     _value([
@@ -1243,6 +1391,7 @@ class _WalkerDetailsScreenState
                       'gender',
                     ]),
                   ),
+
                   _row(
                     'Date Of Birth',
                     _value([
@@ -1272,14 +1421,19 @@ class _WalkerDetailsScreenState
                     ]),
                     selectable: true,
                   ),
+
                   _row(
                     'Verification',
                     status,
                   ),
+
                   _row(
                     'Active',
-                    isActive ? 'Yes' : 'No',
+                    isActive
+                        ? 'Yes'
+                        : 'No',
                   ),
+
                   _row(
                     'Profile Completed',
                     _bool([
@@ -1289,7 +1443,9 @@ class _WalkerDetailsScreenState
                         : 'No',
                   ),
 
-                  const SizedBox(height: 8),
+                  const SizedBox(
+                    height: 8,
+                  ),
 
                   // ----------------------------------------------
                   // DOCUMENT PHOTOS
@@ -1306,16 +1462,12 @@ class _WalkerDetailsScreenState
                           context,
                           title:
                               'Profile Selfie',
-                          imageUrl: selfie,
+                          imageUrl:
+                              selfie,
                           icon:
                               Icons.person_rounded,
-                          uploadType:
-                              'profile_selfie',
-                          firestoreKeys: [
-                            'Profile Selfie',
-                          ],
-                          storageName:
-                              'profile_selfie.jpg',
+                          uploadField:
+                              'Profile Selfie',
                         ),
 
                         _photoCard(
@@ -1326,13 +1478,8 @@ class _WalkerDetailsScreenState
                               aadhaarFront,
                           icon:
                               Icons.credit_card,
-                          uploadType:
-                              'aadhaar_front',
-                          firestoreKeys: [
-                            'Aadhar Front',
-                          ],
-                          storageName:
-                              'aadhaar_front.jpg',
+                          uploadField:
+                              'Aadhar Front',
                         ),
 
                         _photoCard(
@@ -1343,13 +1490,8 @@ class _WalkerDetailsScreenState
                               aadhaarBack,
                           icon:
                               Icons.credit_card,
-                          uploadType:
-                              'aadhaar_back',
-                          firestoreKeys: [
-                            'Aadhar Back',
-                          ],
-                          storageName:
-                              'aadhaar_back.jpg',
+                          uploadField:
+                              'Aadhar Back',
                         ),
                       ],
                     ),
@@ -1373,6 +1515,7 @@ class _WalkerDetailsScreenState
                       'address',
                     ]),
                   ),
+
                   _row(
                     'Village',
                     _value([
@@ -1380,6 +1523,7 @@ class _WalkerDetailsScreenState
                       'village',
                     ]),
                   ),
+
                   _row(
                     'City',
                     _value([
@@ -1387,6 +1531,7 @@ class _WalkerDetailsScreenState
                       'city',
                     ]),
                   ),
+
                   _row(
                     'District',
                     _value([
@@ -1394,6 +1539,7 @@ class _WalkerDetailsScreenState
                       'district',
                     ]),
                   ),
+
                   _row(
                     'State',
                     _value([
@@ -1401,6 +1547,7 @@ class _WalkerDetailsScreenState
                       'state',
                     ]),
                   ),
+
                   _row(
                     'Pincode',
                     _value([
@@ -1429,6 +1576,7 @@ class _WalkerDetailsScreenState
                       'emergencyName',
                     ]),
                   ),
+
                   _row(
                     'Mobile',
                     _value([
@@ -1459,6 +1607,7 @@ class _WalkerDetailsScreenState
                         ? 'Yes'
                         : 'No',
                   ),
+
                   _row(
                     'Rejected',
                     _bool([
@@ -1469,10 +1618,14 @@ class _WalkerDetailsScreenState
                         ? 'Yes'
                         : 'No',
                   ),
+
                   _row(
                     'Active',
-                    isActive ? 'Yes' : 'No',
+                    isActive
+                        ? 'Yes'
+                        : 'No',
                   ),
+
                   _row(
                     'Online',
                     _bool([
