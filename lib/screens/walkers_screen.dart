@@ -314,6 +314,13 @@ class _WalkersScreenState extends State<WalkersScreen> {
             onDeactivate: () {
               _showDeactivateDialog(doc);
             },
+
+            // --------------------------------------------------
+            // RELEASE
+            // --------------------------------------------------
+            onRelease: () {
+              _showReleaseDialog(doc);
+            },
           );
         },
       ),
@@ -327,38 +334,188 @@ class _WalkersScreenState extends State<WalkersScreen> {
   Future<void> _showApproveDialog(
     DocumentSnapshot<Map<String, dynamic>> doc,
   ) async {
+    bool selfieVerified = false;
+    bool aadhaarFrontVerified = false;
+    bool aadhaarBackVerified = false;
+
     final result = await showDialog<bool>(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text(
-            'Approve Walker',
-          ),
-          content: const Text(
-            'Are you sure you want to approve this walker?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop(false);
-              },
-              child: const Text(
-                'Cancel',
+        return StatefulBuilder(
+          builder: (
+            context,
+            setDialogState,
+          ) {
+            final canApprove =
+                selfieVerified &&
+                aadhaarFrontVerified &&
+                aadhaarBackVerified;
+
+            return AlertDialog(
+              title: const Row(
+                children: [
+                  Icon(
+                    Icons.verified_user_rounded,
+                    color: Color(0xFF16A34A),
+                  ),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Approve Walker',
+                    ),
+                  ),
+                ],
               ),
-            ),
-            FilledButton(
-              onPressed: () {
-                Navigator.of(context).pop(true);
-              },
-              style: FilledButton.styleFrom(
-                backgroundColor:
-                    const Color(0xFF16A34A),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment:
+                    CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Please verify all documents before approving this walker.',
+                    style: TextStyle(
+                      color: Color(0xFF6B7280),
+                      fontSize: 13,
+                    ),
+                  ),
+
+                  const SizedBox(height: 14),
+
+                  // ------------------------------------------------
+                  // SELFIE
+                  // ------------------------------------------------
+
+                  CheckboxListTile(
+                    value: selfieVerified,
+                    onChanged: (value) {
+                      setDialogState(() {
+                        selfieVerified =
+                            value ?? false;
+                      });
+                    },
+                    contentPadding:
+                        EdgeInsets.zero,
+                    controlAffinity:
+                        ListTileControlAffinity.leading,
+                    title: const Text(
+                      'Selfie Verified',
+                      style: TextStyle(
+                        fontWeight:
+                            FontWeight.w700,
+                      ),
+                    ),
+                    secondary: const Icon(
+                      Icons.person_rounded,
+                      color: Color(0xFF2563EB),
+                    ),
+                  ),
+
+                  // ------------------------------------------------
+                  // AADHAAR FRONT
+                  // ------------------------------------------------
+
+                  CheckboxListTile(
+                    value:
+                        aadhaarFrontVerified,
+                    onChanged: (value) {
+                      setDialogState(() {
+                        aadhaarFrontVerified =
+                            value ?? false;
+                      });
+                    },
+                    contentPadding:
+                        EdgeInsets.zero,
+                    controlAffinity:
+                        ListTileControlAffinity.leading,
+                    title: const Text(
+                      'Aadhaar Front Verified',
+                      style: TextStyle(
+                        fontWeight:
+                            FontWeight.w700,
+                      ),
+                    ),
+                    secondary: const Icon(
+                      Icons.credit_card_rounded,
+                      color: Color(0xFF2563EB),
+                    ),
+                  ),
+
+                  // ------------------------------------------------
+                  // AADHAAR BACK
+                  // ------------------------------------------------
+
+                  CheckboxListTile(
+                    value:
+                        aadhaarBackVerified,
+                    onChanged: (value) {
+                      setDialogState(() {
+                        aadhaarBackVerified =
+                            value ?? false;
+                      });
+                    },
+                    contentPadding:
+                        EdgeInsets.zero,
+                    controlAffinity:
+                        ListTileControlAffinity.leading,
+                    title: const Text(
+                      'Aadhaar Back Verified',
+                      style: TextStyle(
+                        fontWeight:
+                            FontWeight.w700,
+                      ),
+                    ),
+                    secondary: const Icon(
+                      Icons.credit_card_rounded,
+                      color: Color(0xFF2563EB),
+                    ),
+                  ),
+
+                  if (!canApprove) ...[
+                    const SizedBox(height: 6),
+                    const Text(
+                      'All three verifications are required before approval.',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFFDC2626),
+                        fontWeight:
+                            FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ],
               ),
-              child: const Text(
-                'Approve',
-              ),
-            ),
-          ],
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context)
+                        .pop(false);
+                  },
+                  child: const Text(
+                    'Cancel',
+                  ),
+                ),
+                FilledButton.icon(
+                  onPressed: canApprove
+                      ? () {
+                          Navigator.of(context)
+                              .pop(true);
+                        }
+                      : null,
+                  icon: const Icon(
+                    Icons.check_rounded,
+                  ),
+                  style:
+                      FilledButton.styleFrom(
+                    backgroundColor:
+                        const Color(0xFF16A34A),
+                  ),
+                  label: const Text(
+                    'Approve',
+                  ),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -533,6 +690,70 @@ class _WalkersScreenState extends State<WalkersScreen> {
   }
 
   // ============================================================
+  // RELEASE DIALOG
+  // ============================================================
+
+  Future<void> _showReleaseDialog(
+    DocumentSnapshot<Map<String, dynamic>> doc,
+  ) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Row(
+            children: [
+              Icon(
+                Icons.restart_alt_rounded,
+                color: Color(0xFF2563EB),
+              ),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Release Walker',
+                ),
+              ),
+            ],
+          ),
+          content: const Text(
+            'Release this rejected walker for document re-submission and re-verification?\n\n'
+            'This will not activate the Walker ID.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(false);
+              },
+              child: const Text(
+                'Cancel',
+              ),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.of(context).pop(true);
+              },
+              style: FilledButton.styleFrom(
+                backgroundColor:
+                    const Color(0xFF2563EB),
+              ),
+              child: const Text(
+                'Release',
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (result != true) {
+      return;
+    }
+
+    await _releaseWalker(
+      doc,
+    );
+  }
+
+  // ============================================================
   // SET WALKER ACTIVE / INACTIVE
   // ============================================================
 
@@ -607,6 +828,88 @@ class _WalkersScreenState extends State<WalkersScreen> {
   }
 
   // ============================================================
+  // RELEASE WALKER FOR RE-SUBMISSION
+  // ============================================================
+
+  Future<void> _releaseWalker(
+    DocumentSnapshot<Map<String, dynamic>> doc,
+  ) async {
+    try {
+      await doc.reference.set(
+        {
+          // ----------------------------------------------------
+          // Re-submission / re-verification state.
+          // This does NOT activate the Walker ID.
+          // ----------------------------------------------------
+
+          'status': 'resubmission',
+          'verificationStatus': 'resubmission',
+          'approvalStatus': 'resubmission',
+
+          'approved': false,
+          'isApproved': false,
+          'adminApproved': false,
+
+          'rejected': false,
+          'isRejected': false,
+          'adminRejected': false,
+
+          'isActive': false,
+          'active': false,
+
+          'releasedAt':
+              FieldValue.serverTimestamp(),
+
+          'updatedAt':
+              FieldValue.serverTimestamp(),
+
+          // ----------------------------------------------------
+          // Previous admin verification must be completed again
+          // after the walker submits documents again.
+          // ----------------------------------------------------
+
+          'selfieVerified': false,
+          'aadhaarFrontVerified': false,
+          'aadhaarBackVerified': false,
+
+          'approvedAt':
+              FieldValue.delete(),
+
+          'deactivatedAt':
+              FieldValue.delete(),
+        },
+        SetOptions(merge: true),
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Walker released for document re-submission.',
+          ),
+          backgroundColor:
+              Color(0xFF2563EB),
+        ),
+      );
+
+      setState(() {});
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Failed to release walker: $e',
+          ),
+          backgroundColor:
+              const Color(0xFFDC2626),
+        ),
+      );
+    }
+  }
+
+  // ============================================================
   // APPROVE / REJECT STATUS
   // ============================================================
 
@@ -650,6 +953,19 @@ class _WalkersScreenState extends State<WalkersScreen> {
 
           'deactivatedAt':
               FieldValue.delete(),
+
+          // ----------------------------------------------------
+          // Admin verification records.
+          // The dialog only allows approval after all
+          // three checks are completed.
+          // ----------------------------------------------------
+
+          'selfieVerified': true,
+          'aadhaarFrontVerified': true,
+          'aadhaarBackVerified': true,
+
+          'verifiedAt':
+              FieldValue.serverTimestamp(),
         });
       }
 
@@ -673,6 +989,9 @@ class _WalkersScreenState extends State<WalkersScreen> {
 
           'rejectedAt':
               FieldValue.serverTimestamp(),
+
+          'deactivatedAt':
+              FieldValue.delete(),
         });
       }
 
