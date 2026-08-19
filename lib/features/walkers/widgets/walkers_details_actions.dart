@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'walkers_details_action_button.dart';
-import 'walkers_details_helpers.dart';
+import 'walkers_helpers.dart';
 
 class WalkerDetailsActions extends StatelessWidget {
   final String status;
@@ -26,7 +26,9 @@ class WalkerDetailsActions extends StatelessWidget {
   Widget build(BuildContext context) {
     final List<Widget> buttons = <Widget>[];
 
-    if (status == 'Pending') {
+    final normalizedStatus = status.trim().toLowerCase();
+
+    if (normalizedStatus == 'pending') {
       buttons.add(
         WalkerDetailsActionButton(
           label: 'Reject',
@@ -45,7 +47,7 @@ class WalkerDetailsActions extends StatelessWidget {
           filled: true,
         ),
       );
-    } else if (status == 'Rejected') {
+    } else if (normalizedStatus == 'rejected') {
       buttons.add(
         WalkerDetailsActionButton(
           label: 'Approve',
@@ -55,7 +57,7 @@ class WalkerDetailsActions extends StatelessWidget {
           filled: true,
         ),
       );
-    } else if (status == 'Approved') {
+    } else if (normalizedStatus == 'approved') {
       if (isActive) {
         buttons.add(
           WalkerDetailsActionButton(
