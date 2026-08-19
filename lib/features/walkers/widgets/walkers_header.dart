@@ -1,115 +1,115 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 
-class WalkersHelpers {
-  static String readValue(
-    Map<String, dynamic> data,
-    List<String> keys, [
-    String fallback = '',
-  ]) {
-    for (final key in keys) {
-      final value = data[key];
+class WalkersHeader extends StatelessWidget {
+  final String name;
+  final String mobile;
+  final String selfie;
+  final String status;
+  final Color roleColor;
+  final Color statusColor;
 
-      if (value != null &&
-          value.toString().trim().isNotEmpty) {
-        return value.toString().trim();
-      }
-    }
+  const WalkersHeader({
+    super.key,
+    required this.name,
+    required this.mobile,
+    required this.selfie,
+    required this.status,
+    required this.roleColor,
+    required this.statusColor,
+  });
 
-    return fallback;
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 20,
+      ),
+      child: Row(
+        children: [
+          _avatar(),
+          const SizedBox(width: 14),
+
+          Expanded(
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF111827),
+                  ),
+                ),
+
+                if (mobile.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    mobile,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF6B7280),
+                    ),
+                  ),
+                ],
+
+                const SizedBox(height: 8),
+
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(
+                      alpha: 0.10,
+                    ),
+                    borderRadius:
+                        BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    status.isEmpty
+                        ? 'Pending'
+                        : status,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: statusColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
-  static bool readBool(
-    Map<String, dynamic> data,
-    List<String> keys,
-  ) {
-    for (final key in keys) {
-      final value = data[key];
-
-      if (value is bool) {
-        return value;
-      }
-
-      if (value is num) {
-        return value != 0;
-      }
-
-      if (value is String) {
-        final normalized = value.trim().toLowerCase();
-
-        if (normalized == 'true' ||
-            normalized == 'yes' ||
-            normalized == '1') {
-          return true;
-        }
-
-        if (normalized == 'false' ||
-            normalized == 'no' ||
-            normalized == '0') {
-          return false;
-        }
-      }
+  Widget _avatar() {
+    if (selfie.trim().isNotEmpty) {
+      return CircleAvatar(
+        radius: 32,
+        backgroundColor:
+            const Color(0xFFFFF1E8),
+        backgroundImage:
+            NetworkImage(selfie),
+      );
     }
 
-    return false;
-  }
-
-  static String readTimestamp(
-    Map<String, dynamic> data,
-    List<String> keys,
-  ) {
-    for (final key in keys) {
-      final value = data[key];
-
-      if (value == null) continue;
-
-      if (value is Timestamp) {
-        return formatDateTime(value.toDate());
-      }
-
-      if (value is DateTime) {
-        return formatDateTime(value);
-      }
-
-      final text = value.toString().trim();
-
-      if (text.isNotEmpty) {
-        return text;
-      }
-    }
-
-    return '';
-  }
-
-  static String formatDateTime(DateTime date) {
-    final d = date.day.toString().padLeft(2, '0');
-    final m = date.month.toString().padLeft(2, '0');
-    final y = date.year.toString();
-
-    final hour = date.hour.toString().padLeft(2, '0');
-    final minute = date.minute.toString().padLeft(2, '0');
-
-    return '$d/$m/$y $hour:$minute';
-  }
-
-  static String initials(String name) {
-    final cleaned = name.trim();
-
-    if (cleaned.isEmpty ||
-        cleaned.toLowerCase() == 'unknown walker') {
-      return 'W';
-    }
-
-    final parts = cleaned
-        .split(RegExp(r'\s+'))
-        .where((part) => part.isNotEmpty)
-        .toList();
-
-    if (parts.length == 1) {
-      return parts.first.substring(0, 1).toUpperCase();
-    }
-
-    return '${parts.first.substring(0, 1)}'
-            '${parts.last.substring(0, 1)}'
-        .toUpperCase();
+    return CircleAvatar(
+      radius: 32,
+      backgroundColor:
+          const Color(0xFFFFF1E8),
+      child: Icon(
+        Icons.person,
+        color: roleColor,
+        size: 30,
+      ),
+    );
   }
 }
