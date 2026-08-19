@@ -15,10 +15,10 @@ const Color walkerDetailsBorder = Color(0xFFE5E7EB);
 const Color walkerDetailsPageBg = Color(0xFFF7F8FA);
 
 // ============================================================
-// READ STRING VALUE
+// READ VALUE
 // ============================================================
 
-String walkerValue(
+String walkerDetailsValue(
   Map<String, dynamic> data,
   List<String> keys, {
   String fallback = 'Not available',
@@ -41,10 +41,10 @@ String walkerValue(
 }
 
 // ============================================================
-// READ BOOLEAN VALUE
+// READ BOOLEAN
 // ============================================================
 
-bool walkerBool(
+bool walkerDetailsBool(
   Map<String, dynamic> data,
   List<String> keys,
 ) {
@@ -83,11 +83,11 @@ bool walkerBool(
 // IMAGE URL
 // ============================================================
 
-String walkerImageUrl(
+String walkerDetailsImageUrl(
   Map<String, dynamic> data,
   List<String> keys,
 ) {
-  return walkerValue(
+  return walkerDetailsValue(
     data,
     keys,
     fallback: '',
@@ -98,10 +98,10 @@ String walkerImageUrl(
 // STATUS
 // ============================================================
 
-String walkerStatus(
+String walkerDetailsStatus(
   Map<String, dynamic> data,
 ) {
-  final status = walkerValue(
+  final status = walkerDetailsValue(
     data,
     const [
       'verificationStatus',
@@ -123,7 +123,7 @@ String walkerStatus(
     return 'Pending';
   }
 
-  if (walkerBool(
+  if (walkerDetailsBool(
     data,
     const [
       'approved',
@@ -134,7 +134,7 @@ String walkerStatus(
     return 'Approved';
   }
 
-  if (walkerBool(
+  if (walkerDetailsBool(
     data,
     const [
       'rejected',
@@ -149,26 +149,10 @@ String walkerStatus(
 }
 
 // ============================================================
-// ACTIVE STATUS
-// ============================================================
-
-bool walkerIsActive(
-  Map<String, dynamic> data,
-) {
-  return walkerBool(
-    data,
-    const [
-      'isActive',
-      'active',
-    ],
-  );
-}
-
-// ============================================================
 // STATUS COLOR
 // ============================================================
 
-Color walkerStatusColor(
+Color walkerDetailsStatusColor(
   String status,
 ) {
   switch (status) {
@@ -181,195 +165,4 @@ Color walkerStatusColor(
     default:
       return walkerDetailsOrange;
   }
-}
-
-// ============================================================
-// WALKER NAME
-// ============================================================
-
-String walkerName(
-  Map<String, dynamic> data,
-) {
-  return walkerValue(
-    data,
-    const [
-      'Full Name',
-      'fullName',
-      'name',
-      'walkerName',
-    ],
-    fallback: 'Walker',
-  );
-}
-
-// ============================================================
-// MOBILE
-// ============================================================
-
-String walkerMobile(
-  Map<String, dynamic> data,
-) {
-  return walkerValue(
-    data,
-    const [
-      'Mobile number',
-      'mobileNumber',
-      'mobile',
-      'phone',
-      'phoneNumber',
-    ],
-  );
-}
-
-// ============================================================
-// WALKER ID
-// ============================================================
-
-String walkerId(
-  Map<String, dynamic> data, {
-  String fallback = 'Not available',
-}) {
-  return walkerValue(
-    data,
-    const [
-      'Walker ID',
-      'walkerId',
-    ],
-    fallback: fallback,
-  );
-}
-
-// ============================================================
-// WALKER UID
-// ============================================================
-
-String walkerUid(
-  Map<String, dynamic> data,
-) {
-  return walkerValue(
-    data,
-    const [
-      'Walker Uid',
-      'walkerUid',
-      'authUid',
-      'uid',
-    ],
-  );
-}
-
-// ============================================================
-// PROFILE SELFIE
-// ============================================================
-
-String walkerSelfie(
-  Map<String, dynamic> data,
-) {
-  return walkerImageUrl(
-    data,
-    const [
-      'Profile Selfie',
-      'profileSelfie',
-      'profileSelfieUrl',
-      'profile_selfie',
-      'profile_selfie_url',
-      'selfie',
-      'selfieUrl',
-    ],
-  );
-}
-
-// ============================================================
-// AADHAAR FRONT
-// ============================================================
-
-String walkerAadhaarFront(
-  Map<String, dynamic> data,
-) {
-  return walkerImageUrl(
-    data,
-    const [
-      'Aadhar Front',
-      'Aadhaar Front',
-      'Aadhar Front URL',
-      'Aadhaar Front URL',
-      'aadhaarFront',
-      'aadhaarFrontUrl',
-      'aadhaar_front',
-      'aadhaar_front_url',
-    ],
-  );
-}
-
-// ============================================================
-// AADHAAR BACK
-// ============================================================
-
-String walkerAadhaarBack(
-  Map<String, dynamic> data,
-) {
-  return walkerImageUrl(
-    data,
-    const [
-      'Aadhar Back',
-      'Aadhaar Back',
-      'Aadhar Back URL',
-      'Aadhaar Back URL',
-      'aadhaarBack',
-      'aadhaarBackUrl',
-      'aadhaar_back',
-      'aadhaar_back_url',
-    ],
-  );
-}
-
-// ============================================================
-// PROFILE COMPLETED
-// ============================================================
-
-bool walkerProfileCompleted(
-  Map<String, dynamic> data,
-) {
-  return walkerBool(
-    data,
-    const [
-      'profileCompleted',
-      'profile_completed',
-    ],
-  );
-}
-
-// ============================================================
-// AADHAAR FRONT UPLOADED
-// ============================================================
-
-bool walkerAadhaarFrontUploaded(
-  Map<String, dynamic> data,
-) {
-  return walkerBool(
-    data,
-    const [
-      'aadhaar_front_uploaded',
-      'aadhar_front_uploaded',
-      'aadhaarFrontUploaded',
-      'aadharFrontUploaded',
-    ],
-  );
-}
-
-// ============================================================
-// AADHAAR BACK UPLOADED
-// ============================================================
-
-bool walkerAadhaarBackUploaded(
-  Map<String, dynamic> data,
-) {
-  return walkerBool(
-    data,
-    const [
-      'aadhaar_back_uploaded',
-      'aadhar_back_uploaded',
-      'aadhaarBackUploaded',
-      'aadharBackUploaded',
-    ],
-  );
 }
