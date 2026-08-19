@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'walkers_details_photo_card.dart';
 import 'walkers_details_upload_button.dart';
-import 'walkers_details_helpers.dart';
+import 'walkers_helpers.dart';
 
 class WalkerDetailsDocuments extends StatelessWidget {
   final String selfie;
