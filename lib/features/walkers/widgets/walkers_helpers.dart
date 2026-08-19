@@ -1,7 +1,22 @@
 import 'package:flutter/material.dart';
 
 /// ============================================================
-/// DOJO WALKER DETAILS - COLORS
+/// DOJO WALKER DETAILS / WALKERS HELPERS
+/// ============================================================
+///
+/// IMPORTANT:
+/// This file is the single compatibility helper used by
+/// Walker list + Walker details widgets.
+///
+/// Do NOT create walkers_details_helpers.dart.
+///
+/// Existing Walker Details widgets should import:
+/// walkers_helpers.dart
+///
+/// ============================================================
+
+/// ============================================================
+/// COLORS
 /// ============================================================
 
 const Color walkerDetailsOrange = Color(0xFFFF6600);
@@ -13,6 +28,7 @@ const Color walkerDetailsPageBg = Color(0xFFF7F8FA);
 const Color walkerDetailsTextDark = Color(0xFF1F2937);
 const Color walkerDetailsTextGrey = Color(0xFF6B7280);
 const Color walkerDetailsBorder = Color(0xFFE5E7EB);
+
 
 /// ============================================================
 /// WALKERS HELPERS
@@ -62,28 +78,28 @@ class WalkersHelpers {
     final rawStatus = walkerDetailsStatus(data);
     final status = walkerDetailsNormalize(rawStatus);
 
-    // Rejected
+    /// Rejected
     if (status.contains('reject') ||
         status.contains('blocked') ||
         status.contains('suspend')) {
       return 'rejected';
     }
 
-    // Approved
+    /// Approved
     if (status.contains('approve') ||
         status.contains('verified') ||
         status.contains('accepted')) {
       return 'approved';
     }
 
-    // Pending
+    /// Pending
     if (status.contains('pending') ||
         status.contains('review') ||
         status.contains('waiting')) {
       return 'pending';
     }
 
-    // Firestore boolean fallback
+    /// Firestore boolean fallback
     if (walkerDetailsBool(data, 'approved')) {
       return 'approved';
     }
@@ -95,6 +111,7 @@ class WalkersHelpers {
     return 'pending';
   }
 }
+
 
 /// ============================================================
 /// SAFE STRING VALUE
@@ -120,6 +137,7 @@ String walkerDetailsValue(
   return text;
 }
 
+
 /// ============================================================
 /// IMAGE URL
 /// ============================================================
@@ -142,6 +160,7 @@ String walkerDetailsImageUrl(
 
   return url;
 }
+
 
 /// ============================================================
 /// BOOLEAN VALUE
@@ -181,6 +200,7 @@ bool walkerDetailsBool(
   return fallback;
 }
 
+
 /// ============================================================
 /// WALKER STATUS
 /// ============================================================
@@ -210,9 +230,9 @@ String walkerDetailsStatus(
     }
   }
 
-  final active = walkerDetailsBool(
+  final rejected = walkerDetailsBool(
     data,
-    'active',
+    'rejected',
   );
 
   final approved = walkerDetailsBool(
@@ -220,9 +240,9 @@ String walkerDetailsStatus(
     'approved',
   );
 
-  final rejected = walkerDetailsBool(
+  final active = walkerDetailsBool(
     data,
-    'rejected',
+    'active',
   );
 
   if (rejected) {
@@ -239,6 +259,7 @@ String walkerDetailsStatus(
 
   return 'Pending';
 }
+
 
 /// ============================================================
 /// STATUS COLOR
@@ -273,6 +294,7 @@ Color walkerDetailsStatusColor(
   return walkerDetailsBlue;
 }
 
+
 /// ============================================================
 /// NORMALIZE TEXT
 /// ============================================================
@@ -287,8 +309,9 @@ String walkerDetailsNormalize(
   return value.trim().toLowerCase();
 }
 
+
 /// ============================================================
-/// SAFE MAP VALUE
+/// SAFE RAW MAP VALUE
 /// ============================================================
 
 dynamic walkerDetailsRawValue(
@@ -297,6 +320,7 @@ dynamic walkerDetailsRawValue(
 ) {
   return data[key];
 }
+
 
 /// ============================================================
 /// MULTI-KEY VALUE
@@ -324,6 +348,7 @@ String walkerDetailsFirstValue(
 
   return fallback;
 }
+
 
 /// ============================================================
 /// MULTI-KEY IMAGE
@@ -353,6 +378,7 @@ String walkerDetailsFirstImage(
   return '';
 }
 
+
 /// ============================================================
 /// STATUS LABEL
 /// ============================================================
@@ -369,6 +395,7 @@ String walkerDetailsStatusLabel(
   return status;
 }
 
+
 /// ============================================================
 /// DOCUMENT STATUS COLOR
 /// ============================================================
@@ -380,6 +407,7 @@ Color walkerDetailsDocumentStatusColor(
       ? walkerDetailsGreen
       : walkerDetailsRed;
 }
+
 
 /// ============================================================
 /// DOCUMENT STATUS TEXT
