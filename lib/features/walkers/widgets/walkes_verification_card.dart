@@ -1,168 +1,142 @@
 import 'package:flutter/material.dart';
 
-const Color dojoGreen = Color(0xFF3F8F68);
-const Color dojoGrey = Color(0xFF6B7280);
-const Color dojoDark = Color(0xFF263238);
-const Color dojoBorder = Color(0xFFE7E9ED);
-
 class WalkersVerificationCard extends StatelessWidget {
-  final Map<String, dynamic> data;
+  final bool nameMatched;
+  final bool dobMatched;
+  final bool aadhaarVerified;
+
+  final ValueChanged<bool> onNameChanged;
+  final ValueChanged<bool> onDobChanged;
+  final ValueChanged<bool> onAadhaarChanged;
+
+  final VoidCallback onSave;
+  final bool saving;
+
+  final Color roleColor;
 
   const WalkersVerificationCard({
     super.key,
-    required this.data,
+    required this.nameMatched,
+    required this.dobMatched,
+    required this.aadhaarVerified,
+    required this.onNameChanged,
+    required this.onDobChanged,
+    required this.onAadhaarChanged,
+    required this.onSave,
+    required this.saving,
+    this.roleColor = const Color(0xFFFF6600),
   });
-
-  bool _readBool(List<String> keys) {
-    for (final key in keys) {
-      final value = data[key];
-
-      if (value is bool) {
-        return value;
-      }
-
-      if (value is num) {
-        return value != 0;
-      }
-
-      if (value is String) {
-        final normalized =
-            value.trim().toLowerCase();
-
-        if (normalized == 'true' ||
-            normalized == 'yes' ||
-            normalized == '1') {
-          return true;
-        }
-
-        if (normalized == 'false' ||
-            normalized == 'no' ||
-            normalized == '0') {
-          return false;
-        }
-      }
-    }
-
-    return false;
-  }
-
-  bool get profileCompleted {
-    return _readBool([
-      'profileCompleted',
-      'profile_completed',
-    ]);
-  }
-
-  bool get aadhaarFrontUploaded {
-    return _readBool([
-      'aadhaar_front_uploaded',
-      'aadhaarFrontUploaded',
-    ]);
-  }
-
-  bool get aadhaarBackUploaded {
-    return _readBool([
-      'aadhaar_back_uploaded',
-      'aadhaarBackUploaded',
-    ]);
-  }
-
-  bool get aadhaarVerified {
-    return _readBool([
-      'aadhaarVerified',
-      'aadharVerified',
-      'aadhaar_verified',
-    ]);
-  }
-
-  bool get selfieVerified {
-    return _readBool([
-      'selfieVerified',
-      'selfie_verified',
-    ]);
-  }
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(13),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: dojoBorder,
+          color: const Color(0xFFE5E7EB),
         ),
       ),
       child: Column(
         children: [
-          _row(
-            title: 'Profile Completed',
-            value: profileCompleted,
+          _check(
+            'Name Matched',
+            nameMatched,
+            onNameChanged,
           ),
-          _row(
-            title: 'Aadhaar Front Uploaded',
-            value: aadhaarFrontUploaded,
+          _divider(),
+
+          _check(
+            'DOB Matched',
+            dobMatched,
+            onDobChanged,
           ),
-          _row(
-            title: 'Aadhaar Back Uploaded',
-            value: aadhaarBackUploaded,
+          _divider(),
+
+          _check(
+            'Aadhaar Verified',
+            aadhaarVerified,
+            onAadhaarChanged,
           ),
-          _row(
-            title: 'Aadhaar Verified',
-            value: aadhaarVerified,
-          ),
-          _row(
-            title: 'Selfie Verified',
-            value: selfieVerified,
+
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              14,
+              6,
+              14,
+              14,
+            ),
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: saving ? null : onSave,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: roleColor,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  minimumSize:
+                      const Size.fromHeight(46),
+                  shape: RoundedRectangleBorder(
+                    borderRadius:
+                        BorderRadius.circular(12),
+                  ),
+                ),
+                child: saving
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child:
+                            CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text(
+                        'Save Verification',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _row({
-    required String title,
-    required bool value,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(
-        bottom: 9,
+  Widget _check(
+    String title,
+    bool value,
+    ValueChanged<bool> onChanged,
+  ) {
+    return CheckboxListTile(
+      value: value,
+      onChanged: (newValue) {
+        onChanged(newValue ?? false);
+      },
+      activeColor: roleColor,
+      checkColor: Colors.white,
+      controlAffinity:
+          ListTileControlAffinity.leading,
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: 10),
+      title: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+          color: Color(0xFF111827),
+        ),
       ),
-      child: Row(
-        children: [
-          Icon(
-            value
-                ? Icons.check_circle_rounded
-                : Icons.cancel_outlined,
-            color: value
-                ? dojoGreen
-                : dojoGrey,
-            size: 19,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              title,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: dojoDark,
-              ),
-            ),
-          ),
-          Text(
-            value ? 'Yes' : 'No',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              color: value
-                  ? dojoGreen
-                  : dojoGrey,
-            ),
-          ),
-        ],
-      ),
+    );
+  }
+
+  Widget _divider() {
+    return const Divider(
+      height: 1,
+      color: Color(0xFFE5E7EB),
     );
   }
 }
