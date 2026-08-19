@@ -112,4 +112,56 @@ class WalkersHelpers {
             '${parts.last.substring(0, 1)}'
         .toUpperCase();
   }
+
+  // =========================================================
+  // ONLINE STATUS
+  // =========================================================
+
+  static bool isOnline(
+    Map<String, dynamic> data,
+  ) {
+    return readBool(
+      data,
+      const [
+        'isOnline',
+        'online',
+        'walkerOnline',
+        'onlineStatus',
+      ],
+    );
+  }
+
+  // =========================================================
+  // VERIFICATION STATUS
+  // =========================================================
+
+  static String verificationStatus(
+    Map<String, dynamic> data,
+  ) {
+    final status = readValue(
+      data,
+      const [
+        'verificationStatus',
+        'status',
+        'approvalStatus',
+        'walkerStatus',
+      ],
+      'pending',
+    ).trim().toLowerCase();
+
+    switch (status) {
+      case 'approved':
+      case 'active':
+      case 'online':
+        return 'approved';
+
+      case 'rejected':
+      case 'blocked':
+      case 'suspended':
+        return 'rejected';
+
+      default:
+        return 'pending';
+    }
+  }
 }
