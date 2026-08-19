@@ -87,7 +87,7 @@ class WalkersCard extends StatelessWidget {
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
+              color: Colors.black.withOpacity(0.04),
               blurRadius: 10,
               offset: const Offset(0, 3),
             ),
@@ -248,7 +248,7 @@ class WalkersCard extends StatelessWidget {
         vertical: 4,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
+        color: color.withOpacity(0.10),
         borderRadius:
             BorderRadius.circular(20),
       ),
