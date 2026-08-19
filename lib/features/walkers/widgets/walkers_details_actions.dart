@@ -57,7 +57,8 @@ class WalkerDetailsActions extends StatelessWidget {
           filled: true,
         ),
       );
-    } else if (normalizedStatus == 'approved') {
+    } else if (normalizedStatus == 'approved' ||
+        normalizedStatus == 'active') {
       if (isActive) {
         buttons.add(
           WalkerDetailsActionButton(
