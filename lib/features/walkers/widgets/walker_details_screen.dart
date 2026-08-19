@@ -8,21 +8,31 @@ class WalkerDetailsScreen extends StatelessWidget {
     required this.data,
     required this.onApprove,
     required this.onReject,
+    required this.onActivate,
+    required this.onDeactivate,
   });
 
   final DocumentSnapshot<Map<String, dynamic>> doc;
   final Map<String, dynamic> data;
+
   final VoidCallback onApprove;
   final VoidCallback onReject;
+  final VoidCallback onActivate;
+  final VoidCallback onDeactivate;
 
   static const Color orange = Color(0xFFFF6600);
   static const Color green = Color(0xFF16A34A);
   static const Color red = Color(0xFFDC2626);
+  static const Color blue = Color(0xFF2563EB);
   static const Color textDark = Color(0xFF111827);
   static const Color textGrey = Color(0xFF6B7280);
   static const Color border = Color(0xFFE5E7EB);
+  static const Color pageBg = Color(0xFFF7F8FA);
 
-  String _value(List<String> keys, {String fallback = 'Not available'}) {
+  String _value(
+    List<String> keys, {
+    String fallback = 'Not available',
+  }) {
     for (final key in keys) {
       final value = data[key];
 
@@ -47,7 +57,7 @@ class WalkerDetailsScreen extends StatelessWidget {
       }
 
       if (value != null) {
-        final text = value.toString().toLowerCase();
+        final text = value.toString().toLowerCase().trim();
 
         if (text == 'true' || text == '1') {
           return true;
@@ -70,7 +80,7 @@ class WalkerDetailsScreen extends StatelessWidget {
         'status',
       ],
       fallback: '',
-    ).toLowerCase();
+    ).toLowerCase().trim();
 
     if (status == 'approved') {
       return 'Approved';
@@ -101,6 +111,13 @@ class WalkerDetailsScreen extends StatelessWidget {
     }
 
     return 'Pending';
+  }
+
+  bool _isActive() {
+    return _bool([
+      'isActive',
+      'active',
+    ]);
   }
 
   Color _statusColor(String status) {
@@ -174,15 +191,19 @@ class WalkerDetailsScreen extends StatelessWidget {
                         ),
                       ),
                       IconButton(
+                        tooltip: 'Close',
                         onPressed: () {
                           Navigator.of(dialogContext).pop();
                         },
-                        icon: const Icon(Icons.close),
+                        icon: const Icon(Icons.close_rounded),
                       ),
                     ],
                   ),
                 ),
-                const Divider(height: 1),
+                const Divider(
+                  height: 1,
+                  color: border,
+                ),
                 Flexible(
                   child: Padding(
                     padding: const EdgeInsets.all(18),
@@ -207,7 +228,8 @@ class WalkerDetailsScreen extends StatelessWidget {
                               ),
                             );
                           },
-                          errorBuilder: (context, error, stackTrace) {
+                          errorBuilder:
+                              (context, error, stackTrace) {
                             return const SizedBox(
                               height: 350,
                               child: Center(
@@ -252,7 +274,7 @@ class WalkerDetailsScreen extends StatelessWidget {
     required IconData icon,
   }) {
     return InkWell(
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(12),
       onTap: imageUrl.isEmpty
           ? null
           : () {
@@ -263,11 +285,11 @@ class WalkerDetailsScreen extends StatelessWidget {
               );
             },
       child: Container(
-        width: 125,
-        padding: const EdgeInsets.all(8),
+        width: 118,
+        padding: const EdgeInsets.all(7),
         decoration: BoxDecoration(
           color: const Color(0xFFF9FAFB),
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: border,
           ),
@@ -275,41 +297,41 @@ class WalkerDetailsScreen extends StatelessWidget {
         child: Column(
           children: [
             Container(
-              height: 100,
+              height: 82,
               width: double.infinity,
               decoration: BoxDecoration(
                 color: const Color(0xFFF3F4F6),
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(9),
               ),
               child: imageUrl.isEmpty
                   ? Icon(
                       icon,
-                      size: 38,
+                      size: 34,
                       color: Colors.grey,
                     )
                   : ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(9),
                       child: Image.network(
                         imageUrl,
                         fit: BoxFit.cover,
                         errorBuilder:
                             (context, error, stackTrace) {
-                          return Icon(
+                          return const Icon(
                             Icons.broken_image_outlined,
-                            size: 38,
+                            size: 34,
                             color: Colors.grey,
                           );
                         },
                       ),
                     ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 7),
             Text(
               title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: FontWeight.w700,
                 color: textDark,
               ),
@@ -319,9 +341,9 @@ class WalkerDetailsScreen extends StatelessWidget {
               const Text(
                 'Tap to view',
                 style: TextStyle(
-                  fontSize: 10,
+                  fontSize: 9,
                   color: orange,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],
@@ -467,8 +489,8 @@ class WalkerDetailsScreen extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: 7,
+        horizontal: 11,
+        vertical: 6,
       ),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.10),
@@ -493,12 +515,150 @@ class WalkerDetailsScreen extends StatelessWidget {
             status,
             style: TextStyle(
               color: color,
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: FontWeight.w800,
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _actionButton({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onPressed,
+    bool filled = false,
+  }) {
+    if (filled) {
+      return SizedBox(
+        height: 38,
+        child: FilledButton.icon(
+          onPressed: onPressed,
+          icon: Icon(
+            icon,
+            size: 17,
+          ),
+          label: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          style: FilledButton.styleFrom(
+            backgroundColor: color,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(
+              horizontal: 13,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(9),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return SizedBox(
+      height: 38,
+      child: OutlinedButton.icon(
+        onPressed: onPressed,
+        icon: Icon(
+          icon,
+          size: 17,
+        ),
+        label: Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: color,
+          side: BorderSide(
+            color: color.withValues(alpha: 0.55),
+          ),
+          padding: const EdgeInsets.symmetric(
+            horizontal: 13,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(9),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _topActions() {
+    final status = _status();
+    final active = _isActive();
+
+    final List<Widget> buttons = [];
+
+    if (status == 'Pending') {
+      buttons.add(
+        _actionButton(
+          label: 'Reject',
+          icon: Icons.close_rounded,
+          color: red,
+          onPressed: onReject,
+        ),
+      );
+
+      buttons.add(
+        _actionButton(
+          label: 'Approve',
+          icon: Icons.check_rounded,
+          color: green,
+          onPressed: onApprove,
+          filled: true,
+        ),
+      );
+    } else if (status == 'Rejected') {
+      buttons.add(
+        _actionButton(
+          label: 'Approve',
+          icon: Icons.check_rounded,
+          color: green,
+          onPressed: onApprove,
+          filled: true,
+        ),
+      );
+    } else if (status == 'Approved') {
+      if (active) {
+        buttons.add(
+          _actionButton(
+            label: 'Deactivate ID',
+            icon: Icons.person_off_outlined,
+            color: red,
+            onPressed: onDeactivate,
+          ),
+        );
+      } else {
+        buttons.add(
+          _actionButton(
+            label: 'Activate ID',
+            icon: Icons.person_outline_rounded,
+            color: blue,
+            onPressed: onActivate,
+            filled: true,
+          ),
+        );
+      }
+    }
+
+    if (buttons.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Wrap(
+      alignment: WrapAlignment.end,
+      spacing: 8,
+      runSpacing: 8,
+      children: buttons,
     );
   }
 
@@ -541,13 +701,10 @@ class WalkerDetailsScreen extends StatelessWidget {
     ]);
 
     final status = _status();
-    final isActive = _bool([
-      'isActive',
-      'active',
-    ]);
+    final isActive = _isActive();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F8FA),
+      backgroundColor: pageBg,
       appBar: AppBar(
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
@@ -570,432 +727,355 @@ class WalkerDetailsScreen extends StatelessWidget {
         ),
       ),
       body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(
-                  16,
-                  16,
-                  16,
-                  110,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(
+            16,
+            16,
+            16,
+            30,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: border,
+                  ),
                 ),
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(18),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius:
-                            BorderRadius.circular(18),
-                        border: Border.all(
-                          color: border,
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 28,
+                          backgroundColor:
+                              orange.withValues(alpha: 0.10),
+                          backgroundImage: selfie.isNotEmpty
+                              ? NetworkImage(selfie)
+                              : null,
+                          child: selfie.isEmpty
+                              ? const Icon(
+                                  Icons.person,
+                                  color: orange,
+                                  size: 30,
+                                )
+                              : null,
                         ),
-                      ),
-                      child: Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 30,
-                            backgroundColor:
-                                orange.withValues(alpha: 0.10),
-                            backgroundImage:
-                                selfie.isNotEmpty
-                                    ? NetworkImage(selfie)
-                                    : null,
-                            child: selfie.isEmpty
-                                ? const Icon(
-                                    Icons.person,
-                                    color: orange,
-                                    size: 32,
-                                  )
-                                : null,
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment:
-                                  CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  name,
-                                  maxLines: 1,
-                                  overflow:
-                                      TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 19,
-                                    fontWeight:
-                                        FontWeight.w800,
-                                    color: textDark,
-                                  ),
-                                ),
-                                const SizedBox(height: 5),
-                                Text(
-                                  _value(
-                                    [
-                                      'Walker ID',
-                                      'walkerId',
-                                    ],
-                                    fallback:
-                                        doc.id,
-                                  ),
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: textGrey,
-                                    fontWeight:
-                                        FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          _statusBadge(),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    _section(
-                      'Basic Details',
-                      Icons.person_outline_rounded,
-                      [
-                        _row(
-                          'Full Name',
-                          name,
-                        ),
-                        _row(
-                          'Mobile Number',
-                          _value([
-                            'Mobile number',
-                            'mobileNumber',
-                            'mobile',
-                            'phone',
-                            'phoneNumber',
-                          ]),
-                          selectable: true,
-                        ),
-                        _row(
-                          'Walker ID',
-                          _value([
-                            'Walker ID',
-                            'walkerId',
-                          ], fallback: doc.id),
-                          selectable: true,
-                        ),
-                        _row(
-                          'Walker UID',
-                          _value([
-                            'Walker Uid',
-                            'walkerUid',
-                            'authUid',
-                            'uid',
-                          ]),
-                          selectable: true,
-                        ),
-                        _row(
-                          'Role',
-                          _value([
-                            'role',
-                          ]),
-                        ),
-                        _row(
-                          'Gender',
-                          _value([
-                            'Gender',
-                            'gender',
-                          ]),
-                        ),
-                        _row(
-                          'Date Of Birth',
-                          _value([
-                            'Date Of Birth',
-                            'dateOfBirth',
-                            'dob',
-                          ]),
-                        ),
-                      ],
-                    ),
-
-                    _section(
-                      'Identity & Verification',
-                      Icons.verified_user_outlined,
-                      [
-                        _row(
-                          'Aadhaar Number',
-                          _value([
-                            'Aadhar Number',
-                            'Aadhaar Number',
-                            'aadhaarNumber',
-                            'aadharNumber',
-                          ]),
-                          selectable: true,
-                        ),
-                        _row(
-                          'Verification',
-                          status,
-                        ),
-                        _row(
-                          'Active',
-                          isActive ? 'Yes' : 'No',
-                        ),
-                        _row(
-                          'Profile Completed',
-                          _bool([
-                            'profileCompleted',
-                          ])
-                              ? 'Yes'
-                              : 'No',
-                        ),
-                        const SizedBox(height: 8),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: Wrap(
-                            spacing: 10,
-                            runSpacing: 10,
+                        const SizedBox(width: 13),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment:
+                                CrossAxisAlignment.start,
                             children: [
-                              _photoCard(
-                                context,
-                                title: 'Profile Selfie',
-                                imageUrl: selfie,
-                                icon: Icons.person,
+                              Text(
+                                name,
+                                maxLines: 1,
+                                overflow:
+                                    TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight:
+                                      FontWeight.w800,
+                                  color: textDark,
+                                ),
                               ),
-                              _photoCard(
-                                context,
-                                title: 'Aadhaar Front',
-                                imageUrl:
-                                    aadhaarFront,
-                                icon: Icons.credit_card,
-                              ),
-                              _photoCard(
-                                context,
-                                title: 'Aadhaar Back',
-                                imageUrl:
-                                    aadhaarBack,
-                                icon: Icons.credit_card,
+                              const SizedBox(height: 4),
+                              Text(
+                                _value(
+                                  [
+                                    'Walker ID',
+                                    'walkerId',
+                                  ],
+                                  fallback: doc.id,
+                                ),
+                                maxLines: 1,
+                                overflow:
+                                    TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: textGrey,
+                                  fontWeight:
+                                      FontWeight.w600,
+                                ),
                               ),
                             ],
                           ),
                         ),
+                        _statusBadge(),
                       ],
                     ),
 
-                    _section(
-                      'Address',
-                      Icons.location_on_outlined,
-                      [
-                        _row(
-                          'Address',
-                          _value([
-                            'Adress',
-                            'Address',
-                            'address',
-                          ]),
-                        ),
-                        _row(
-                          'Village',
-                          _value([
-                            'Village',
-                            'village',
-                          ]),
-                        ),
-                        _row(
-                          'City',
-                          _value([
-                            'City',
-                            'city',
-                          ]),
-                        ),
-                        _row(
-                          'District',
-                          _value([
-                            'District',
-                            'district',
-                          ]),
-                        ),
-                        _row(
-                          'State',
-                          _value([
-                            'State',
-                            'state',
-                          ]),
-                        ),
-                        _row(
-                          'Pincode',
-                          _value([
-                            'Pincode',
-                            'pincode',
-                            'pinCode',
-                            'postalCode',
-                          ]),
-                          selectable: true,
-                        ),
-                      ],
+                    const SizedBox(height: 14),
+
+                    const Divider(
+                      height: 1,
+                      color: border,
                     ),
 
-                    _section(
-                      'Emergency Contact',
-                      Icons.emergency_outlined,
-                      [
-                        _row(
-                          'Name',
-                          _value([
-                            'Emergency Name',
-                            'emergencyName',
-                          ]),
-                        ),
-                        _row(
-                          'Mobile',
-                          _value([
-                            'Emergency Mobile',
-                            'emergencyMobile',
-                            'emergencyPhone',
-                          ]),
-                          selectable: true,
-                        ),
-                      ],
-                    ),
+                    const SizedBox(height: 14),
 
-                    _section(
-                      'Account Status',
-                      Icons.account_circle_outlined,
-                      [
-                        _row(
-                          'Approved',
-                          _bool([
-                            'approved',
-                            'isApproved',
-                            'adminApproved',
-                          ])
-                              ? 'Yes'
-                              : 'No',
-                        ),
-                        _row(
-                          'Rejected',
-                          _bool([
-                            'rejected',
-                            'isRejected',
-                            'adminRejected',
-                          ])
-                              ? 'Yes'
-                              : 'No',
-                        ),
-                        _row(
-                          'Active',
-                          isActive ? 'Yes' : 'No',
-                        ),
-                        _row(
-                          'Online',
-                          _bool([
-                            'isOnline',
-                            'online',
-                          ])
-                              ? 'Online'
-                              : 'Offline',
+                    Row(
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: _topActions(),
                         ),
                       ],
                     ),
                   ],
                 ),
               ),
-            ),
 
-            Container(
-              padding: const EdgeInsets.fromLTRB(
-                16,
-                12,
-                16,
-                12,
-              ),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                border: const Border(
-                  top: BorderSide(
-                    color: border,
+              const SizedBox(height: 16),
+
+              _section(
+                'Basic Details',
+                Icons.person_outline_rounded,
+                [
+                  _row(
+                    'Full Name',
+                    name,
                   ),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(
-                      alpha: 0.06,
+                  _row(
+                    'Mobile Number',
+                    _value([
+                      'Mobile number',
+                      'mobileNumber',
+                      'mobile',
+                      'phone',
+                      'phoneNumber',
+                    ]),
+                    selectable: true,
+                  ),
+                  _row(
+                    'Walker ID',
+                    _value(
+                      [
+                        'Walker ID',
+                        'walkerId',
+                      ],
+                      fallback: doc.id,
                     ),
-                    blurRadius: 12,
-                    offset: const Offset(0, -3),
+                    selectable: true,
+                  ),
+                  _row(
+                    'Walker UID',
+                    _value([
+                      'Walker Uid',
+                      'walkerUid',
+                      'authUid',
+                      'uid',
+                    ]),
+                    selectable: true,
+                  ),
+                  _row(
+                    'Role',
+                    _value([
+                      'role',
+                    ]),
+                  ),
+                  _row(
+                    'Gender',
+                    _value([
+                      'Gender',
+                      'gender',
+                    ]),
+                  ),
+                  _row(
+                    'Date Of Birth',
+                    _value([
+                      'Date Of Birth',
+                      'dateOfBirth',
+                      'dob',
+                    ]),
                   ),
                 ],
               ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed:
-                          status == 'Rejected'
-                              ? null
-                              : onReject,
-                      icon: const Icon(
-                        Icons.close_rounded,
-                      ),
-                      label: const Text(
-                        'Reject',
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: red,
-                        side: const BorderSide(
-                          color: red,
-                        ),
-                        minimumSize:
-                            const Size(
-                          0,
-                          50,
-                        ),
-                        shape:
-                            RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(
-                            12,
-                          ),
-                        ),
-                      ),
-                    ),
+
+              _section(
+                'Identity & Verification',
+                Icons.verified_user_outlined,
+                [
+                  _row(
+                    'Aadhaar Number',
+                    _value([
+                      'Aadhar Number',
+                      'Aadhaar Number',
+                      'aadhaarNumber',
+                      'aadharNumber',
+                    ]),
+                    selectable: true,
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed:
-                          status == 'Approved'
-                              ? null
-                              : onApprove,
-                      icon: const Icon(
-                        Icons.check_rounded,
-                      ),
-                      label: const Text(
-                        'Approve',
-                      ),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: green,
-                        foregroundColor:
-                            Colors.white,
-                        minimumSize:
-                            const Size(
-                          0,
-                          50,
+                  _row(
+                    'Verification',
+                    status,
+                  ),
+                  _row(
+                    'Active',
+                    isActive ? 'Yes' : 'No',
+                  ),
+                  _row(
+                    'Profile Completed',
+                    _bool([
+                      'profileCompleted',
+                    ])
+                        ? 'Yes'
+                        : 'No',
+                  ),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: [
+                        _photoCard(
+                          context,
+                          title: 'Profile Selfie',
+                          imageUrl: selfie,
+                          icon: Icons.person,
                         ),
-                        shape:
-                            RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(
-                            12,
-                          ),
+                        _photoCard(
+                          context,
+                          title: 'Aadhaar Front',
+                          imageUrl: aadhaarFront,
+                          icon: Icons.credit_card,
                         ),
-                      ),
+                        _photoCard(
+                          context,
+                          title: 'Aadhaar Back',
+                          imageUrl: aadhaarBack,
+                          icon: Icons.credit_card,
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
-            ),
-          ],
+
+              _section(
+                'Address',
+                Icons.location_on_outlined,
+                [
+                  _row(
+                    'Address',
+                    _value([
+                      'Adress',
+                      'Address',
+                      'address',
+                    ]),
+                  ),
+                  _row(
+                    'Village',
+                    _value([
+                      'Village',
+                      'village',
+                    ]),
+                  ),
+                  _row(
+                    'City',
+                    _value([
+                      'City',
+                      'city',
+                    ]),
+                  ),
+                  _row(
+                    'District',
+                    _value([
+                      'District',
+                      'district',
+                    ]),
+                  ),
+                  _row(
+                    'State',
+                    _value([
+                      'State',
+                      'state',
+                    ]),
+                  ),
+                  _row(
+                    'Pincode',
+                    _value([
+                      'Pincode',
+                      'pincode',
+                      'pinCode',
+                      'postalCode',
+                    ]),
+                    selectable: true,
+                  ),
+                ],
+              ),
+
+              _section(
+                'Emergency Contact',
+                Icons.emergency_outlined,
+                [
+                  _row(
+                    'Name',
+                    _value([
+                      'Emergency Name',
+                      'emergencyName',
+                    ]),
+                  ),
+                  _row(
+                    'Mobile',
+                    _value([
+                      'Emergency Mobile',
+                      'emergencyMobile',
+                      'emergencyPhone',
+                    ]),
+                    selectable: true,
+                  ),
+                ],
+              ),
+
+              _section(
+                'Account Status',
+                Icons.account_circle_outlined,
+                [
+                  _row(
+                    'Approved',
+                    _bool([
+                      'approved',
+                      'isApproved',
+                      'adminApproved',
+                    ])
+                        ? 'Yes'
+                        : 'No',
+                  ),
+                  _row(
+                    'Rejected',
+                    _bool([
+                      'rejected',
+                      'isRejected',
+                      'adminRejected',
+                    ])
+                        ? 'Yes'
+                        : 'No',
+                  ),
+                  _row(
+                    'Active',
+                    isActive ? 'Yes' : 'No',
+                  ),
+                  _row(
+                    'Online',
+                    _bool([
+                      'isOnline',
+                      'online',
+                    ])
+                        ? 'Online'
+                        : 'Offline',
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
