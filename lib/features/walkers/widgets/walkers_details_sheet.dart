@@ -1,90 +1,59 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
-import 'walkers_document_card.dart';
-import 'walkers_header.dart';
-import 'walkers_verification_card.dart';
-
-class WalkerDetailsSheet extends StatefulWidget {
-  final DocumentSnapshot<Map<String, dynamic>> doc;
-  final Map<String, dynamic>? data;
-  final VoidCallback? onApprove;
-  final VoidCallback? onReject;
-
-  const WalkerDetailsSheet({
+class WalkerDetailsScreen extends StatelessWidget {
+  const WalkerDetailsScreen({
     super.key,
     required this.doc,
-    this.data,
-    this.onApprove,
-    this.onReject,
+    required this.data,
+    required this.onApprove,
+    required this.onReject,
   });
 
-  @override
-  State<WalkerDetailsSheet> createState() =>
-      _WalkerDetailsSheetState();
-}
+  final DocumentSnapshot<Map<String, dynamic>> doc;
+  final Map<String, dynamic> data;
+  final VoidCallback onApprove;
+  final VoidCallback onReject;
 
-class _WalkerDetailsSheetState
-    extends State<WalkerDetailsSheet> {
-  static const Color walkerOrange =
-      Color(0xFFFF6600);
+  static const Color orange = Color(0xFFFF6600);
+  static const Color green = Color(0xFF16A34A);
+  static const Color red = Color(0xFFDC2626);
+  static const Color textDark = Color(0xFF111827);
+  static const Color textGrey = Color(0xFF6B7280);
+  static const Color border = Color(0xFFE5E7EB);
 
-  static const Color textColor =
-      Color(0xFF111827);
-
-  static const Color secondaryText =
-      Color(0xFF6B7280);
-
-  static const Color borderColor =
-      Color(0xFFE5E7EB);
-
-  Map<String, dynamic> get _data {
-    return widget.data ??
-        widget.doc.data() ??
-        <String, dynamic>{};
-  }
-
-  String _readValue(
-    List<String> keys, [
-    String fallback = '',
-  ]) {
+  String _value(List<String> keys, {String fallback = 'Not available'}) {
     for (final key in keys) {
-      final value = _data[key];
+      final value = data[key];
 
-      if (value != null &&
-          value.toString().trim().isNotEmpty) {
-        return value.toString().trim();
+      if (value == null) continue;
+
+      final text = value.toString().trim();
+
+      if (text.isNotEmpty && text != 'null') {
+        return text;
       }
     }
 
     return fallback;
   }
 
-  bool _readBool(List<String> keys) {
+  bool _bool(List<String> keys) {
     for (final key in keys) {
-      final value = _data[key];
+      final value = data[key];
 
       if (value is bool) {
         return value;
       }
 
-      if (value is num) {
-        return value != 0;
-      }
+      if (value != null) {
+        final text = value.toString().toLowerCase();
 
-      if (value is String) {
-        final normalized =
-            value.trim().toLowerCase();
-
-        if (normalized == 'true' ||
-            normalized == 'yes' ||
-            normalized == '1') {
+        if (text == 'true' || text == '1') {
           return true;
         }
 
-        if (normalized == 'false' ||
-            normalized == 'no' ||
-            normalized == '0') {
+        if (text == 'false' || text == '0') {
           return false;
         }
       }
@@ -93,940 +62,942 @@ class _WalkerDetailsSheetState
     return false;
   }
 
-  String _readTimestamp(List<String> keys) {
-    for (final key in keys) {
-      final value = _data[key];
+  String _status() {
+    final status = _value(
+      [
+        'verificationStatus',
+        'approvalStatus',
+        'status',
+      ],
+      fallback: '',
+    ).toLowerCase();
 
-      if (value == null) continue;
-
-      if (value is Timestamp) {
-        return _formatDateTime(value.toDate());
-      }
-
-      if (value is DateTime) {
-        return _formatDateTime(value);
-      }
-
-      final text = value.toString().trim();
-
-      if (text.isNotEmpty) {
-        return text;
-      }
+    if (status == 'approved') {
+      return 'Approved';
     }
 
-    return '';
+    if (status == 'rejected') {
+      return 'Rejected';
+    }
+
+    if (status == 'pending') {
+      return 'Pending';
+    }
+
+    if (_bool([
+      'approved',
+      'isApproved',
+      'adminApproved',
+    ])) {
+      return 'Approved';
+    }
+
+    if (_bool([
+      'rejected',
+      'isRejected',
+      'adminRejected',
+    ])) {
+      return 'Rejected';
+    }
+
+    return 'Pending';
   }
-
-  String get _name => _readValue(
-        const [
-          'Full Name',
-          'fullName',
-          'name',
-          'walkerName',
-        ],
-        'Unknown Walker',
-      );
-
-  String get _mobile => _readValue(
-        const [
-          'Mobile number',
-          'phoneNumber',
-          'mobileNumber',
-          'mobile',
-          'phone',
-        ],
-      );
-
-  String get _walkerId => _readValue(
-        const [
-          'walkerId',
-          'Walker ID',
-        ],
-      );
-
-  String get _uid => _readValue(
-        const [
-          'authUid',
-          'Walker Uid',
-          'walkerUid',
-          'uid',
-        ],
-        widget.doc.id,
-      );
-
-  String get _gender => _readValue(
-        const [
-          'gender',
-          'Gender',
-        ],
-      );
-
-  String get _dob => _readValue(
-        const [
-          'dateofbirth',
-          'Date Of Birth',
-          'dateOfBirth',
-          'dob',
-        ],
-      );
-
-  String get _role => _readValue(
-        const [
-          'role',
-          'Role',
-        ],
-        'walker',
-      );
-
-  String get _aadhaarNumber => _readValue(
-        const [
-          'Aadhar Number',
-          'Aadhaar Number',
-          'aadhaarNumber',
-          'aadharNumber',
-        ],
-      );
-
-  String get _selfie => _readValue(
-        const [
-          'Profile Selfie',
-          'selfie',
-          'profileSelfie',
-          'profileImage',
-          'photoUrl',
-        ],
-      );
-
-  String get _aadhaarFront => _readValue(
-        const [
-          'aadhaarfront',
-          'aadhaarFront',
-          'Aadhaar Front',
-          'Aadhar Front',
-        ],
-      );
-
-  String get _aadhaarBack => _readValue(
-        const [
-          'aadhaarback',
-          'aadhaarBack',
-          'Aadhaar Back',
-          'Aadhar Back',
-        ],
-      );
-
-  String get _address => _readValue(
-        const [
-          'Adress',
-          'Address',
-          'address',
-        ],
-      );
-
-  String get _village => _readValue(
-        const [
-          'village',
-          'Village',
-        ],
-      );
-
-  String get _city => _readValue(
-        const [
-          'city',
-          'City',
-        ],
-      );
-
-  String get _district => _readValue(
-        const [
-          'district',
-          'District',
-        ],
-      );
-
-  String get _state => _readValue(
-        const [
-          'state',
-          'State',
-        ],
-      );
-
-  String get _pincode => _readValue(
-        const [
-          'Pincode',
-          'pincode',
-          'pinCode',
-          'postalCode',
-        ],
-      );
-
-  String get _emergencyName => _readValue(
-        const [
-          'emergencyContactName',
-          'Emergency Contact Name',
-        ],
-      );
-
-  String get _emergencyMobile => _readValue(
-        const [
-          'emergencyContactMobile',
-          'Emergency Contact Mobile',
-        ],
-      );
-
-  String get _status => _readValue(
-        const [
-          'verificationStatus',
-          'status',
-          'approvalStatus',
-          'walkerStatus',
-        ],
-        'pending',
-      );
-
-  bool get _approved => _readBool(
-        const [
-          'adminApproved',
-          'approved',
-          'isApproved',
-        ],
-      );
-
-  bool get _active => _readBool(
-        const [
-          'isActive',
-          'active',
-        ],
-      );
-
-  bool get _reVerificationRequired =>
-      _readBool(
-        const [
-          'reVerificationRequired',
-          'reverificationRequired',
-          'reVerifyRequired',
-        ],
-      );
 
   Color _statusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'approved':
-      case 'active':
-      case 'online':
-        return const Color(0xFF16A34A);
-
-      case 'rejected':
-      case 'blocked':
-      case 'suspended':
-        return const Color(0xFFDC2626);
-
+    switch (status) {
+      case 'Approved':
+        return green;
+      case 'Rejected':
+        return red;
       default:
-        return const Color(0xFFF59E0B);
+        return orange;
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: Container(
-        constraints: BoxConstraints(
-          maxHeight:
-              MediaQuery.of(context).size.height * 0.92,
+  String _imageUrl(List<String> keys) {
+    return _value(
+      keys,
+      fallback: '',
+    );
+  }
+
+  void _openImage(
+    BuildContext context,
+    String title,
+    String imageUrl,
+  ) {
+    if (imageUrl.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Image is not available.'),
         ),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(
-            top: Radius.circular(24),
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              const SizedBox(height: 10),
-              _handle(),
-              const SizedBox(height: 18),
+      );
+      return;
+    }
 
-              WalkersHeader(
-                name: _name,
-                mobile: _mobile,
-                selfie: _selfie,
-                status: _status,
-                roleColor: walkerOrange,
-                statusColor: _statusColor(_status),
-              ),
-
-              const SizedBox(height: 18),
-
-              Expanded(
-                child: SingleChildScrollView(
-                  physics:
-                      const BouncingScrollPhysics(),
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black87,
+      builder: (dialogContext) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.all(18),
+          child: Container(
+            constraints: const BoxConstraints(
+              maxWidth: 700,
+              maxHeight: 800,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
                   padding: const EdgeInsets.fromLTRB(
-                    20,
-                    0,
-                    20,
-                    30,
+                    18,
+                    14,
+                    10,
+                    10,
                   ),
-                  child: Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.start,
+                  child: Row(
                     children: [
-                      _title(
-                        Icons.person_outline_rounded,
-                        'Walker Profile',
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            color: textDark,
+                          ),
+                        ),
                       ),
-                      const SizedBox(height: 10),
-
-                      _infoCard([
-                        _row(
-                          Icons.person_outline,
-                          'Full Name',
-                          _name,
-                        ),
-                        _divider(),
-                        _row(
-                          Icons.phone_outlined,
-                          'Mobile Number',
-                          _mobile,
-                        ),
-                        _divider(),
-                        _row(
-                          Icons.badge_outlined,
-                          'Walker ID',
-                          _walkerId,
-                        ),
-                        _divider(),
-                        _row(
-                          Icons.fingerprint,
-                          'Auth UID',
-                          _uid,
-                        ),
-                        _divider(),
-                        _row(
-                          Icons.wc_outlined,
-                          'Gender',
-                          _gender,
-                        ),
-                        _divider(),
-                        _row(
-                          Icons.calendar_today_outlined,
-                          'Date Of Birth',
-                          _dob,
-                        ),
-                        _divider(),
-                        _row(
-                          Icons.shield_outlined,
-                          'Role',
-                          _role,
-                        ),
-                      ]),
-
-                      const SizedBox(height: 20),
-
-                      _title(
-                        Icons.location_on_outlined,
-                        'Complete Address',
+                      IconButton(
+                        onPressed: () {
+                          Navigator.of(dialogContext).pop();
+                        },
+                        icon: const Icon(Icons.close),
                       ),
-                      const SizedBox(height: 10),
-
-                      _infoCard([
-                        _row(
-                          Icons.home_outlined,
-                          'Full Address',
-                          _address,
-                        ),
-                        _divider(),
-                        _row(
-                          Icons.holiday_village_outlined,
-                          'Village / Locality',
-                          _village,
-                        ),
-                        _divider(),
-                        _row(
-                          Icons.location_city_outlined,
-                          'City / Town',
-                          _city,
-                        ),
-                        _divider(),
-                        _row(
-                          Icons.map_outlined,
-                          'District',
-                          _district,
-                        ),
-                        _divider(),
-                        _row(
-                          Icons.public_outlined,
-                          'State',
-                          _state,
-                        ),
-                        _divider(),
-                        _row(
-                          Icons.pin_drop_outlined,
-                          'Pincode',
-                          _pincode,
-                        ),
-                      ]),
-
-                      const SizedBox(height: 20),
-
-                      _title(
-                        Icons.contact_phone_outlined,
-                        'Emergency Contact',
-                      ),
-                      const SizedBox(height: 10),
-
-                      _infoCard([
-                        _row(
-                          Icons.person_outline,
-                          'Contact Name',
-                          _emergencyName,
-                        ),
-                        _divider(),
-                        _row(
-                          Icons.phone_outlined,
-                          'Contact Mobile',
-                          _emergencyMobile,
-                        ),
-                      ]),
-
-                      const SizedBox(height: 20),
-
-                      _title(
-                        Icons.description_outlined,
-                        'Documents',
-                      ),
-                      const SizedBox(height: 10),
-
-                      _infoCard([
-                        _row(
-                          Icons.credit_card_outlined,
-                          'Aadhaar Number',
-                          _aadhaarNumber,
-                        ),
-                      ]),
-
-                      const SizedBox(height: 12),
-
-                      WalkersDocumentCard(
-                        title: 'Selfie',
-                        icon: Icons.camera_alt_outlined,
-                        url: _selfie,
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      WalkersDocumentCard(
-                        title: 'Aadhaar Front',
-                        icon: Icons.credit_card_outlined,
-                        url: _aadhaarFront,
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      WalkersDocumentCard(
-                        title: 'Aadhaar Back',
-                        icon: Icons.credit_card_outlined,
-                        url: _aadhaarBack,
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      _title(
-                        Icons.verified_user_outlined,
-                        'Verification',
-                      ),
-                      const SizedBox(height: 10),
-
-                      WalkersVerificationCard(
-                        data: _data,
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      _title(
-                        Icons.admin_panel_settings_outlined,
-                        'Admin Status',
-                      ),
-                      const SizedBox(height: 10),
-
-                      _infoCard([
-                        _row(
-                          Icons.verified_outlined,
-                          'Verification Status',
-                          _status,
-                        ),
-                        _divider(),
-                        _statusRow(
-                          'Admin Approved',
-                          _approved,
-                        ),
-                        _divider(),
-                        _statusRow(
-                          'Admin Rejected',
-                          _readBool([
-                            'adminRejected',
-                            'rejected',
-                            'isRejected',
-                          ]),
-                        ),
-                        _divider(),
-                        _statusRow(
-                          'Profile Completed',
-                          _readBool([
-                            'profileCompleted',
-                          ]),
-                        ),
-                      ]),
-
-                      if (_approved) ...[
-                        const SizedBox(height: 20),
-                        _title(
-                          Icons.power_settings_new_rounded,
-                          'Walker ID Control',
-                        ),
-                        const SizedBox(height: 10),
-                        _activationCard(),
-                      ],
-
-                      const SizedBox(height: 20),
-
-                      _title(
-                        Icons.refresh_rounded,
-                        'Re-Verification',
-                      ),
-                      const SizedBox(height: 10),
-
-                      _reVerificationCard(),
-
-                      const SizedBox(height: 20),
-
-                      _title(
-                        Icons.access_time_outlined,
-                        'System Information',
-                      ),
-                      const SizedBox(height: 10),
-
-                      _infoCard([
-                        _row(
-                          Icons.add_circle_outline,
-                          'Created At',
-                          _readTimestamp([
-                            'createdAt',
-                          ]),
-                        ),
-                        _divider(),
-                        _row(
-                          Icons.send_outlined,
-                          'Submitted At',
-                          _readTimestamp([
-                            'submittedAt',
-                          ]),
-                        ),
-                        _divider(),
-                        _row(
-                          Icons.update_outlined,
-                          'Updated At',
-                          _readTimestamp([
-                            'updatedAt',
-                          ]),
-                        ),
-                        _divider(),
-                        _row(
-                          Icons.check_circle_outline,
-                          'Approved At',
-                          _readTimestamp([
-                            'approvedAt',
-                          ]),
-                        ),
-                        _divider(),
-                        _row(
-                          Icons.cancel_outlined,
-                          'Rejected At',
-                          _readTimestamp([
-                            'rejectedAt',
-                          ]),
-                        ),
-                        _divider(),
-                        _row(
-                          Icons.power_outlined,
-                          'Activated At',
-                          _readTimestamp([
-                            'activatedAt',
-                          ]),
-                        ),
-                        _divider(),
-                        _row(
-                          Icons.power_off_outlined,
-                          'Deactivated At',
-                          _readTimestamp([
-                            'deactivatedAt',
-                          ]),
-                        ),
-                        _divider(),
-                        _row(
-                          Icons.verified_outlined,
-                          'Re-Verified At',
-                          _readTimestamp([
-                            'reVerifiedAt',
-                          ]),
-                        ),
-                      ]),
-
-                      const SizedBox(height: 24),
-
-                      _actions(),
-
-                      const SizedBox(height: 8),
                     ],
                   ),
                 ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+                const Divider(height: 1),
+                Flexible(
+                  child: Padding(
+                    padding: const EdgeInsets.all(18),
+                    child: InteractiveViewer(
+                      minScale: 0.8,
+                      maxScale: 4,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.network(
+                          imageUrl,
+                          fit: BoxFit.contain,
+                          loadingBuilder:
+                              (context, child, loadingProgress) {
+                            if (loadingProgress == null) {
+                              return child;
+                            }
 
-  Widget _handle() {
-    return Center(
-      child: Container(
-        width: 42,
-        height: 4,
-        decoration: BoxDecoration(
-          color: const Color(0xFFE7E9ED),
-          borderRadius: BorderRadius.circular(10),
-        ),
-      ),
-    );
-  }
-
-  Widget _title(
-    IconData icon,
-    String title,
-  ) {
-    return Row(
-      children: [
-        Icon(
-          icon,
-          size: 20,
-          color: walkerOrange,
-        ),
-        const SizedBox(width: 8),
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w900,
-            color: textColor,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _infoCard(List<Widget> children) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(
-        horizontal: 14,
-        vertical: 4,
-      ),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: borderColor,
-        ),
-      ),
-      child: Column(
-        children: children,
-      ),
-    );
-  }
-
-  Widget _row(
-    IconData icon,
-    String label,
-    String value,
-  ) {
-    final display = value.trim().isEmpty
-        ? 'Not available'
-        : value.trim();
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        vertical: 11,
-      ),
-      child: Row(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-        children: [
-          Icon(
-            icon,
-            size: 20,
-            color: walkerOrange,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: Color(0xFF9CA3AF),
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                SelectableText(
-                  display,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: textColor,
-                    fontWeight: FontWeight.w700,
+                            return const SizedBox(
+                              height: 350,
+                              child: Center(
+                                child: CircularProgressIndicator(),
+                              ),
+                            );
+                          },
+                          errorBuilder: (context, error, stackTrace) {
+                            return const SizedBox(
+                              height: 350,
+                              child: Center(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.broken_image_outlined,
+                                      size: 55,
+                                      color: Colors.grey,
+                                    ),
+                                    SizedBox(height: 10),
+                                    Text(
+                                      'Unable to load image',
+                                      style: TextStyle(
+                                        color: textGrey,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Widget _statusRow(
-    String label,
-    bool value,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        vertical: 11,
-      ),
-      child: Row(
-        children: [
-          Icon(
-            value
-                ? Icons.check_circle
-                : Icons.cancel_outlined,
-            size: 20,
-            color: value
-                ? const Color(0xFF16A34A)
-                : const Color(0xFFDC2626),
+  Widget _photoCard(
+    BuildContext context, {
+    required String title,
+    required String imageUrl,
+    required IconData icon,
+  }) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: imageUrl.isEmpty
+          ? null
+          : () {
+              _openImage(
+                context,
+                title,
+                imageUrl,
+              );
+            },
+      child: Container(
+        width: 125,
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF9FAFB),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: border,
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              label,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: textColor,
-              ),
-            ),
-          ),
-          Text(
-            value ? 'Yes' : 'No',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-              color: value
-                  ? const Color(0xFF16A34A)
-                  : const Color(0xFFDC2626),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _divider() {
-    return const Divider(
-      height: 1,
-      color: borderColor,
-    );
-  }
-
-  Widget _activationCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: _active
-            ? const Color(0xFFF0FDF4)
-            : const Color(0xFFFEF2F2),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: _active
-              ? const Color(0xFFBBF7D0)
-              : const Color(0xFFFECACA),
         ),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            _active
-                ? Icons.check_circle_outline
-                : Icons.pause_circle_outline,
-            color: _active
-                ? const Color(0xFF16A34A)
-                : const Color(0xFFDC2626),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              _active
-                  ? 'Walker ID is Active'
-                  : 'Walker ID is Deactivated',
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
-                color: textColor,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _reVerificationCard() {
-    final required = _reVerificationRequired;
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: borderColor,
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            required
-                ? Icons.warning_amber_rounded
-                : Icons.verified_outlined,
-            color: required
-                ? const Color(0xFFF59E0B)
-                : const Color(0xFF16A34A),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              required
-                  ? 'Re-verification required'
-                  : 'Verification is current',
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
-                color: textColor,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _actions() {
-    return Column(
-      children: [
-        Row(
+        child: Column(
           children: [
-            Expanded(
-              child: OutlinedButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-                style: OutlinedButton.styleFrom(
-                  minimumSize:
-                      const Size.fromHeight(48),
-                  shape:
-                      RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Text(
-                  'Close',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
+            Container(
+              height: 100,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF3F4F6),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: imageUrl.isEmpty
+                  ? Icon(
+                      icon,
+                      size: 38,
+                      color: Colors.grey,
+                    )
+                  : ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Image.network(
+                        imageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder:
+                            (context, error, stackTrace) {
+                          return Icon(
+                            Icons.broken_image_outlined,
+                            size: 38,
+                            color: Colors.grey,
+                          );
+                        },
+                      ),
+                    ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: textDark,
               ),
             ),
-            if (!_approved &&
-                widget.onApprove != null) ...[
-              const SizedBox(width: 10),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: widget.onApprove,
-                  style:
-                      ElevatedButton.styleFrom(
-                    backgroundColor:
-                        const Color(0xFF16A34A),
-                    foregroundColor:
-                        Colors.white,
-                    minimumSize:
-                        const Size.fromHeight(48),
-                    elevation: 0,
-                    shape:
-                        RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text(
-                    'Approve',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
+            if (imageUrl.isNotEmpty) ...[
+              const SizedBox(height: 2),
+              const Text(
+                'Tap to view',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: orange,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],
           ],
         ),
-        if (!_approved &&
-            widget.onReject != null) ...[
-          const SizedBox(height: 8),
-          SizedBox(
-            width: double.infinity,
-            child: TextButton(
-              onPressed: widget.onReject,
-              child: const Text(
-                'Reject',
-                style: TextStyle(
-                  color: Color(0xFFDC2626),
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ],
+      ),
     );
   }
 
-  String _formatDateTime(DateTime date) {
-    final d =
-        date.day.toString().padLeft(2, '0');
-    final m =
-        date.month.toString().padLeft(2, '0');
-    final y = date.year.toString();
+  Widget _section(
+    String title,
+    IconData icon,
+    List<Widget> children,
+  ) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: border,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.035),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              18,
+              16,
+              18,
+              12,
+            ),
+            child: Row(
+              children: [
+                Container(
+                  height: 36,
+                  width: 36,
+                  decoration: BoxDecoration(
+                    color: orange.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: orange,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: textDark,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(
+            height: 1,
+            color: border,
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: children,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-    final hour =
-        date.hour.toString().padLeft(2, '0');
-    final minute =
-        date.minute.toString().padLeft(2, '0');
+  Widget _row(
+    String label,
+    String value, {
+    bool selectable = false,
+  }) {
+    final valueWidget = selectable
+        ? SelectableText(
+            value,
+            textAlign: TextAlign.right,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: textDark,
+            ),
+          )
+        : Text(
+            value,
+            textAlign: TextAlign.right,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: textDark,
+            ),
+          );
 
-    return '$d/$m/$y $hour:$minute';
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        vertical: 7,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: 4,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 13,
+                color: textGrey,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 6,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: valueWidget,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _statusBadge() {
+    final status = _status();
+    final color = _statusColor(status);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 12,
+        vertical: 7,
+      ),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(
+          color: color.withValues(alpha: 0.25),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            height: 8,
+            width: 8,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 7),
+          Text(
+            status,
+            style: TextStyle(
+              color: color,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final name = _value(
+      [
+        'Full Name',
+        'fullName',
+        'name',
+        'walkerName',
+      ],
+      fallback: 'Walker',
+    );
+
+    final selfie = _imageUrl([
+      'Profile Selfie',
+      'profileSelfie',
+      'profileSelfieUrl',
+      'selfie',
+      'selfieUrl',
+    ]);
+
+    final aadhaarFront = _imageUrl([
+      'Aadhar Front',
+      'Aadhaar Front',
+      'aadhaarFront',
+      'aadhaarFrontUrl',
+      'aadhaar_front',
+      'aadhaar_front_url',
+    ]);
+
+    final aadhaarBack = _imageUrl([
+      'Aadhar Back',
+      'Aadhaar Back',
+      'aadhaarBack',
+      'aadhaarBackUrl',
+      'aadhaar_back',
+      'aadhaar_back_url',
+    ]);
+
+    final status = _status();
+    final isActive = _bool([
+      'isActive',
+      'active',
+    ]);
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF7F8FA),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          onPressed: () {
+            Navigator.of(context).pop();
+          },
+          icon: const Icon(
+            Icons.arrow_back_rounded,
+          ),
+        ),
+        title: const Text(
+          'Walker Details',
+          style: TextStyle(
+            fontSize: 19,
+            fontWeight: FontWeight.w800,
+            color: textDark,
+          ),
+        ),
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(
+                  16,
+                  16,
+                  16,
+                  110,
+                ),
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius:
+                            BorderRadius.circular(18),
+                        border: Border.all(
+                          color: border,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 30,
+                            backgroundColor:
+                                orange.withValues(alpha: 0.10),
+                            backgroundImage:
+                                selfie.isNotEmpty
+                                    ? NetworkImage(selfie)
+                                    : null,
+                            child: selfie.isEmpty
+                                ? const Icon(
+                                    Icons.person,
+                                    color: orange,
+                                    size: 32,
+                                  )
+                                : null,
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  name,
+                                  maxLines: 1,
+                                  overflow:
+                                      TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 19,
+                                    fontWeight:
+                                        FontWeight.w800,
+                                    color: textDark,
+                                  ),
+                                ),
+                                const SizedBox(height: 5),
+                                Text(
+                                  _value(
+                                    [
+                                      'Walker ID',
+                                      'walkerId',
+                                    ],
+                                    fallback:
+                                        doc.id,
+                                  ),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: textGrey,
+                                    fontWeight:
+                                        FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          _statusBadge(),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    _section(
+                      'Basic Details',
+                      Icons.person_outline_rounded,
+                      [
+                        _row(
+                          'Full Name',
+                          name,
+                        ),
+                        _row(
+                          'Mobile Number',
+                          _value([
+                            'Mobile number',
+                            'mobileNumber',
+                            'mobile',
+                            'phone',
+                            'phoneNumber',
+                          ]),
+                          selectable: true,
+                        ),
+                        _row(
+                          'Walker ID',
+                          _value([
+                            'Walker ID',
+                            'walkerId',
+                          ], fallback: doc.id),
+                          selectable: true,
+                        ),
+                        _row(
+                          'Walker UID',
+                          _value([
+                            'Walker Uid',
+                            'walkerUid',
+                            'authUid',
+                            'uid',
+                          ]),
+                          selectable: true,
+                        ),
+                        _row(
+                          'Role',
+                          _value([
+                            'role',
+                          ]),
+                        ),
+                        _row(
+                          'Gender',
+                          _value([
+                            'Gender',
+                            'gender',
+                          ]),
+                        ),
+                        _row(
+                          'Date Of Birth',
+                          _value([
+                            'Date Of Birth',
+                            'dateOfBirth',
+                            'dob',
+                          ]),
+                        ),
+                      ],
+                    ),
+
+                    _section(
+                      'Identity & Verification',
+                      Icons.verified_user_outlined,
+                      [
+                        _row(
+                          'Aadhaar Number',
+                          _value([
+                            'Aadhar Number',
+                            'Aadhaar Number',
+                            'aadhaarNumber',
+                            'aadharNumber',
+                          ]),
+                          selectable: true,
+                        ),
+                        _row(
+                          'Verification',
+                          status,
+                        ),
+                        _row(
+                          'Active',
+                          isActive ? 'Yes' : 'No',
+                        ),
+                        _row(
+                          'Profile Completed',
+                          _bool([
+                            'profileCompleted',
+                          ])
+                              ? 'Yes'
+                              : 'No',
+                        ),
+                        const SizedBox(height: 8),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Wrap(
+                            spacing: 10,
+                            runSpacing: 10,
+                            children: [
+                              _photoCard(
+                                context,
+                                title: 'Profile Selfie',
+                                imageUrl: selfie,
+                                icon: Icons.person,
+                              ),
+                              _photoCard(
+                                context,
+                                title: 'Aadhaar Front',
+                                imageUrl:
+                                    aadhaarFront,
+                                icon: Icons.credit_card,
+                              ),
+                              _photoCard(
+                                context,
+                                title: 'Aadhaar Back',
+                                imageUrl:
+                                    aadhaarBack,
+                                icon: Icons.credit_card,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    _section(
+                      'Address',
+                      Icons.location_on_outlined,
+                      [
+                        _row(
+                          'Address',
+                          _value([
+                            'Adress',
+                            'Address',
+                            'address',
+                          ]),
+                        ),
+                        _row(
+                          'Village',
+                          _value([
+                            'Village',
+                            'village',
+                          ]),
+                        ),
+                        _row(
+                          'City',
+                          _value([
+                            'City',
+                            'city',
+                          ]),
+                        ),
+                        _row(
+                          'District',
+                          _value([
+                            'District',
+                            'district',
+                          ]),
+                        ),
+                        _row(
+                          'State',
+                          _value([
+                            'State',
+                            'state',
+                          ]),
+                        ),
+                        _row(
+                          'Pincode',
+                          _value([
+                            'Pincode',
+                            'pincode',
+                            'pinCode',
+                            'postalCode',
+                          ]),
+                          selectable: true,
+                        ),
+                      ],
+                    ),
+
+                    _section(
+                      'Emergency Contact',
+                      Icons.emergency_outlined,
+                      [
+                        _row(
+                          'Name',
+                          _value([
+                            'Emergency Name',
+                            'emergencyName',
+                          ]),
+                        ),
+                        _row(
+                          'Mobile',
+                          _value([
+                            'Emergency Mobile',
+                            'emergencyMobile',
+                            'emergencyPhone',
+                          ]),
+                          selectable: true,
+                        ),
+                      ],
+                    ),
+
+                    _section(
+                      'Account Status',
+                      Icons.account_circle_outlined,
+                      [
+                        _row(
+                          'Approved',
+                          _bool([
+                            'approved',
+                            'isApproved',
+                            'adminApproved',
+                          ])
+                              ? 'Yes'
+                              : 'No',
+                        ),
+                        _row(
+                          'Rejected',
+                          _bool([
+                            'rejected',
+                            'isRejected',
+                            'adminRejected',
+                          ])
+                              ? 'Yes'
+                              : 'No',
+                        ),
+                        _row(
+                          'Active',
+                          isActive ? 'Yes' : 'No',
+                        ),
+                        _row(
+                          'Online',
+                          _bool([
+                            'isOnline',
+                            'online',
+                          ])
+                              ? 'Online'
+                              : 'Offline',
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            Container(
+              padding: const EdgeInsets.fromLTRB(
+                16,
+                12,
+                16,
+                12,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: const Border(
+                  top: BorderSide(
+                    color: border,
+                  ),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(
+                      alpha: 0.06,
+                    ),
+                    blurRadius: 12,
+                    offset: const Offset(0, -3),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed:
+                          status == 'Rejected'
+                              ? null
+                              : onReject,
+                      icon: const Icon(
+                        Icons.close_rounded,
+                      ),
+                      label: const Text(
+                        'Reject',
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: red,
+                        side: const BorderSide(
+                          color: red,
+                        ),
+                        minimumSize:
+                            const Size(
+                          0,
+                          50,
+                        ),
+                        shape:
+                            RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.circular(
+                            12,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed:
+                          status == 'Approved'
+                              ? null
+                              : onApprove,
+                      icon: const Icon(
+                        Icons.check_rounded,
+                      ),
+                      label: const Text(
+                        'Approve',
+                      ),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: green,
+                        foregroundColor:
+                            Colors.white,
+                        minimumSize:
+                            const Size(
+                          0,
+                          50,
+                        ),
+                        shape:
+                            RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.circular(
+                            12,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
