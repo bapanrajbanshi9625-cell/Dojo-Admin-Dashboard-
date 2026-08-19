@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'walkers_details_helpers.dart';
+import 'walkers_helpers.dart';
 
 class WalkerDetailsHeader extends StatelessWidget {
   final String name;
