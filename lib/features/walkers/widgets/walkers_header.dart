@@ -1,120 +1,115 @@
-import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-class WalkersHeader extends StatelessWidget {
-  final int totalWalkers;
-  final int pendingWalkers;
-  final VoidCallback? onRefresh;
+class WalkersHelpers {
+  static String readValue(
+    Map<String, dynamic> data,
+    List<String> keys, [
+    String fallback = '',
+  ]) {
+    for (final key in keys) {
+      final value = data[key];
 
-  const WalkersHeader({
-    super.key,
-    this.totalWalkers = 0,
-    this.pendingWalkers = 0,
-    this.onRefresh,
-  });
+      if (value != null &&
+          value.toString().trim().isNotEmpty) {
+        return value.toString().trim();
+      }
+    }
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(
-        20,
-        20,
-        20,
-        18,
-      ),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFFFF6600),
-            Color(0xFFFF8A3D),
-          ],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 12,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.18),
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: const Icon(
-              Icons.directions_walk_rounded,
-              color: Colors.white,
-              size: 29,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Walkers',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 23,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '$totalWalkers registered walkers',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.88),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                if (pendingWalkers > 0) ...[
-                  const SizedBox(height: 3),
-                  Text(
-                    '$pendingWalkers pending approval',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          if (onRefresh != null)
-            Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: onRefresh,
-                borderRadius: BorderRadius.circular(13),
-                child: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.16),
-                    borderRadius: BorderRadius.circular(13),
-                  ),
-                  child: const Icon(
-                    Icons.refresh_rounded,
-                    color: Colors.white,
-                    size: 23,
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
+    return fallback;
+  }
+
+  static bool readBool(
+    Map<String, dynamic> data,
+    List<String> keys,
+  ) {
+    for (final key in keys) {
+      final value = data[key];
+
+      if (value is bool) {
+        return value;
+      }
+
+      if (value is num) {
+        return value != 0;
+      }
+
+      if (value is String) {
+        final normalized = value.trim().toLowerCase();
+
+        if (normalized == 'true' ||
+            normalized == 'yes' ||
+            normalized == '1') {
+          return true;
+        }
+
+        if (normalized == 'false' ||
+            normalized == 'no' ||
+            normalized == '0') {
+          return false;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  static String readTimestamp(
+    Map<String, dynamic> data,
+    List<String> keys,
+  ) {
+    for (final key in keys) {
+      final value = data[key];
+
+      if (value == null) continue;
+
+      if (value is Timestamp) {
+        return formatDateTime(value.toDate());
+      }
+
+      if (value is DateTime) {
+        return formatDateTime(value);
+      }
+
+      final text = value.toString().trim();
+
+      if (text.isNotEmpty) {
+        return text;
+      }
+    }
+
+    return '';
+  }
+
+  static String formatDateTime(DateTime date) {
+    final d = date.day.toString().padLeft(2, '0');
+    final m = date.month.toString().padLeft(2, '0');
+    final y = date.year.toString();
+
+    final hour = date.hour.toString().padLeft(2, '0');
+    final minute = date.minute.toString().padLeft(2, '0');
+
+    return '$d/$m/$y $hour:$minute';
+  }
+
+  static String initials(String name) {
+    final cleaned = name.trim();
+
+    if (cleaned.isEmpty ||
+        cleaned.toLowerCase() == 'unknown walker') {
+      return 'W';
+    }
+
+    final parts = cleaned
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .toList();
+
+    if (parts.length == 1) {
+      return parts.first.substring(0, 1).toUpperCase();
+    }
+
+    return '${parts.first.substring(0, 1)}'
+            '${parts.last.substring(0, 1)}'
+        .toUpperCase();
   }
 }
