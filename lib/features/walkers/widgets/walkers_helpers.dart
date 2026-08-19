@@ -14,6 +14,87 @@ const Color walkerDetailsTextDark = Color(0xFF1F2937);
 const Color walkerDetailsTextGrey = Color(0xFF6B7280);
 const Color walkerDetailsBorder = Color(0xFFE5E7EB);
 
+/// ============================================================
+/// WALKERS HELPERS
+/// Compatibility layer for walkers_screen.dart
+/// ============================================================
+
+class WalkersHelpers {
+  const WalkersHelpers._();
+
+  /// ----------------------------------------------------------
+  /// ONLINE STATUS
+  /// ----------------------------------------------------------
+
+  static bool isOnline(
+    Map<String, dynamic> data,
+  ) {
+    const keys = <String>[
+      'isOnline',
+      'is_online',
+      'online',
+      'onlineStatus',
+      'online_status',
+    ];
+
+    for (final key in keys) {
+      if (walkerDetailsBool(data, key)) {
+        return true;
+      }
+    }
+
+    final status = walkerDetailsNormalize(
+      data['status']?.toString(),
+    );
+
+    return status == 'online';
+  }
+
+  /// ----------------------------------------------------------
+  /// VERIFICATION STATUS
+  /// Returns:
+  /// pending / approved / rejected
+  /// ----------------------------------------------------------
+
+  static String verificationStatus(
+    Map<String, dynamic> data,
+  ) {
+    final rawStatus = walkerDetailsStatus(data);
+    final status = walkerDetailsNormalize(rawStatus);
+
+    // Rejected
+    if (status.contains('reject') ||
+        status.contains('blocked') ||
+        status.contains('suspend')) {
+      return 'rejected';
+    }
+
+    // Approved
+    if (status.contains('approve') ||
+        status.contains('verified') ||
+        status.contains('accepted')) {
+      return 'approved';
+    }
+
+    // Pending
+    if (status.contains('pending') ||
+        status.contains('review') ||
+        status.contains('waiting')) {
+      return 'pending';
+    }
+
+    // Firestore boolean fallback
+    if (walkerDetailsBool(data, 'approved')) {
+      return 'approved';
+    }
+
+    if (walkerDetailsBool(data, 'rejected')) {
+      return 'rejected';
+    }
+
+    return 'pending';
+  }
+}
 
 /// ============================================================
 /// SAFE STRING VALUE
@@ -39,7 +120,6 @@ String walkerDetailsValue(
   return text;
 }
 
-
 /// ============================================================
 /// IMAGE URL
 /// ============================================================
@@ -62,7 +142,6 @@ String walkerDetailsImageUrl(
 
   return url;
 }
-
 
 /// ============================================================
 /// BOOLEAN VALUE
@@ -102,7 +181,6 @@ bool walkerDetailsBool(
   return fallback;
 }
 
-
 /// ============================================================
 /// WALKER STATUS
 /// ============================================================
@@ -110,7 +188,7 @@ bool walkerDetailsBool(
 String walkerDetailsStatus(
   Map<String, dynamic> data,
 ) {
-  final candidates = <String>[
+  const candidates = <String>[
     'status',
     'Status',
     'approvalStatus',
@@ -125,7 +203,8 @@ String walkerDetailsStatus(
     if (value != null) {
       final text = value.toString().trim();
 
-      if (text.isNotEmpty && text.toLowerCase() != 'null') {
+      if (text.isNotEmpty &&
+          text.toLowerCase() != 'null') {
         return text;
       }
     }
@@ -134,14 +213,21 @@ String walkerDetailsStatus(
   final active = walkerDetailsBool(
     data,
     'active',
-    fallback: false,
   );
 
   final approved = walkerDetailsBool(
     data,
     'approved',
-    fallback: false,
   );
+
+  final rejected = walkerDetailsBool(
+    data,
+    'rejected',
+  );
+
+  if (rejected) {
+    return 'Rejected';
+  }
 
   if (approved) {
     return 'Approved';
@@ -154,12 +240,13 @@ String walkerDetailsStatus(
   return 'Pending';
 }
 
-
 /// ============================================================
 /// STATUS COLOR
 /// ============================================================
 
-Color walkerDetailsStatusColor(String status) {
+Color walkerDetailsStatusColor(
+  String status,
+) {
   final normalized = status.trim().toLowerCase();
 
   if (normalized.contains('approved') ||
@@ -171,7 +258,6 @@ Color walkerDetailsStatusColor(String status) {
   }
 
   if (normalized.contains('reject') ||
-      normalized.contains('rejected') ||
       normalized.contains('blocked') ||
       normalized.contains('suspend') ||
       normalized.contains('inactive')) {
@@ -187,19 +273,19 @@ Color walkerDetailsStatusColor(String status) {
   return walkerDetailsBlue;
 }
 
-
 /// ============================================================
 /// NORMALIZE TEXT
 /// ============================================================
 
-String walkerDetailsNormalize(String? value) {
+String walkerDetailsNormalize(
+  String? value,
+) {
   if (value == null) {
     return '';
   }
 
   return value.trim().toLowerCase();
 }
-
 
 /// ============================================================
 /// SAFE MAP VALUE
@@ -212,10 +298,8 @@ dynamic walkerDetailsRawValue(
   return data[key];
 }
 
-
 /// ============================================================
 /// MULTI-KEY VALUE
-/// Useful when Firestore has different field names.
 /// ============================================================
 
 String walkerDetailsFirstValue(
@@ -232,14 +316,14 @@ String walkerDetailsFirstValue(
 
     final text = value.toString().trim();
 
-    if (text.isNotEmpty && text.toLowerCase() != 'null') {
+    if (text.isNotEmpty &&
+        text.toLowerCase() != 'null') {
       return text;
     }
   }
 
   return fallback;
 }
-
 
 /// ============================================================
 /// MULTI-KEY IMAGE
@@ -269,7 +353,6 @@ String walkerDetailsFirstImage(
   return '';
 }
 
-
 /// ============================================================
 /// STATUS LABEL
 /// ============================================================
@@ -286,20 +369,26 @@ String walkerDetailsStatusLabel(
   return status;
 }
 
-
 /// ============================================================
 /// DOCUMENT STATUS COLOR
 /// ============================================================
 
-Color walkerDetailsDocumentStatusColor(bool uploaded) {
-  return uploaded ? walkerDetailsGreen : walkerDetailsRed;
+Color walkerDetailsDocumentStatusColor(
+  bool uploaded,
+) {
+  return uploaded
+      ? walkerDetailsGreen
+      : walkerDetailsRed;
 }
-
 
 /// ============================================================
 /// DOCUMENT STATUS TEXT
 /// ============================================================
 
-String walkerDetailsDocumentStatus(bool uploaded) {
-  return uploaded ? 'Uploaded' : 'Not Uploaded';
+String walkerDetailsDocumentStatus(
+  bool uploaded,
+) {
+  return uploaded
+      ? 'Uploaded'
+      : 'Not Uploaded';
 }
