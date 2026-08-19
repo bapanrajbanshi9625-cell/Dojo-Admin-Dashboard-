@@ -1,7 +1,11 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/material.dart';
+import 'dart:io';
 
-class WalkerDetailsScreen extends StatelessWidget {
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+
+class WalkerDetailsScreen extends StatefulWidget {
   const WalkerDetailsScreen({
     super.key,
     required this.doc,
@@ -10,7 +14,6 @@ class WalkerDetailsScreen extends StatelessWidget {
     required this.onReject,
     required this.onActivate,
     required this.onDeactivate,
-    required this.onRelease,
   });
 
   final DocumentSnapshot<Map<String, dynamic>> doc;
@@ -20,8 +23,14 @@ class WalkerDetailsScreen extends StatelessWidget {
   final VoidCallback onReject;
   final VoidCallback onActivate;
   final VoidCallback onDeactivate;
-  final VoidCallback onRelease;
 
+  @override
+  State<WalkerDetailsScreen> createState() =>
+      _WalkerDetailsScreenState();
+}
+
+class _WalkerDetailsScreenState
+    extends State<WalkerDetailsScreen> {
   static const Color orange = Color(0xFFFF6600);
   static const Color green = Color(0xFF16A34A);
   static const Color red = Color(0xFFDC2626);
@@ -30,6 +39,19 @@ class WalkerDetailsScreen extends StatelessWidget {
   static const Color textGrey = Color(0xFF6B7280);
   static const Color border = Color(0xFFE5E7EB);
   static const Color pageBg = Color(0xFFF7F8FA);
+
+  final ImagePicker _imagePicker = ImagePicker();
+
+  final Set<String> _uploading = <String>{};
+
+  Map<String, dynamic> get data => widget.data;
+
+  DocumentSnapshot<Map<String, dynamic>> get doc =>
+      widget.doc;
+
+  // ============================================================
+  // VALUE
+  // ============================================================
 
   String _value(
     List<String> keys, {
@@ -49,6 +71,10 @@ class WalkerDetailsScreen extends StatelessWidget {
 
     return fallback;
   }
+
+  // ============================================================
+  // BOOLEAN
+  // ============================================================
 
   bool _bool(List<String> keys) {
     for (final key in keys) {
@@ -73,6 +99,10 @@ class WalkerDetailsScreen extends StatelessWidget {
 
     return false;
   }
+
+  // ============================================================
+  // STATUS
+  // ============================================================
 
   String _status() {
     final status = _value(
@@ -115,6 +145,10 @@ class WalkerDetailsScreen extends StatelessWidget {
     return 'Pending';
   }
 
+  // ============================================================
+  // ACTIVE
+  // ============================================================
+
   bool _isActive() {
     return _bool([
       'isActive',
@@ -122,16 +156,26 @@ class WalkerDetailsScreen extends StatelessWidget {
     ]);
   }
 
+  // ============================================================
+  // STATUS COLOR
+  // ============================================================
+
   Color _statusColor(String status) {
     switch (status) {
       case 'Approved':
         return green;
+
       case 'Rejected':
         return red;
+
       default:
         return orange;
     }
   }
+
+  // ============================================================
+  // IMAGE URL
+  // ============================================================
 
   String _imageUrl(List<String> keys) {
     return _value(
@@ -139,6 +183,10 @@ class WalkerDetailsScreen extends StatelessWidget {
       fallback: '',
     );
   }
+
+  // ============================================================
+  // OPEN IMAGE
+  // ============================================================
 
   void _openImage(
     BuildContext context,
@@ -148,7 +196,9 @@ class WalkerDetailsScreen extends StatelessWidget {
     if (imageUrl.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Image is not available.'),
+          content: Text(
+            'Image is not available.',
+          ),
         ),
       );
       return;
@@ -215,12 +265,17 @@ class WalkerDetailsScreen extends StatelessWidget {
                       minScale: 0.8,
                       maxScale: 4,
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius:
+                            BorderRadius.circular(12),
                         child: Image.network(
                           imageUrl,
                           fit: BoxFit.contain,
                           loadingBuilder:
-                              (context, child, loadingProgress) {
+                              (
+                                context,
+                                child,
+                                loadingProgress,
+                              ) {
                             if (loadingProgress == null) {
                               return child;
                             }
@@ -228,20 +283,27 @@ class WalkerDetailsScreen extends StatelessWidget {
                             return const SizedBox(
                               height: 350,
                               child: Center(
-                                child: CircularProgressIndicator(),
+                                child:
+                                    CircularProgressIndicator(),
                               ),
                             );
                           },
                           errorBuilder:
-                              (context, error, stackTrace) {
+                              (
+                                context,
+                                error,
+                                stackTrace,
+                              ) {
                             return const SizedBox(
                               height: 350,
                               child: Center(
                                 child: Column(
-                                  mainAxisSize: MainAxisSize.min,
+                                  mainAxisSize:
+                                      MainAxisSize.min,
                                   children: [
                                     Icon(
-                                      Icons.broken_image_outlined,
+                                      Icons
+                                          .broken_image_outlined,
                                       size: 55,
                                       color: Colors.grey,
                                     ),
@@ -250,7 +312,8 @@ class WalkerDetailsScreen extends StatelessWidget {
                                       'Unable to load image',
                                       style: TextStyle(
                                         color: textGrey,
-                                        fontWeight: FontWeight.w600,
+                                        fontWeight:
+                                            FontWeight.w600,
                                       ),
                                     ),
                                   ],
@@ -271,41 +334,269 @@ class WalkerDetailsScreen extends StatelessWidget {
     );
   }
 
+  // ============================================================
+  // WALKER AVATAR
+  // ============================================================
+
+  Widget _walkerAvatar({
+    double size = 56,
+    String? imageUrl,
+  }) {
+    if (imageUrl != null && imageUrl.isNotEmpty) {
+      return CircleAvatar(
+        radius: size / 2,
+        backgroundColor:
+            orange.withValues(alpha: 0.10),
+        backgroundImage:
+            NetworkImage(imageUrl),
+      );
+    }
+
+    return Container(
+      height: size,
+      width: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: orange.withValues(alpha: 0.10),
+        border: Border.all(
+          color: orange.withValues(alpha: 0.22),
+          width: 1,
+        ),
+      ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Container(
+            height: size * 0.76,
+            width: size * 0.76,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: orange.withValues(alpha: 0.08),
+            ),
+          ),
+          Icon(
+            Icons.person_rounded,
+            size: size * 0.56,
+            color: orange,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // UPLOAD IMAGE
+  // ============================================================
+
+  Future<void> _uploadImage({
+    required String uploadType,
+    required String title,
+    required List<String> firestoreKeys,
+    required String storageName,
+  }) async {
+    if (_uploading.contains(uploadType)) {
+      return;
+    }
+
+    try {
+      setState(() {
+        _uploading.add(uploadType);
+      });
+
+      final XFile? pickedFile =
+          await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 88,
+        maxWidth: 1800,
+        maxHeight: 1800,
+      );
+
+      if (pickedFile == null) {
+        if (mounted) {
+          setState(() {
+            _uploading.remove(uploadType);
+          });
+        }
+        return;
+      }
+
+      final File file = File(pickedFile.path);
+
+      final String walkerId = doc.id;
+
+      final Reference storageRef =
+          FirebaseStorage.instance
+              .ref()
+              .child('walkers')
+              .child(walkerId)
+              .child('admin_uploads')
+              .child(storageName);
+
+      await storageRef.putFile(file);
+
+      final String downloadUrl =
+          await storageRef.getDownloadURL();
+
+      final Map<String, dynamic> updateData =
+          <String, dynamic>{};
+
+      for (final key in firestoreKeys) {
+        updateData[key] = downloadUrl;
+      }
+
+      await doc.reference.update(updateData);
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        for (final key in firestoreKeys) {
+          data[key] = downloadUrl;
+        }
+
+        _uploading.remove(uploadType);
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '$title uploaded successfully.',
+          ),
+          backgroundColor: green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _uploading.remove(uploadType);
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Unable to upload $title.',
+          ),
+          backgroundColor: red,
+        ),
+      );
+    }
+  }
+
+  // ============================================================
+  // UPLOAD BUTTON
+  // ============================================================
+
+  Widget _uploadButton({
+    required String uploadType,
+    required String title,
+    required List<String> firestoreKeys,
+    required String storageName,
+  }) {
+    final bool uploading =
+        _uploading.contains(uploadType);
+
+    return SizedBox(
+      height: 30,
+      child: OutlinedButton.icon(
+        onPressed: uploading
+            ? null
+            : () {
+                _uploadImage(
+                  uploadType: uploadType,
+                  title: title,
+                  firestoreKeys: firestoreKeys,
+                  storageName: storageName,
+                );
+              },
+        icon: uploading
+            ? const SizedBox(
+                height: 13,
+                width: 13,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                ),
+              )
+            : const Icon(
+                Icons.upload_rounded,
+                size: 14,
+              ),
+        label: Text(
+          uploading ? 'Uploading...' : 'Upload',
+          style: const TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: orange,
+          side: BorderSide(
+            color: orange.withValues(alpha: 0.45),
+          ),
+          padding:
+              const EdgeInsets.symmetric(
+            horizontal: 9,
+          ),
+          shape:
+              RoundedRectangleBorder(
+            borderRadius:
+                BorderRadius.circular(8),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // PHOTO CARD
+  // ============================================================
+
   Widget _photoCard(
     BuildContext context, {
     required String title,
     required String imageUrl,
     required IconData icon,
+    required String uploadType,
+    required List<String> firestoreKeys,
+    required String storageName,
   }) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(12),
-      onTap: imageUrl.isEmpty
-          ? null
-          : () {
-              _openImage(
-                context,
-                title,
-                imageUrl,
-              );
-            },
-      child: Container(
-        width: 118,
-        padding: const EdgeInsets.all(7),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF9FAFB),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: border,
-          ),
+    final bool uploading =
+        _uploading.contains(uploadType);
+
+    return Container(
+      width: 118,
+      padding: const EdgeInsets.all(7),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9FAFB),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: border,
         ),
-        child: Column(
-          children: [
-            Container(
+      ),
+      child: Column(
+        children: [
+          InkWell(
+            borderRadius:
+                BorderRadius.circular(9),
+            onTap: imageUrl.isEmpty
+                ? null
+                : () {
+                    _openImage(
+                      context,
+                      title,
+                      imageUrl,
+                    );
+                  },
+            child: Container(
               height: 82,
               width: double.infinity,
               decoration: BoxDecoration(
                 color: const Color(0xFFF3F4F6),
-                borderRadius: BorderRadius.circular(9),
+                borderRadius:
+                    BorderRadius.circular(9),
               ),
               child: imageUrl.isEmpty
                   ? Icon(
@@ -314,14 +605,19 @@ class WalkerDetailsScreen extends StatelessWidget {
                       color: Colors.grey,
                     )
                   : ClipRRect(
-                      borderRadius: BorderRadius.circular(9),
+                      borderRadius:
+                          BorderRadius.circular(9),
                       child: Image.network(
                         imageUrl,
                         fit: BoxFit.cover,
                         errorBuilder:
-                            (context, error, stackTrace) {
-                          return const Icon(
-                            Icons.broken_image_outlined,
+                            (
+                              context,
+                              error,
+                              stackTrace,
+                            ) {
+                          return Icon(
+                            icon,
                             size: 34,
                             color: Colors.grey,
                           );
@@ -329,33 +625,50 @@ class WalkerDetailsScreen extends StatelessWidget {
                       ),
                     ),
             ),
-            const SizedBox(height: 7),
-            Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: textDark,
-              ),
+          ),
+
+          const SizedBox(height: 7),
+
+          Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: textDark,
             ),
-            if (imageUrl.isNotEmpty) ...[
-              const SizedBox(height: 2),
-              const Text(
-                'Tap to view',
-                style: TextStyle(
-                  fontSize: 9,
-                  color: orange,
-                  fontWeight: FontWeight.w700,
-                ),
+          ),
+
+          const SizedBox(height: 4),
+
+          if (imageUrl.isNotEmpty)
+            const Text(
+              'Tap to view',
+              style: TextStyle(
+                fontSize: 9,
+                color: orange,
+                fontWeight: FontWeight.w700,
               ),
-            ],
-          ],
-        ),
+            )
+          else
+            _uploadButton(
+              uploadType: uploadType,
+              title: title,
+              firestoreKeys: firestoreKeys,
+              storageName: storageName,
+            ),
+
+          if (uploading)
+            const SizedBox(height: 2),
+        ],
       ),
     );
   }
+
+  // ============================================================
+  // SECTION
+  // ============================================================
 
   Widget _section(
     String title,
@@ -364,23 +677,28 @@ class WalkerDetailsScreen extends StatelessWidget {
   ) {
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(
+        bottom: 16,
+      ),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius:
+            BorderRadius.circular(16),
         border: Border.all(
           color: border,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.035),
+            color:
+                Colors.black.withValues(alpha: 0.035),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(
@@ -395,8 +713,10 @@ class WalkerDetailsScreen extends StatelessWidget {
                   height: 36,
                   width: 36,
                   decoration: BoxDecoration(
-                    color: orange.withValues(alpha: 0.10),
-                    borderRadius: BorderRadius.circular(10),
+                    color:
+                        orange.withValues(alpha: 0.10),
+                    borderRadius:
+                        BorderRadius.circular(10),
                   ),
                   child: Icon(
                     icon,
@@ -409,7 +729,8 @@ class WalkerDetailsScreen extends StatelessWidget {
                   title,
                   style: const TextStyle(
                     fontSize: 16,
-                    fontWeight: FontWeight.w800,
+                    fontWeight:
+                        FontWeight.w800,
                     color: textDark,
                   ),
                 ),
@@ -423,6 +744,8 @@ class WalkerDetailsScreen extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
               children: children,
             ),
           ),
@@ -430,6 +753,11 @@ class WalkerDetailsScreen extends StatelessWidget {
       ),
     );
   }
+
+  // ============================================================
+  // DETAIL ROW
+  // LABEL TOP / VALUE BELOW / LEFT
+  // ============================================================
 
   Widget _row(
     String label,
@@ -439,7 +767,7 @@ class WalkerDetailsScreen extends StatelessWidget {
     final valueWidget = selectable
         ? SelectableText(
             value,
-            textAlign: TextAlign.right,
+            textAlign: TextAlign.left,
             style: const TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w700,
@@ -448,7 +776,7 @@ class WalkerDetailsScreen extends StatelessWidget {
           )
         : Text(
             value,
-            textAlign: TextAlign.right,
+            textAlign: TextAlign.left,
             style: const TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w700,
@@ -457,35 +785,32 @@ class WalkerDetailsScreen extends StatelessWidget {
           );
 
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        vertical: 7,
+      padding: const EdgeInsets.only(
+        bottom: 14,
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
-          Expanded(
-            flex: 4,
-            child: Text(
-              label,
-              style: const TextStyle(
-                fontSize: 13,
-                color: textGrey,
-                fontWeight: FontWeight.w500,
-              ),
+          Text(
+            label,
+            textAlign: TextAlign.left,
+            style: const TextStyle(
+              fontSize: 12,
+              color: textGrey,
+              fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            flex: 6,
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: valueWidget,
-            ),
-          ),
+          const SizedBox(height: 4),
+          valueWidget,
         ],
       ),
     );
   }
+
+  // ============================================================
+  // STATUS BADGE
+  // ============================================================
 
   Widget _statusBadge() {
     final status = _status();
@@ -498,7 +823,8 @@ class WalkerDetailsScreen extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(30),
+        borderRadius:
+            BorderRadius.circular(30),
         border: Border.all(
           color: color.withValues(alpha: 0.25),
         ),
@@ -528,6 +854,10 @@ class WalkerDetailsScreen extends StatelessWidget {
     );
   }
 
+  // ============================================================
+  // ACTION BUTTON
+  // ============================================================
+
   Widget _actionButton({
     required String label,
     required IconData icon,
@@ -554,11 +884,14 @@ class WalkerDetailsScreen extends StatelessWidget {
           style: FilledButton.styleFrom(
             backgroundColor: color,
             foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(
+            padding:
+                const EdgeInsets.symmetric(
               horizontal: 13,
             ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(9),
+            shape:
+                RoundedRectangleBorder(
+              borderRadius:
+                  BorderRadius.circular(9),
             ),
           ),
         ),
@@ -583,18 +916,26 @@ class WalkerDetailsScreen extends StatelessWidget {
         style: OutlinedButton.styleFrom(
           foregroundColor: color,
           side: BorderSide(
-            color: color.withValues(alpha: 0.55),
+            color:
+                color.withValues(alpha: 0.55),
           ),
-          padding: const EdgeInsets.symmetric(
+          padding:
+              const EdgeInsets.symmetric(
             horizontal: 13,
           ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(9),
+          shape:
+              RoundedRectangleBorder(
+            borderRadius:
+                BorderRadius.circular(9),
           ),
         ),
       ),
     );
   }
+
+  // ============================================================
+  // TOP ACTIONS
+  // ============================================================
 
   Widget _topActions() {
     final status = _status();
@@ -602,17 +943,13 @@ class WalkerDetailsScreen extends StatelessWidget {
 
     final List<Widget> buttons = [];
 
-    // ==========================================================
-    // PENDING
-    // ==========================================================
-
     if (status == 'Pending') {
       buttons.add(
         _actionButton(
           label: 'Reject',
           icon: Icons.close_rounded,
           color: red,
-          onPressed: onReject,
+          onPressed: widget.onReject,
         ),
       );
 
@@ -621,59 +958,41 @@ class WalkerDetailsScreen extends StatelessWidget {
           label: 'Approve',
           icon: Icons.check_rounded,
           color: green,
-          onPressed: onApprove,
+          onPressed: widget.onApprove,
           filled: true,
         ),
       );
-    }
-
-    // ==========================================================
-    // REJECTED
-    // ==========================================================
-
-    else if (status == 'Rejected') {
-      buttons.add(
-        _actionButton(
-          label: 'Release',
-          icon: Icons.lock_open_rounded,
-          color: orange,
-          onPressed: onRelease,
-          filled: true,
-        ),
-      );
-
+    } else if (status == 'Rejected') {
       buttons.add(
         _actionButton(
           label: 'Approve',
           icon: Icons.check_rounded,
           color: green,
-          onPressed: onApprove,
+          onPressed: widget.onApprove,
           filled: true,
         ),
       );
-    }
-
-    // ==========================================================
-    // APPROVED
-    // ==========================================================
-
-    else if (status == 'Approved') {
+    } else if (status == 'Approved') {
       if (active) {
         buttons.add(
           _actionButton(
             label: 'Deactivate ID',
-            icon: Icons.person_off_outlined,
+            icon:
+                Icons.person_off_outlined,
             color: red,
-            onPressed: onDeactivate,
+            onPressed:
+                widget.onDeactivate,
           ),
         );
       } else {
         buttons.add(
           _actionButton(
             label: 'Activate ID',
-            icon: Icons.person_outline_rounded,
+            icon:
+                Icons.person_outline_rounded,
             color: blue,
-            onPressed: onActivate,
+            onPressed:
+                widget.onActivate,
             filled: true,
           ),
         );
@@ -691,6 +1010,10 @@ class WalkerDetailsScreen extends StatelessWidget {
       children: buttons,
     );
   }
+
+  // ============================================================
+  // BUILD
+  // ============================================================
 
   @override
   Widget build(BuildContext context) {
@@ -765,14 +1088,20 @@ class WalkerDetailsScreen extends StatelessWidget {
             30,
           ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
             children: [
+              // ==================================================
+              // HEADER
+              // ==================================================
+
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius:
+                      BorderRadius.circular(18),
                   border: Border.all(
                     color: border,
                   ),
@@ -781,20 +1110,12 @@ class WalkerDetailsScreen extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        CircleAvatar(
-                          radius: 28,
-                          backgroundColor:
-                              orange.withValues(alpha: 0.10),
-                          backgroundImage: selfie.isNotEmpty
-                              ? NetworkImage(selfie)
-                              : null,
-                          child: selfie.isEmpty
-                              ? const Icon(
-                                  Icons.person,
-                                  color: orange,
-                                  size: 30,
-                                )
-                              : null,
+                        _walkerAvatar(
+                          size: 56,
+                          imageUrl:
+                              selfie.isNotEmpty
+                                  ? selfie
+                                  : null,
                         ),
                         const SizedBox(width: 13),
                         Expanded(
@@ -821,7 +1142,8 @@ class WalkerDetailsScreen extends StatelessWidget {
                                     'Walker ID',
                                     'walkerId',
                                   ],
-                                  fallback: doc.id,
+                                  fallback:
+                                      doc.id,
                                 ),
                                 maxLines: 1,
                                 overflow:
@@ -863,6 +1185,10 @@ class WalkerDetailsScreen extends StatelessWidget {
               ),
 
               const SizedBox(height: 16),
+
+              // ==================================================
+              // BASIC DETAILS
+              // ==================================================
 
               _section(
                 'Basic Details',
@@ -928,6 +1254,10 @@ class WalkerDetailsScreen extends StatelessWidget {
                 ],
               ),
 
+              // ==================================================
+              // IDENTITY & VERIFICATION
+              // ==================================================
+
               _section(
                 'Identity & Verification',
                 Icons.verified_user_outlined,
@@ -958,36 +1288,78 @@ class WalkerDetailsScreen extends StatelessWidget {
                         ? 'Yes'
                         : 'No',
                   ),
+
                   const SizedBox(height: 8),
+
+                  // ----------------------------------------------
+                  // DOCUMENT PHOTOS
+                  // ----------------------------------------------
+
                   Align(
-                    alignment: Alignment.centerLeft,
+                    alignment:
+                        Alignment.centerLeft,
                     child: Wrap(
                       spacing: 10,
                       runSpacing: 10,
                       children: [
                         _photoCard(
                           context,
-                          title: 'Profile Selfie',
+                          title:
+                              'Profile Selfie',
                           imageUrl: selfie,
-                          icon: Icons.person,
+                          icon:
+                              Icons.person_rounded,
+                          uploadType:
+                              'profile_selfie',
+                          firestoreKeys: [
+                            'Profile Selfie',
+                          ],
+                          storageName:
+                              'profile_selfie.jpg',
                         ),
+
                         _photoCard(
                           context,
-                          title: 'Aadhaar Front',
-                          imageUrl: aadhaarFront,
-                          icon: Icons.credit_card,
+                          title:
+                              'Aadhaar Front',
+                          imageUrl:
+                              aadhaarFront,
+                          icon:
+                              Icons.credit_card,
+                          uploadType:
+                              'aadhaar_front',
+                          firestoreKeys: [
+                            'Aadhar Front',
+                          ],
+                          storageName:
+                              'aadhaar_front.jpg',
                         ),
+
                         _photoCard(
                           context,
-                          title: 'Aadhaar Back',
-                          imageUrl: aadhaarBack,
-                          icon: Icons.credit_card,
+                          title:
+                              'Aadhaar Back',
+                          imageUrl:
+                              aadhaarBack,
+                          icon:
+                              Icons.credit_card,
+                          uploadType:
+                              'aadhaar_back',
+                          firestoreKeys: [
+                            'Aadhar Back',
+                          ],
+                          storageName:
+                              'aadhaar_back.jpg',
                         ),
                       ],
                     ),
                   ),
                 ],
               ),
+
+              // ==================================================
+              // ADDRESS
+              // ==================================================
 
               _section(
                 'Address',
@@ -1042,6 +1414,10 @@ class WalkerDetailsScreen extends StatelessWidget {
                 ],
               ),
 
+              // ==================================================
+              // EMERGENCY CONTACT
+              // ==================================================
+
               _section(
                 'Emergency Contact',
                 Icons.emergency_outlined,
@@ -1064,6 +1440,10 @@ class WalkerDetailsScreen extends StatelessWidget {
                   ),
                 ],
               ),
+
+              // ==================================================
+              // ACCOUNT STATUS
+              // ==================================================
 
               _section(
                 'Account Status',
