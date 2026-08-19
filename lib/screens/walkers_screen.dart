@@ -25,7 +25,7 @@ class _WalkersScreenState extends State<WalkersScreen> {
   String selectedFilter = 'All';
 
   CollectionReference<Map<String, dynamic>>
-      get _walkerProfiles =>
+      get _walkers =>
           _firestore.collection('walkers');
 
   Stream<QuerySnapshot<Map<String, dynamic>>>
