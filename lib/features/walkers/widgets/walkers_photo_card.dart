@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'walkers_details_helpers.dart';
+import 'walkers_helpers.dart';
 import 'walkers_image_viewer.dart';
 import 'walkers_upload_button.dart';
 
