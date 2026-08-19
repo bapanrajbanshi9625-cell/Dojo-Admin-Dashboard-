@@ -26,11 +26,11 @@ class _WalkersScreenState extends State<WalkersScreen> {
 
   CollectionReference<Map<String, dynamic>>
       get _walkerProfiles =>
-          _firestore.collection('walkerProfiles');
+          _firestore.collection('walkers');
 
   Stream<QuerySnapshot<Map<String, dynamic>>>
       get _walkerStream =>
-          _walkerProfiles.snapshots();
+          _walkers.snapshots();
 
   @override
   void initState() {
