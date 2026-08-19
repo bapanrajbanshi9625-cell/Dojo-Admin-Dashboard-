@@ -2,10 +2,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../features/walkers/widgets/walkers_card.dart';
-import '../features/walkers/widgets/walkers_details_sheet.dart';
 import '../features/walkers/widgets/walkers_helpers.dart';
 import '../features/walkers/widgets/walkers_summary_cards.dart';
 import '../features/walkers/widgets/walkers_toolbar.dart';
+import '../features/walkers/widgets/walker_details_screen.dart';
 
 class WalkersScreen extends StatefulWidget {
   const WalkersScreen({super.key});
@@ -76,8 +76,7 @@ class _WalkersScreenState
           return const Center(
             child: Padding(
               padding: EdgeInsets.all(60),
-              child:
-                  CircularProgressIndicator(),
+              child: CircularProgressIndicator(),
             ),
           );
         }
@@ -177,9 +176,7 @@ class _WalkersScreenState
                     child: WalkersCard(
                       doc: doc,
                       onView: () {
-                        _showWalkerDetails(
-                          doc,
-                        );
+                        _openWalkerDetails(doc);
                       },
                     ),
                   );
@@ -291,35 +288,34 @@ class _WalkersScreenState
     }
   }
 
-  void _showWalkerDetails(
+  Future<void> _openWalkerDetails(
     DocumentSnapshot<Map<String, dynamic>>
         doc,
-  ) {
+  ) async {
     final data =
         doc.data() ??
             <String, dynamic>{};
 
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return WalkerDetailsSheet(
-          doc: doc,
-          data: data,
-          onApprove: () {
-            Navigator.of(context).pop();
-
-            _showApproveDialog(doc);
-          },
-          onReject: () {
-            Navigator.of(context).pop();
-
-            _showRejectDialog(doc);
-          },
-        );
-      },
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) {
+          return WalkerDetailsScreen(
+            doc: doc,
+            data: data,
+            onApprove: () {
+              _showApproveDialog(doc);
+            },
+            onReject: () {
+              _showRejectDialog(doc);
+            },
+          );
+        },
+      ),
     );
+
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   Future<void> _showApproveDialog(
@@ -440,11 +436,14 @@ class _WalkersScreenState
           'approved': true,
           'isApproved': true,
           'adminApproved': true,
+
           'isActive': true,
           'active': true,
+
           'rejected': false,
           'isRejected': false,
           'adminRejected': false,
+
           'approvedAt':
               FieldValue.serverTimestamp(),
         });
@@ -455,11 +454,14 @@ class _WalkersScreenState
           'approved': false,
           'isApproved': false,
           'adminApproved': false,
+
           'isActive': false,
           'active': false,
+
           'rejected': true,
           'isRejected': true,
           'adminRejected': true,
+
           'rejectedAt':
               FieldValue.serverTimestamp(),
         });
@@ -486,6 +488,8 @@ class _WalkersScreenState
                   : const Color(0xFFDC2626),
         ),
       );
+
+      setState(() {});
     } catch (e) {
       if (!mounted) return;
 
