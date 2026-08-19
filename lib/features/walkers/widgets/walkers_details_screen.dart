@@ -1,7 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
+
+import 'walker_details_actions.dart';
+import 'walker_details_documents.dart';
+import 'walker_details_image_viewer.dart';
+import 'walker_details_row.dart';
+import 'walker_details_section.dart';
+import 'walker_details_upload_service.dart';
+import 'walkers_details_helpers.dart';
 
 class WalkerDetailsScreen extends StatefulWidget {
   const WalkerDetailsScreen({
@@ -27,26 +33,18 @@ class WalkerDetailsScreen extends StatefulWidget {
       _WalkerDetailsScreenState();
 }
 
-class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
-  // ============================================================
-  // COLORS
-  // ============================================================
-
-  static const Color orange = Color(0xFFFF6600);
-  static const Color green = Color(0xFF16A34A);
-  static const Color red = Color(0xFFDC2626);
-  static const Color blue = Color(0xFF2563EB);
-
-  static const Color textDark = Color(0xFF111827);
-  static const Color textGrey = Color(0xFF6B7280);
-  static const Color border = Color(0xFFE5E7EB);
-  static const Color pageBg = Color(0xFFF7F8FA);
-
+class _WalkerDetailsScreenState
+    extends State<WalkerDetailsScreen> {
   // ============================================================
   // SERVICES
   // ============================================================
 
-  final ImagePicker _picker = ImagePicker();
+  final WalkerDetailsUploadService _uploadService =
+      WalkerDetailsUploadService();
+
+  // ============================================================
+  // UPLOAD STATE
+  // ============================================================
 
   final Set<String> _uploadingFields = <String>{};
 
@@ -56,1062 +54,16 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
 
   Map<String, dynamic> get data => widget.data;
 
-  DocumentSnapshot<Map<String, dynamic>> get doc => widget.doc;
+  DocumentSnapshot<Map<String, dynamic>> get doc =>
+      widget.doc;
 
   // ============================================================
-  // VALUE
+  // BASIC VALUES
   // ============================================================
 
-  String _value(
-    List<String> keys, {
-    String fallback = 'Not available',
-  }) {
-    for (final key in keys) {
-      final value = data[key];
-
-      if (value == null) {
-        continue;
-      }
-
-      final text = value.toString().trim();
-
-      if (text.isNotEmpty && text.toLowerCase() != 'null') {
-        return text;
-      }
-    }
-
-    return fallback;
-  }
-
-  // ============================================================
-  // BOOLEAN
-  // ============================================================
-
-  bool _bool(List<String> keys) {
-    for (final key in keys) {
-      final value = data[key];
-
-      if (value is bool) {
-        return value;
-      }
-
-      if (value != null) {
-        final text = value.toString().trim().toLowerCase();
-
-        if (text == 'true' || text == '1' || text == 'yes') {
-          return true;
-        }
-
-        if (text == 'false' || text == '0' || text == 'no') {
-          return false;
-        }
-      }
-    }
-
-    return false;
-  }
-
-  // ============================================================
-  // IMAGE URL
-  // ============================================================
-
-  String _imageUrl(List<String> keys) {
-    return _value(
-      keys,
-      fallback: '',
-    );
-  }
-
-  // ============================================================
-  // STATUS
-  // ============================================================
-
-  String _status() {
-    final status = _value(
-      const [
-        'verificationStatus',
-        'approvalStatus',
-        'status',
-      ],
-      fallback: '',
-    ).toLowerCase().trim();
-
-    if (status == 'approved') {
-      return 'Approved';
-    }
-
-    if (status == 'rejected') {
-      return 'Rejected';
-    }
-
-    if (status == 'pending') {
-      return 'Pending';
-    }
-
-    if (_bool(const [
-      'approved',
-      'isApproved',
-      'adminApproved',
-    ])) {
-      return 'Approved';
-    }
-
-    if (_bool(const [
-      'rejected',
-      'isRejected',
-      'adminRejected',
-    ])) {
-      return 'Rejected';
-    }
-
-    return 'Pending';
-  }
-
-  // ============================================================
-  // ACTIVE
-  // ============================================================
-
-  bool _isActive() {
-    return _bool(const [
-      'isActive',
-      'active',
-    ]);
-  }
-
-  // ============================================================
-  // STATUS COLOR
-  // ============================================================
-
-  Color _statusColor(String status) {
-    switch (status) {
-      case 'Approved':
-        return green;
-
-      case 'Rejected':
-        return red;
-
-      default:
-        return orange;
-    }
-  }
-
-  // ============================================================
-  // OPEN IMAGE
-  // ============================================================
-
-  void _openImage(
-    BuildContext context,
-    String title,
-    String imageUrl,
-  ) {
-    if (imageUrl.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Image is not available.'),
-        ),
-      );
-      return;
-    }
-
-    showDialog<void>(
-      context: context,
-      barrierColor: Colors.black87,
-      builder: (dialogContext) {
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.all(16),
-          child: Container(
-            constraints: const BoxConstraints(
-              maxWidth: 700,
-              maxHeight: 850,
-            ),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // ==================================================
-                // IMAGE HEADER
-                // ==================================================
-
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    18,
-                    12,
-                    8,
-                    10,
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w800,
-                            color: textDark,
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: 'Close',
-                        onPressed: () {
-                          Navigator.of(dialogContext).pop();
-                        },
-                        icon: const Icon(
-                          Icons.close_rounded,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const Divider(
-                  height: 1,
-                  color: border,
-                ),
-
-                // ==================================================
-                // IMAGE
-                // ==================================================
-
-                Flexible(
-                  child: Padding(
-                    padding: const EdgeInsets.all(18),
-                    child: InteractiveViewer(
-                      minScale: 0.8,
-                      maxScale: 4.0,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.network(
-                          imageUrl,
-                          fit: BoxFit.contain,
-                          loadingBuilder: (
-                            context,
-                            child,
-                            loadingProgress,
-                          ) {
-                            if (loadingProgress == null) {
-                              return child;
-                            }
-
-                            return const SizedBox(
-                              height: 350,
-                              width: double.infinity,
-                              child: Center(
-                                child: CircularProgressIndicator(
-                                  color: orange,
-                                ),
-                              ),
-                            );
-                          },
-                          errorBuilder: (
-                            context,
-                            error,
-                            stackTrace,
-                          ) {
-                            return const SizedBox(
-                              height: 350,
-                              width: double.infinity,
-                              child: Center(
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.broken_image_outlined,
-                                      size: 55,
-                                      color: Colors.grey,
-                                    ),
-                                    SizedBox(height: 10),
-                                    Text(
-                                      'Unable to load image',
-                                      style: TextStyle(
-                                        color: textGrey,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  // ============================================================
-  // WALKER AVATAR
-  // ============================================================
-
-  Widget _walkerAvatar({
-    double size = 56,
-    String? imageUrl,
-  }) {
-    final hasImage =
-        imageUrl != null && imageUrl.trim().isNotEmpty;
-
-    if (hasImage) {
-      return Container(
-        height: size,
-        width: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: orange.withValues(alpha: 0.10),
-          border: Border.all(
-            color: orange.withValues(alpha: 0.20),
-            width: 1,
-          ),
-        ),
-        child: ClipOval(
-          child: Image.network(
-            imageUrl!,
-            fit: BoxFit.cover,
-            errorBuilder: (
-              context,
-              error,
-              stackTrace,
-            ) {
-              return Icon(
-                Icons.person_rounded,
-                size: size * 0.58,
-                color: orange,
-              );
-            },
-          ),
-        ),
-      );
-    }
-
-    return Container(
-      height: size,
-      width: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: orange.withValues(alpha: 0.10),
-        border: Border.all(
-          color: orange.withValues(alpha: 0.25),
-          width: 1.2,
-        ),
-      ),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Container(
-            height: size * 0.78,
-            width: size * 0.78,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: orange.withValues(alpha: 0.08),
-            ),
-          ),
-          Icon(
-            Icons.person_rounded,
-            size: size * 0.58,
-            color: orange,
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ============================================================
-  // PICK IMAGE
-  // ============================================================
-
-  Future<XFile?> _pickImage() async {
-    return _picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 90,
-    );
-  }
-
-  // ============================================================
-  // UPLOAD PHOTO
-  // ============================================================
-
-  Future<void> _uploadPhoto({
-    required String fieldName,
-    required String title,
-  }) async {
-    if (_uploadingFields.contains(fieldName)) {
-      return;
-    }
-
-    try {
-      final XFile? picked = await _pickImage();
-
-      if (picked == null) {
-        return;
-      }
-
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _uploadingFields.add(fieldName);
-      });
-
-      final bytes = await picked.readAsBytes();
-
-      if (bytes.isEmpty) {
-        throw Exception('Selected image is empty.');
-      }
-
-      // ========================================================
-      // FILE EXTENSION
-      // ========================================================
-
-      String extension = 'jpg';
-
-      final fileName = picked.name.toLowerCase();
-
-      if (fileName.endsWith('.png')) {
-        extension = 'png';
-      } else if (fileName.endsWith('.webp')) {
-        extension = 'webp';
-      } else if (fileName.endsWith('.jpeg')) {
-        extension = 'jpeg';
-      } else if (fileName.endsWith('.jpg')) {
-        extension = 'jpg';
-      }
-
-      // ========================================================
-      // CONTENT TYPE
-      // ========================================================
-
-      String contentType = 'image/jpeg';
-
-      if (extension == 'png') {
-        contentType = 'image/png';
-      } else if (extension == 'webp') {
-        contentType = 'image/webp';
-      }
-
-      // ========================================================
-      // SAFE FIELD NAME
-      // ========================================================
-
-      final safeFieldName = fieldName
-          .replaceAll(' ', '_')
-          .replaceAll('/', '_')
-          .toLowerCase();
-
-      final timestamp =
-          DateTime.now().millisecondsSinceEpoch;
-
-      // ========================================================
-      // STORAGE PATH
-      // ========================================================
-
-      final storagePath =
-          'walkers/${doc.id}/admin_uploads/'
-          '${safeFieldName}_$timestamp.$extension';
-
-      final storageRef =
-          FirebaseStorage.instance.ref().child(storagePath);
-
-      // ========================================================
-      // UPLOAD
-      // ========================================================
-
-      await storageRef.putData(
-        bytes,
-        SettableMetadata(
-          contentType: contentType,
-        ),
-      );
-
-      // ========================================================
-      // DOWNLOAD URL
-      // ========================================================
-
-      final downloadUrl =
-          await storageRef.getDownloadURL();
-
-      // ========================================================
-      // FIRESTORE
-      // ========================================================
-
-      await doc.reference.update({
-        fieldName: downloadUrl,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-
-      // ========================================================
-      // LOCAL UPDATE
-      // ========================================================
-
-      data[fieldName] = downloadUrl;
-
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _uploadingFields.remove(fieldName);
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '$title uploaded successfully.',
-          ),
-          backgroundColor: green,
-        ),
-      );
-    } catch (e) {
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _uploadingFields.remove(fieldName);
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Upload failed: $e',
-          ),
-          backgroundColor: red,
-        ),
-      );
-    }
-  }
-
-  // ============================================================
-  // UPLOAD BUTTON
-  // ============================================================
-
-  Widget _uploadButton({
-    required String fieldName,
-    required String title,
-  }) {
-    final uploading =
-        _uploadingFields.contains(fieldName);
-
-    return SizedBox(
-      height: 34,
-      child: OutlinedButton.icon(
-        onPressed: uploading
-            ? null
-            : () {
-                _uploadPhoto(
-                  fieldName: fieldName,
-                  title: title,
-                );
-              },
-        icon: uploading
-            ? const SizedBox(
-                height: 14,
-                width: 14,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: orange,
-                ),
-              )
-            : const Icon(
-                Icons.upload_rounded,
-                size: 16,
-              ),
-        label: Text(
-          uploading ? 'Uploading...' : 'Upload',
-          style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: orange,
-          side: BorderSide(
-            color: orange.withValues(alpha: 0.55),
-          ),
-          padding: const EdgeInsets.symmetric(
-            horizontal: 10,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ============================================================
-  // PHOTO CARD
-  // ============================================================
-
-  Widget _photoCard(
-    BuildContext context, {
-    required String title,
-    required String imageUrl,
-    required IconData icon,
-    required String uploadField,
-  }) {
-    final hasImage = imageUrl.trim().isNotEmpty;
-
-    return Container(
-      width: 150,
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF9FAFB),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: border,
-        ),
-      ),
-      child: Column(
-        children: [
-          InkWell(
-            borderRadius: BorderRadius.circular(9),
-            onTap: hasImage
-                ? () {
-                    _openImage(
-                      context,
-                      title,
-                      imageUrl,
-                    );
-                  }
-                : null,
-            child: Container(
-              height: 95,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF3F4F6),
-                borderRadius: BorderRadius.circular(9),
-              ),
-              child: hasImage
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(9),
-                      child: Image.network(
-                        imageUrl,
-                        fit: BoxFit.cover,
-                        errorBuilder: (
-                          context,
-                          error,
-                          stackTrace,
-                        ) {
-                          return Icon(
-                            icon,
-                            size: 38,
-                            color: Colors.grey,
-                          );
-                        },
-                      ),
-                    )
-                  : Icon(
-                      icon,
-                      size: 38,
-                      color: Colors.grey,
-                    ),
-            ),
-          ),
-
-          const SizedBox(height: 8),
-
-          Text(
-            title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: textDark,
-            ),
-          ),
-
-          const SizedBox(height: 5),
-
-          if (hasImage)
-            InkWell(
-              onTap: () {
-                _openImage(
-                  context,
-                  title,
-                  imageUrl,
-                );
-              },
-              child: const Text(
-                'Tap to view',
-                style: TextStyle(
-                  fontSize: 9,
-                  color: orange,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            )
-          else
-            _uploadButton(
-              fieldName: uploadField,
-              title: title,
-            ),
-        ],
-      ),
-    );
-  }
-
-  // ============================================================
-  // SECTION
-  // ============================================================
-
-  Widget _section(
-    String title,
-    IconData icon,
-    List<Widget> children,
-  ) {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(
-        bottom: 16,
-      ),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: border,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(
-              alpha: 0.035,
-            ),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              18,
-              16,
-              18,
-              12,
-            ),
-            child: Row(
-              children: [
-                Container(
-                  height: 36,
-                  width: 36,
-                  decoration: BoxDecoration(
-                    color: orange.withValues(
-                      alpha: 0.10,
-                    ),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(
-                    icon,
-                    color: orange,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: textDark,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const Divider(
-            height: 1,
-            color: border,
-          ),
-
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: children,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ============================================================
-  // DETAIL ROW
-  // ============================================================
-
-  Widget _row(
-    String label,
-    String value, {
-    bool selectable = false,
-  }) {
-    final valueWidget = selectable
-        ? SelectableText(
-            value,
-            textAlign: TextAlign.left,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: textDark,
-            ),
-          )
-        : Text(
-            value,
-            textAlign: TextAlign.left,
-            softWrap: true,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: textDark,
-            ),
-          );
-
-    return Padding(
-      padding: const EdgeInsets.only(
-        bottom: 14,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            textAlign: TextAlign.left,
-            style: const TextStyle(
-              fontSize: 12,
-              color: textGrey,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-
-          const SizedBox(height: 4),
-
-          valueWidget,
-        ],
-      ),
-    );
-  }
-
-  // ============================================================
-  // STATUS BADGE
-  // ============================================================
-
-  Widget _statusBadge() {
-    final status = _status();
-    final color = _statusColor(status);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 11,
-        vertical: 6,
-      ),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(30),
-        border: Border.all(
-          color: color.withValues(alpha: 0.25),
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            height: 8,
-            width: 8,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-            ),
-          ),
-
-          const SizedBox(width: 7),
-
-          Text(
-            status,
-            style: TextStyle(
-              color: color,
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ============================================================
-  // ACTION BUTTON
-  // ============================================================
-
-  Widget _actionButton({
-    required String label,
-    required IconData icon,
-    required Color color,
-    required VoidCallback onPressed,
-    bool filled = false,
-  }) {
-    if (filled) {
-      return SizedBox(
-        height: 38,
-        child: FilledButton.icon(
-          onPressed: onPressed,
-          icon: Icon(
-            icon,
-            size: 17,
-          ),
-          label: Text(
-            label,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          style: FilledButton.styleFrom(
-            backgroundColor: color,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(
-              horizontal: 13,
-            ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(9),
-            ),
-          ),
-        ),
-      );
-    }
-
-    return SizedBox(
-      height: 38,
-      child: OutlinedButton.icon(
-        onPressed: onPressed,
-        icon: Icon(
-          icon,
-          size: 17,
-        ),
-        label: Text(
-          label,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: color,
-          side: BorderSide(
-            color: color.withValues(alpha: 0.55),
-          ),
-          padding: const EdgeInsets.symmetric(
-            horizontal: 13,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(9),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ============================================================
-  // TOP ACTIONS
-  // ============================================================
-
-  Widget _topActions() {
-    final status = _status();
-    final active = _isActive();
-
-    final List<Widget> buttons = <Widget>[];
-
-    if (status == 'Pending') {
-      buttons.add(
-        _actionButton(
-          label: 'Reject',
-          icon: Icons.close_rounded,
-          color: red,
-          onPressed: widget.onReject,
-        ),
-      );
-
-      buttons.add(
-        _actionButton(
-          label: 'Approve',
-          icon: Icons.check_rounded,
-          color: green,
-          onPressed: widget.onApprove,
-          filled: true,
-        ),
-      );
-    } else if (status == 'Rejected') {
-      buttons.add(
-        _actionButton(
-          label: 'Approve',
-          icon: Icons.check_rounded,
-          color: green,
-          onPressed: widget.onApprove,
-          filled: true,
-        ),
-      );
-    } else if (status == 'Approved') {
-      if (active) {
-        buttons.add(
-          _actionButton(
-            label: 'Deactivate ID',
-            icon: Icons.person_off_outlined,
-            color: red,
-            onPressed: widget.onDeactivate,
-          ),
-        );
-      } else {
-        buttons.add(
-          _actionButton(
-            label: 'Activate ID',
-            icon: Icons.person_outline_rounded,
-            color: blue,
-            onPressed: widget.onActivate,
-            filled: true,
-          ),
-        );
-      }
-    }
-
-    if (buttons.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return Wrap(
-      alignment: WrapAlignment.end,
-      spacing: 8,
-      runSpacing: 8,
-      children: buttons,
-    );
-  }
-
-  // ============================================================
-  // BUILD
-  // ============================================================
-
-  @override
-  Widget build(BuildContext context) {
-    // ==========================================================
-    // BASIC VALUES
-    // ==========================================================
-
-    final name = _value(
+  String get name {
+    return walkerDetailsValue(
+      data,
       const [
         'Full Name',
         'fullName',
@@ -1120,8 +72,11 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
       ],
       fallback: 'Walker',
     );
+  }
 
-    final mobile = _value(
+  String get mobile {
+    return walkerDetailsValue(
+      data,
       const [
         'Mobile number',
         'mobileNumber',
@@ -1130,16 +85,22 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
         'phoneNumber',
       ],
     );
+  }
 
-    final walkerId = _value(
+  String get walkerId {
+    return walkerDetailsValue(
+      data,
       const [
         'Walker ID',
         'walkerId',
       ],
       fallback: doc.id,
     );
+  }
 
-    final walkerUid = _value(
+  String get walkerUid {
+    return walkerDetailsValue(
+      data,
       const [
         'Walker Uid',
         'walkerUid',
@@ -1147,8 +108,15 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
         'uid',
       ],
     );
+  }
 
-    final selfie = _imageUrl(
+  // ============================================================
+  // IMAGE VALUES
+  // ============================================================
+
+  String get selfie {
+    return walkerDetailsImageUrl(
+      data,
       const [
         'Profile Selfie',
         'profileSelfie',
@@ -1159,8 +127,11 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
         'selfieUrl',
       ],
     );
+  }
 
-    final aadhaarFront = _imageUrl(
+  String get aadhaarFront {
+    return walkerDetailsImageUrl(
+      data,
       const [
         'Aadhar Front',
         'Aadhaar Front',
@@ -1172,8 +143,11 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
         'aadhaar_front_url',
       ],
     );
+  }
 
-    final aadhaarBack = _imageUrl(
+  String get aadhaarBack {
+    return walkerDetailsImageUrl(
+      data,
       const [
         'Aadhar Back',
         'Aadhaar Back',
@@ -1185,17 +159,43 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
         'aadhaar_back_url',
       ],
     );
+  }
 
-    final status = _status();
-    final isActive = _isActive();
+  // ============================================================
+  // STATUS
+  // ============================================================
 
-    final profileCompleted = _bool(
+  String get status {
+    return walkerDetailsStatus(data);
+  }
+
+  bool get isActive {
+    return walkerDetailsBool(
+      data,
       const [
-        'profileCompleted',
+        'isActive',
+        'active',
       ],
     );
+  }
 
-    final aadhaarFrontUploaded = _bool(
+  // ============================================================
+  // VERIFICATION
+  // ============================================================
+
+  bool get profileCompleted {
+    return walkerDetailsBool(
+      data,
+      const [
+        'profileCompleted',
+        'profile_completed',
+      ],
+    );
+  }
+
+  bool get aadhaarFrontUploaded {
+    return walkerDetailsBool(
+      data,
       const [
         'aadhaar_front_uploaded',
         'aadhar_front_uploaded',
@@ -1203,8 +203,11 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
         'aadharFrontUploaded',
       ],
     );
+  }
 
-    final aadhaarBackUploaded = _bool(
+  bool get aadhaarBackUploaded {
+    return walkerDetailsBool(
+      data,
       const [
         'aadhaar_back_uploaded',
         'aadhar_back_uploaded',
@@ -1212,9 +215,99 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
         'aadharBackUploaded',
       ],
     );
+  }
 
+  // ============================================================
+  // OPEN IMAGE
+  // ============================================================
+
+  void _openImage(
+    String title,
+    String imageUrl,
+  ) {
+    WalkerDetailsImageViewer.open(
+      context,
+      title: title,
+      imageUrl: imageUrl,
+    );
+  }
+
+  // ============================================================
+  // UPLOAD
+  // ============================================================
+
+  Future<void> _uploadPhoto({
+    required String fieldName,
+    required String title,
+  }) async {
+    if (_uploadingFields.contains(fieldName)) {
+      return;
+    }
+
+    setState(() {
+      _uploadingFields.add(fieldName);
+    });
+
+    try {
+      await _uploadService.pickAndUpload(
+        context: context,
+        doc: doc,
+        data: data,
+        fieldName: fieldName,
+        title: title,
+      );
+    } finally {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _uploadingFields.remove(fieldName);
+      });
+    }
+  }
+
+  // ============================================================
+  // PROFILE SELFIE
+  // ============================================================
+
+  Future<void> _uploadSelfie() async {
+    await _uploadPhoto(
+      fieldName: 'Profile Selfie',
+      title: 'Profile Selfie',
+    );
+  }
+
+  // ============================================================
+  // AADHAAR FRONT
+  // ============================================================
+
+  Future<void> _uploadAadhaarFront() async {
+    await _uploadPhoto(
+      fieldName: 'Aadhar Front',
+      title: 'Aadhaar Front',
+    );
+  }
+
+  // ============================================================
+  // AADHAAR BACK
+  // ============================================================
+
+  Future<void> _uploadAadhaarBack() async {
+    await _uploadPhoto(
+      fieldName: 'Aadhar Back',
+      title: 'Aadhaar Back',
+    );
+  }
+
+  // ============================================================
+  // BUILD
+  // ============================================================
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: pageBg,
+      backgroundColor: walkerDetailsPageBg,
 
       // ========================================================
       // APP BAR
@@ -1237,7 +330,7 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
           style: TextStyle(
             fontSize: 19,
             fontWeight: FontWeight.w800,
-            color: textDark,
+            color: walkerDetailsTextDark,
           ),
         ),
       ),
@@ -1255,7 +348,8 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
             30,
           ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
             children: [
               // ==================================================
               // HEADER
@@ -1266,20 +360,17 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius:
+                      BorderRadius.circular(18),
                   border: Border.all(
-                    color: border,
+                    color: walkerDetailsBorder,
                   ),
                 ),
                 child: Column(
                   children: [
                     Row(
                       children: [
-                        _walkerAvatar(
-                          size: 56,
-                          imageUrl:
-                              selfie.isNotEmpty ? selfie : null,
-                        ),
+                        _avatar(),
 
                         const SizedBox(width: 13),
 
@@ -1291,11 +382,14 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
                               Text(
                                 name,
                                 maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                                overflow:
+                                    TextOverflow.ellipsis,
                                 style: const TextStyle(
                                   fontSize: 18,
-                                  fontWeight: FontWeight.w800,
-                                  color: textDark,
+                                  fontWeight:
+                                      FontWeight.w800,
+                                  color:
+                                      walkerDetailsTextDark,
                                 ),
                               ),
 
@@ -1304,11 +398,14 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
                               Text(
                                 walkerId,
                                 maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                                overflow:
+                                    TextOverflow.ellipsis,
                                 style: const TextStyle(
                                   fontSize: 11,
-                                  color: textGrey,
-                                  fontWeight: FontWeight.w600,
+                                  color:
+                                      walkerDetailsTextGrey,
+                                  fontWeight:
+                                      FontWeight.w600,
                                 ),
                               ),
                             ],
@@ -1322,17 +419,21 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
                     ),
 
                     // =================================================
-                    // ADMIN PROFILE SELFIE UPLOAD
+                    // PROFILE SELFIE UPLOAD
                     // =================================================
 
                     if (selfie.isEmpty) ...[
                       const SizedBox(height: 12),
 
                       Align(
-                        alignment: Alignment.centerLeft,
-                        child: _uploadButton(
-                          fieldName: 'Profile Selfie',
-                          title: 'Profile Selfie',
+                        alignment:
+                            Alignment.centerLeft,
+                        child:
+                            _smallUploadButton(
+                          fieldName:
+                              'Profile Selfie',
+                          title:
+                              'Profile Selfie',
                         ),
                       ),
                     ],
@@ -1341,7 +442,7 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
 
                     const Divider(
                       height: 1,
-                      color: border,
+                      color: walkerDetailsBorder,
                     ),
 
                     const SizedBox(height: 14),
@@ -1350,14 +451,17 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
                     // ACTIONS
                     // =================================================
 
-                    Row(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: _topActions(),
-                        ),
-                      ],
+                    WalkerDetailsActions(
+                      status: status,
+                      isActive: isActive,
+                      onApprove:
+                          widget.onApprove,
+                      onReject:
+                          widget.onReject,
+                      onActivate:
+                          widget.onActivate,
+                      onDeactivate:
+                          widget.onDeactivate,
                     ),
                   ],
                 ),
@@ -1369,43 +473,45 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
               // BASIC DETAILS
               // ==================================================
 
-              _section(
-                'Basic Details',
-                Icons.person_outline_rounded,
-                [
-                  _row(
-                    'Full Name',
-                    name,
+              WalkerDetailsSection(
+                title: 'Basic Details',
+                icon: Icons.person_outline_rounded,
+                children: [
+                  WalkerDetailsRow(
+                    label: 'Full Name',
+                    value: name,
                   ),
 
-                  _row(
-                    'Mobile Number',
-                    mobile,
+                  WalkerDetailsRow(
+                    label: 'Mobile Number',
+                    value: mobile,
                     selectable: true,
                   ),
 
-                  _row(
-                    'Walker ID',
-                    walkerId,
+                  WalkerDetailsRow(
+                    label: 'Walker ID',
+                    value: walkerId,
                     selectable: true,
                   ),
 
-                  _row(
-                    'Walker UID',
-                    walkerUid,
+                  WalkerDetailsRow(
+                    label: 'Walker UID',
+                    value: walkerUid,
                     selectable: true,
                   ),
 
-                  _row(
-                    'Role',
-                    _value(
+                  WalkerDetailsRow(
+                    label: 'Role',
+                    value: walkerDetailsValue(
+                      data,
                       const ['role'],
                     ),
                   ),
 
-                  _row(
-                    'Gender',
-                    _value(
+                  WalkerDetailsRow(
+                    label: 'Gender',
+                    value: walkerDetailsValue(
+                      data,
                       const [
                         'Gender',
                         'gender',
@@ -1413,9 +519,10 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
                     ),
                   ),
 
-                  _row(
-                    'Date Of Birth',
-                    _value(
+                  WalkerDetailsRow(
+                    label: 'Date Of Birth',
+                    value: walkerDetailsValue(
+                      data,
                       const [
                         'Date Of Birth',
                         'dateOfBirth',
@@ -1430,13 +537,17 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
               // IDENTITY & VERIFICATION
               // ==================================================
 
-              _section(
-                'Identity & Verification',
-                Icons.verified_user_outlined,
-                [
-                  _row(
-                    'Aadhaar Number',
-                    _value(
+              WalkerDetailsSection(
+                title:
+                    'Identity & Verification',
+                icon:
+                    Icons.verified_user_outlined,
+                children: [
+                  WalkerDetailsRow(
+                    label: 'Aadhaar Number',
+                    value:
+                        walkerDetailsValue(
+                      data,
                       const [
                         'Aadhar Number',
                         'Aadhaar Number',
@@ -1447,68 +558,61 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
                     selectable: true,
                   ),
 
-                  _row(
-                    'Verification',
-                    status,
+                  WalkerDetailsRow(
+                    label: 'Verification',
+                    value: status,
                   ),
 
-                  _row(
-                    'Active',
-                    isActive ? 'Yes' : 'No',
+                  WalkerDetailsRow(
+                    label: 'Active',
+                    value:
+                        isActive ? 'Yes' : 'No',
                   ),
 
-                  _row(
-                    'Profile Completed',
-                    profileCompleted ? 'Yes' : 'No',
+                  WalkerDetailsRow(
+                    label: 'Profile Completed',
+                    value:
+                        profileCompleted
+                            ? 'Yes'
+                            : 'No',
                   ),
 
-                  _row(
-                    'Aadhaar Front Uploaded',
-                    aadhaarFrontUploaded ? 'Yes' : 'No',
+                  WalkerDetailsRow(
+                    label:
+                        'Aadhaar Front Uploaded',
+                    value:
+                        aadhaarFrontUploaded
+                            ? 'Yes'
+                            : 'No',
                   ),
 
-                  _row(
-                    'Aadhaar Back Uploaded',
-                    aadhaarBackUploaded ? 'Yes' : 'No',
+                  WalkerDetailsRow(
+                    label:
+                        'Aadhaar Back Uploaded',
+                    value:
+                        aadhaarBackUploaded
+                            ? 'Yes'
+                            : 'No',
                   ),
 
                   const SizedBox(height: 8),
 
-                  // =================================================
-                  // DOCUMENT PHOTOS
-                  // =================================================
-
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
-                      children: [
-                        _photoCard(
-                          context,
-                          title: 'Profile Selfie',
-                          imageUrl: selfie,
-                          icon: Icons.person_rounded,
-                          uploadField: 'Profile Selfie',
-                        ),
-
-                        _photoCard(
-                          context,
-                          title: 'Aadhaar Front',
-                          imageUrl: aadhaarFront,
-                          icon: Icons.credit_card,
-                          uploadField: 'Aadhar Front',
-                        ),
-
-                        _photoCard(
-                          context,
-                          title: 'Aadhaar Back',
-                          imageUrl: aadhaarBack,
-                          icon: Icons.credit_card,
-                          uploadField: 'Aadhar Back',
-                        ),
-                      ],
-                    ),
+                  WalkerDetailsDocuments(
+                    selfie: selfie,
+                    aadhaarFront:
+                        aadhaarFront,
+                    aadhaarBack:
+                        aadhaarBack,
+                    uploadingFields:
+                        _uploadingFields,
+                    onOpenImage:
+                        _openImage,
+                    onUploadSelfie:
+                        _uploadSelfie,
+                    onUploadAadhaarFront:
+                        _uploadAadhaarFront,
+                    onUploadAadhaarBack:
+                        _uploadAadhaarBack,
                   ),
                 ],
               ),
@@ -1517,13 +621,16 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
               // ADDRESS
               // ==================================================
 
-              _section(
-                'Address',
-                Icons.location_on_outlined,
-                [
-                  _row(
-                    'Address',
-                    _value(
+              WalkerDetailsSection(
+                title: 'Address',
+                icon:
+                    Icons.location_on_outlined,
+                children: [
+                  WalkerDetailsRow(
+                    label: 'Address',
+                    value:
+                        walkerDetailsValue(
+                      data,
                       const [
                         'Adress',
                         'Address',
@@ -1532,9 +639,11 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
                     ),
                   ),
 
-                  _row(
-                    'Village',
-                    _value(
+                  WalkerDetailsRow(
+                    label: 'Village',
+                    value:
+                        walkerDetailsValue(
+                      data,
                       const [
                         'Village',
                         'village',
@@ -1542,9 +651,11 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
                     ),
                   ),
 
-                  _row(
-                    'City',
-                    _value(
+                  WalkerDetailsRow(
+                    label: 'City',
+                    value:
+                        walkerDetailsValue(
+                      data,
                       const [
                         'City',
                         'city',
@@ -1552,9 +663,11 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
                     ),
                   ),
 
-                  _row(
-                    'District',
-                    _value(
+                  WalkerDetailsRow(
+                    label: 'District',
+                    value:
+                        walkerDetailsValue(
+                      data,
                       const [
                         'District',
                         'district',
@@ -1562,9 +675,11 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
                     ),
                   ),
 
-                  _row(
-                    'State',
-                    _value(
+                  WalkerDetailsRow(
+                    label: 'State',
+                    value:
+                        walkerDetailsValue(
+                      data,
                       const [
                         'State',
                         'state',
@@ -1572,9 +687,11 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
                     ),
                   ),
 
-                  _row(
-                    'Pincode',
-                    _value(
+                  WalkerDetailsRow(
+                    label: 'Pincode',
+                    value:
+                        walkerDetailsValue(
+                      data,
                       const [
                         'Pincode',
                         'pincode',
@@ -1591,13 +708,17 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
               // EMERGENCY CONTACT
               // ==================================================
 
-              _section(
-                'Emergency Contact',
-                Icons.emergency_outlined,
-                [
-                  _row(
-                    'Name',
-                    _value(
+              WalkerDetailsSection(
+                title:
+                    'Emergency Contact',
+                icon:
+                    Icons.emergency_outlined,
+                children: [
+                  WalkerDetailsRow(
+                    label: 'Name',
+                    value:
+                        walkerDetailsValue(
+                      data,
                       const [
                         'Emergency Name',
                         'emergencyName',
@@ -1605,9 +726,11 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
                     ),
                   ),
 
-                  _row(
-                    'Mobile',
-                    _value(
+                  WalkerDetailsRow(
+                    label: 'Mobile',
+                    value:
+                        walkerDetailsValue(
+                      data,
                       const [
                         'Emergency Mobile',
                         'emergencyMobile',
@@ -1623,55 +746,243 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
               // ACCOUNT STATUS
               // ==================================================
 
-              _section(
-                'Account Status',
-                Icons.account_circle_outlined,
-                [
-                  _row(
-                    'Approved',
-                    _bool(
+              WalkerDetailsSection(
+                title: 'Account Status',
+                icon:
+                    Icons.account_circle_outlined,
+                children: [
+                  WalkerDetailsRow(
+                    label: 'Approved',
+                    value:
+                        walkerDetailsBool(
+                      data,
                       const [
                         'approved',
                         'isApproved',
                         'adminApproved',
                       ],
                     )
-                        ? 'Yes'
-                        : 'No',
+                            ? 'Yes'
+                            : 'No',
                   ),
 
-                  _row(
-                    'Rejected',
-                    _bool(
+                  WalkerDetailsRow(
+                    label: 'Rejected',
+                    value:
+                        walkerDetailsBool(
+                      data,
                       const [
                         'rejected',
                         'isRejected',
                         'adminRejected',
                       ],
                     )
-                        ? 'Yes'
-                        : 'No',
+                            ? 'Yes'
+                            : 'No',
                   ),
 
-                  _row(
-                    'Active',
-                    isActive ? 'Yes' : 'No',
+                  WalkerDetailsRow(
+                    label: 'Active',
+                    value:
+                        isActive ? 'Yes' : 'No',
                   ),
 
-                  _row(
-                    'Online',
-                    _bool(
+                  WalkerDetailsRow(
+                    label: 'Online',
+                    value:
+                        walkerDetailsBool(
+                      data,
                       const [
                         'isOnline',
                         'online',
                       ],
                     )
-                        ? 'Online'
-                        : 'Offline',
+                            ? 'Online'
+                            : 'Offline',
                   ),
                 ],
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // AVATAR
+  // ============================================================
+
+  Widget _avatar() {
+    final hasImage =
+        selfie.trim().isNotEmpty;
+
+    return Container(
+      height: 56,
+      width: 56,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color:
+            walkerDetailsOrange.withValues(
+          alpha: 0.10,
+        ),
+        border: Border.all(
+          color:
+              walkerDetailsOrange.withValues(
+            alpha: 0.20,
+          ),
+        ),
+      ),
+      child: hasImage
+          ? ClipOval(
+              child: Image.network(
+                selfie,
+                fit: BoxFit.cover,
+                errorBuilder:
+                    (
+                  context,
+                  error,
+                  stackTrace,
+                ) {
+                  return const Icon(
+                    Icons.person_rounded,
+                    color:
+                        walkerDetailsOrange,
+                    size: 32,
+                  );
+                },
+              ),
+            )
+          : const Icon(
+              Icons.person_rounded,
+              color: walkerDetailsOrange,
+              size: 32,
+            ),
+    );
+  }
+
+  // ============================================================
+  // STATUS BADGE
+  // ============================================================
+
+  Widget _statusBadge() {
+    final color =
+        walkerDetailsStatusColor(status);
+
+    return Container(
+      padding:
+          const EdgeInsets.symmetric(
+        horizontal: 11,
+        vertical: 6,
+      ),
+      decoration: BoxDecoration(
+        color: color.withValues(
+          alpha: 0.10,
+        ),
+        borderRadius:
+            BorderRadius.circular(30),
+        border: Border.all(
+          color: color.withValues(
+            alpha: 0.25,
+          ),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            height: 8,
+            width: 8,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+            ),
+          ),
+
+          const SizedBox(width: 7),
+
+          Text(
+            status,
+            style: TextStyle(
+              color: color,
+              fontSize: 11,
+              fontWeight:
+                  FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // SMALL UPLOAD BUTTON
+  // ============================================================
+
+  Widget _smallUploadButton({
+    required String fieldName,
+    required String title,
+  }) {
+    final uploading =
+        _uploadingFields.contains(
+      fieldName,
+    );
+
+    return SizedBox(
+      height: 34,
+      child: OutlinedButton.icon(
+        onPressed: uploading
+            ? null
+            : () {
+                _uploadPhoto(
+                  fieldName: fieldName,
+                  title: title,
+                );
+              },
+        icon: uploading
+            ? const SizedBox(
+                height: 14,
+                width: 14,
+                child:
+                    CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color:
+                      walkerDetailsOrange,
+                ),
+              )
+            : const Icon(
+                Icons.upload_rounded,
+                size: 16,
+              ),
+        label: Text(
+          uploading
+              ? 'Uploading...'
+              : 'Upload',
+          style: const TextStyle(
+            fontSize: 11,
+            fontWeight:
+                FontWeight.w800,
+          ),
+        ),
+        style:
+            OutlinedButton.styleFrom(
+          foregroundColor:
+              walkerDetailsOrange,
+          side: BorderSide(
+            color:
+                walkerDetailsOrange
+                    .withValues(
+              alpha: 0.55,
+            ),
+          ),
+          padding:
+              const EdgeInsets.symmetric(
+            horizontal: 10,
+          ),
+          shape:
+              RoundedRectangleBorder(
+            borderRadius:
+                BorderRadius.circular(8),
           ),
         ),
       ),
