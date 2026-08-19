@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'walkers_details_helpers.dart';
+import 'walkers_helpers.dart';
 
 class WalkerDetailsActionButton extends StatelessWidget {
   final String label;
