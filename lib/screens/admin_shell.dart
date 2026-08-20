@@ -142,8 +142,13 @@ class _AdminShellState extends State<AdminShell> {
           onNavigate: selectPage,
         );
 
+      // =========================================================
+      // LIVE WALK / LIVE MAP
+      // File: lib/screens/live_walk_screen.dart
+      // Class: LiveWalkScreen
+      // =========================================================
       case 1:
-        return const LiveMapScreen();
+        return const LiveWalkScreen();
 
       case 2:
         return const ActiveWalksScreen();
