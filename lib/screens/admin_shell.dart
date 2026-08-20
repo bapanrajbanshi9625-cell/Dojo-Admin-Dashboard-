@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'dashboard_screen.dart';
-import 'live_map_screen.dart';
+import 'live_walk_screen.dart';
 import 'active_walks_screen.dart';
 import 'walk_history_screen.dart';
 import 'owners_screen.dart';
