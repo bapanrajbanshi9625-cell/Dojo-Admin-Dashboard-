@@ -118,7 +118,9 @@ class AdminShell extends StatefulWidget {
 
 class _AdminShellState extends State<AdminShell> {
   int selectedIndex = 0;
-  bool mobileMenuOpen = false;
+
+  // Menu default CLOSED.
+  bool menuOpen = false;
 
   String get pageTitle {
     return adminMenuItems[selectedIndex].title;
@@ -131,7 +133,23 @@ class _AdminShellState extends State<AdminShell> {
 
     setState(() {
       selectedIndex = index;
-      mobileMenuOpen = false;
+      menuOpen = false;
+    });
+  }
+
+  void toggleMenu() {
+    setState(() {
+      menuOpen = !menuOpen;
+    });
+  }
+
+  void closeMenu() {
+    if (!menuOpen) {
+      return;
+    }
+
+    setState(() {
+      menuOpen = false;
     });
   }
 
@@ -218,198 +236,32 @@ class _AdminShellState extends State<AdminShell> {
     );
   }
 
+  // =============================================================
+  // DESKTOP
+  // =============================================================
+
   Widget desktopLayout() {
     return Scaffold(
       backgroundColor: dojoBackground,
-      body: Row(
+      body: Stack(
         children: [
-          desktopSidebar(),
-          Expanded(
-            child: Column(
-              children: [
-                webTopBar(),
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(26),
-                    child: currentScreen(),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget desktopSidebar() {
-    return Container(
-      width: 245,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          right: BorderSide(
-            color: dojoBorder,
-          ),
-        ),
-      ),
-      child: SafeArea(
-        child: Column(
-          children: [
-            const SizedBox(height: 20),
-            brand(),
-            const SizedBox(height: 22),
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                ),
-                itemCount: adminMenuItems.length,
-                itemBuilder: (
-                  BuildContext context,
-                  int index,
-                ) {
-                  return menuItem(
-                    index,
-                    adminMenuItems[index],
-                  );
-                },
-              ),
-            ),
-            const Divider(height: 1),
-            adminProfile(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget brand() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 20,
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: dojoOrange,
-              borderRadius: BorderRadius.circular(11),
-            ),
-            child: const Icon(
-              Icons.pets,
-              color: Colors.white,
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: 10),
-          const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Column(
             children: [
-              Text(
-                'DOJO',
-                style: TextStyle(
-                  fontSize: 21,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 1.5,
-                  color: dojoDark,
-                ),
-              ),
-              Text(
-                'ADMIN',
-                style: TextStyle(
-                  fontSize: 9,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.5,
-                  color: dojoGrey,
+              webTopBar(),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(26),
+                  child: currentScreen(),
                 ),
               ),
             ],
           ),
-        ],
-      ),
-    );
-  }
 
-  Widget menuItem(
-    int index,
-    AdminMenuItem item,
-  ) {
-    final bool active = selectedIndex == index;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 3),
-      decoration: BoxDecoration(
-        color: active
-            ? const Color(0xFFFFEEE9)
-            : Colors.transparent,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: ListTile(
-        dense: true,
-        minLeadingWidth: 24,
-        leading: Icon(
-          item.icon,
-          size: 20,
-          color: active ? dojoOrange : dojoGrey,
-        ),
-        title: Text(
-          item.title,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: active
-                ? FontWeight.w800
-                : FontWeight.w500,
-            color: active ? dojoOrange : dojoDark,
-          ),
-        ),
-        onTap: () {
-          selectPage(index);
-        },
-      ),
-    );
-  }
-
-  Widget adminProfile() {
-    return Padding(
-      padding: const EdgeInsets.all(14),
-      child: Row(
-        children: [
-          const CircleAvatar(
-            radius: 19,
-            backgroundColor: Color(0xFFFFEEE9),
-            child: Icon(
-              Icons.person_outline,
-              color: dojoOrange,
-              size: 21,
-            ),
-          ),
-          const SizedBox(width: 9),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Super Admin',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    color: dojoDark,
-                  ),
-                ),
-                SizedBox(height: 2),
-                Text(
-                  'Administrator',
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: dojoGrey,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          // -------------------------------------------------------
+          // DESKTOP DRAWER
+          // Only visible when menuOpen == true.
+          // -------------------------------------------------------
+          if (menuOpen) desktopDrawer(),
         ],
       ),
     );
@@ -419,7 +271,7 @@ class _AdminShellState extends State<AdminShell> {
     return Container(
       height: 68,
       padding: const EdgeInsets.symmetric(
-        horizontal: 26,
+        horizontal: 18,
       ),
       decoration: const BoxDecoration(
         color: Colors.white,
@@ -431,6 +283,20 @@ class _AdminShellState extends State<AdminShell> {
       ),
       child: Row(
         children: [
+          // MENU BUTTON
+          IconButton(
+            tooltip: 'Menu',
+            onPressed: toggleMenu,
+            icon: const Icon(
+              Icons.menu,
+              color: dojoDark,
+              size: 25,
+            ),
+          ),
+
+          const SizedBox(width: 8),
+
+          // PAGE TITLE
           Text(
             pageTitle,
             style: const TextStyle(
@@ -439,7 +305,10 @@ class _AdminShellState extends State<AdminShell> {
               color: dojoDark,
             ),
           ),
+
           const Spacer(),
+
+          // NOTIFICATIONS
           IconButton(
             tooltip: 'Notifications',
             onPressed: () {
@@ -450,7 +319,10 @@ class _AdminShellState extends State<AdminShell> {
               color: dojoGrey,
             ),
           ),
+
           const SizedBox(width: 10),
+
+          // ADMIN PROFILE
           Container(
             height: 40,
             padding: const EdgeInsets.symmetric(
@@ -490,94 +362,39 @@ class _AdminShellState extends State<AdminShell> {
     );
   }
 
-  Widget mobileLayout() {
-    return Scaffold(
-      backgroundColor: dojoBackground,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          tooltip: 'Menu',
-          onPressed: () {
-            setState(() {
-              mobileMenuOpen = !mobileMenuOpen;
-            });
-          },
-          icon: const Icon(
-            Icons.menu,
-            color: dojoDark,
-          ),
-        ),
-        title: Row(
-          children: [
-            Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                color: dojoOrange,
-                borderRadius: BorderRadius.circular(9),
-              ),
-              child: const Icon(
-                Icons.pets,
-                color: Colors.white,
-                size: 19,
-              ),
-            ),
-            const SizedBox(width: 9),
-            Flexible(
-              child: Text(
-                pageTitle,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                  color: dojoDark,
-                ),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            tooltip: 'Notifications',
-            onPressed: () {
-              selectPage(13);
-            },
-            icon: const Icon(
-              Icons.notifications_none_outlined,
-              color: dojoGrey,
-            ),
-          ),
-        ],
-      ),
-      body: Stack(
-        children: [
-          SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: currentScreen(),
-          ),
-          if (mobileMenuOpen) mobileDrawer(),
-        ],
-      ),
-    );
-  }
+  // =============================================================
+  // DESKTOP DRAWER
+  // =============================================================
 
-  Widget mobileDrawer() {
+  Widget desktopDrawer() {
     return Positioned.fill(
       child: Material(
-        color: Colors.black.withValues(alpha: 0.18),
+        color: Colors.black.withValues(
+          alpha: 0.18,
+        ),
         child: Row(
           children: [
             Container(
-              width: 285,
-              color: Colors.white,
+              width: 245,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                border: Border(
+                  right: BorderSide(
+                    color: dojoBorder,
+                  ),
+                ),
+              ),
               child: SafeArea(
                 child: Column(
                   children: [
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 20),
+
+                    // BRAND
                     brand(),
-                    const SizedBox(height: 18),
+
+                    const SizedBox(height: 22),
+
+                    // MENU
                     Expanded(
                       child: ListView.builder(
                         padding: const EdgeInsets.symmetric(
@@ -595,19 +412,324 @@ class _AdminShellState extends State<AdminShell> {
                         },
                       ),
                     ),
+
+                    const Divider(
+                      height: 1,
+                    ),
+
+                    // ADMIN PROFILE
                     adminProfile(),
                   ],
                 ),
               ),
             ),
+
+            // -----------------------------------------------------
+            // OUTSIDE AREA
+            // Tap here to close menu.
+            // -----------------------------------------------------
             Expanded(
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                onTap: () {
-                  setState(() {
-                    mobileMenuOpen = false;
-                  });
-                },
+                onTap: closeMenu,
+                child: Container(
+                  color: Colors.transparent,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // =============================================================
+  // BRAND
+  // =============================================================
+
+  Widget brand() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 20,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: dojoOrange,
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: const Icon(
+              Icons.pets,
+              color: Colors.white,
+              size: 24,
+            ),
+          ),
+
+          const SizedBox(width: 10),
+
+          const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'DOJO',
+                style: TextStyle(
+                  fontSize: 21,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.5,
+                  color: dojoDark,
+                ),
+              ),
+              Text(
+                'ADMIN',
+                style: TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.5,
+                  color: dojoGrey,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // =============================================================
+  // MENU ITEM
+  // =============================================================
+
+  Widget menuItem(
+    int index,
+    AdminMenuItem item,
+  ) {
+    final bool active = selectedIndex == index;
+
+    return Container(
+      margin: const EdgeInsets.only(
+        bottom: 3,
+      ),
+      decoration: BoxDecoration(
+        color: active
+            ? const Color(0xFFFFEEE9)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: ListTile(
+        dense: true,
+        minLeadingWidth: 24,
+        leading: Icon(
+          item.icon,
+          size: 20,
+          color: active
+              ? dojoOrange
+              : dojoGrey,
+        ),
+        title: Text(
+          item.title,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: active
+                ? FontWeight.w800
+                : FontWeight.w500,
+            color: active
+                ? dojoOrange
+                : dojoDark,
+          ),
+        ),
+        onTap: () {
+          selectPage(index);
+        },
+      ),
+    );
+  }
+
+  // =============================================================
+  // ADMIN PROFILE
+  // =============================================================
+
+  Widget adminProfile() {
+    return Padding(
+      padding: const EdgeInsets.all(14),
+      child: Row(
+        children: [
+          const CircleAvatar(
+            radius: 19,
+            backgroundColor: Color(0xFFFFEEE9),
+            child: Icon(
+              Icons.person_outline,
+              color: dojoOrange,
+              size: 21,
+            ),
+          ),
+
+          const SizedBox(width: 9),
+
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Super Admin',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: dojoDark,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'Administrator',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: dojoGrey,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // =============================================================
+  // MOBILE
+  // =============================================================
+
+  Widget mobileLayout() {
+    return Scaffold(
+      backgroundColor: dojoBackground,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        elevation: 0,
+
+        // MENU BUTTON
+        leading: IconButton(
+          tooltip: 'Menu',
+          onPressed: toggleMenu,
+          icon: const Icon(
+            Icons.menu,
+            color: dojoDark,
+          ),
+        ),
+
+        title: Row(
+          children: [
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: dojoOrange,
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: const Icon(
+                Icons.pets,
+                color: Colors.white,
+                size: 19,
+              ),
+            ),
+
+            const SizedBox(width: 9),
+
+            Flexible(
+              child: Text(
+                pageTitle,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                  color: dojoDark,
+                ),
+              ),
+            ),
+          ],
+        ),
+
+        actions: [
+          IconButton(
+            tooltip: 'Notifications',
+            onPressed: () {
+              selectPage(13);
+            },
+            icon: const Icon(
+              Icons.notifications_none_outlined,
+              color: dojoGrey,
+            ),
+          ),
+        ],
+      ),
+
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: currentScreen(),
+          ),
+
+          if (menuOpen) mobileDrawer(),
+        ],
+      ),
+    );
+  }
+
+  // =============================================================
+  // MOBILE DRAWER
+  // =============================================================
+
+  Widget mobileDrawer() {
+    return Positioned.fill(
+      child: Material(
+        color: Colors.black.withValues(
+          alpha: 0.18,
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 285,
+              color: Colors.white,
+              child: SafeArea(
+                child: Column(
+                  children: [
+                    const SizedBox(height: 18),
+
+                    brand(),
+
+                    const SizedBox(height: 18),
+
+                    Expanded(
+                      child: ListView.builder(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                        ),
+                        itemCount: adminMenuItems.length,
+                        itemBuilder: (
+                          BuildContext context,
+                          int index,
+                        ) {
+                          return menuItem(
+                            index,
+                            adminMenuItems[index],
+                          );
+                        },
+                      ),
+                    ),
+
+                    adminProfile(),
+                  ],
+                ),
+              ),
+            ),
+
+            // OUTSIDE AREA
+            Expanded(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: closeMenu,
                 child: Container(
                   color: Colors.transparent,
                 ),
