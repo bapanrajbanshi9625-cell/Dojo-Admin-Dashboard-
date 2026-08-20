@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 const Color dojoOrange = Color(0xFFD35435);
@@ -5,6 +6,7 @@ const Color dojoBlue = Color(0xFF3F6FA5);
 const Color dojoGreen = Color(0xFF3F8F68);
 const Color dojoDark = Color(0xFF263238);
 const Color dojoGrey = Color(0xFF6B7280);
+const Color dojoBackground = Color(0xFFF7F8FA);
 const Color dojoBorder = Color(0xFFE7E9ED);
 
 class WalkHistoryScreen extends StatefulWidget {
@@ -22,52 +24,15 @@ class _WalkHistoryScreenState
 
   String selectedFilter = 'All';
 
-  final List<WalkHistoryData> walks = const [
-    WalkHistoryData(
-      walkId: 'WALK-1001',
-      ownerName: 'Owner 01',
-      walkerName: 'Walker 01',
-      petName: 'Buddy',
-      date: '14 Aug 2026',
-      duration: '32 min',
-      distance: '2.4 km',
-      amount: '₹250',
-      status: 'Completed',
-    ),
-    WalkHistoryData(
-      walkId: 'WALK-1002',
-      ownerName: 'Owner 02',
-      walkerName: 'Walker 02',
-      petName: 'Max',
-      date: '14 Aug 2026',
-      duration: '28 min',
-      distance: '2.1 km',
-      amount: '₹220',
-      status: 'Completed',
-    ),
-    WalkHistoryData(
-      walkId: 'WALK-1003',
-      ownerName: 'Owner 03',
-      walkerName: 'Walker 03',
-      petName: 'Rocky',
-      date: '13 Aug 2026',
-      duration: '25 min',
-      distance: '1.9 km',
-      amount: '₹200',
-      status: 'Completed',
-    ),
-    WalkHistoryData(
-      walkId: 'WALK-1004',
-      ownerName: 'Owner 04',
-      walkerName: 'Walker 04',
-      petName: 'Bruno',
-      date: '13 Aug 2026',
-      duration: '18 min',
-      distance: '1.2 km',
-      amount: '₹150',
-      status: 'Cancelled',
-    ),
-  ];
+  final FirebaseFirestore _firestore =
+      FirebaseFirestore.instance;
+
+  Stream<QuerySnapshot<Map<String, dynamic>>>
+      get _historyStream {
+    return _firestore
+        .collection('walkHistory')
+        .snapshots();
+  }
 
   @override
   void dispose() {
@@ -75,47 +40,72 @@ class _WalkHistoryScreenState
     super.dispose();
   }
 
-  List<WalkHistoryData> get filteredWalks {
-    final query =
-        searchController.text.trim().toLowerCase();
-
-    return walks.where((walk) {
-      final matchesSearch =
-          query.isEmpty ||
-          walk.walkId.toLowerCase().contains(query) ||
-          walk.ownerName.toLowerCase().contains(query) ||
-          walk.walkerName.toLowerCase().contains(query) ||
-          walk.petName.toLowerCase().contains(query);
-
-      final matchesFilter =
-          selectedFilter == 'All' ||
-          walk.status == selectedFilter;
-
-      return matchesSearch && matchesFilter;
-    }).toList();
-  }
+  // ==========================================================
+  // BUILD
+  // ==========================================================
 
   @override
   Widget build(BuildContext context) {
-    final completed = walks
-        .where((w) => w.status == 'Completed')
-        .length;
+    return StreamBuilder<
+        QuerySnapshot<Map<String, dynamic>>>(
+      stream: _historyStream,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return _errorState(
+            snapshot.error.toString(),
+          );
+        }
 
-    final cancelled = walks
-        .where((w) => w.status == 'Cancelled')
-        .length;
+        if (snapshot.connectionState ==
+            ConnectionState.waiting) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(50),
+              child: CircularProgressIndicator(
+                color: dojoOrange,
+              ),
+            ),
+          );
+        }
+
+        final docs =
+            snapshot.data?.docs ?? [];
+
+        return _buildContent(docs);
+      },
+    );
+  }
+
+  Widget _buildContent(
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+  ) {
+    final histories = docs
+        .map(
+          (doc) => WalkHistoryData.fromFirestore(
+            doc.id,
+            doc.data(),
+          ),
+        )
+        .toList();
+
+    histories.sort(
+      (a, b) => b.createdAt.compareTo(
+        a.createdAt,
+      ),
+    );
+
+    final filtered =
+        _filterHistory(histories);
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
       children: [
         _header(),
 
         const SizedBox(height: 20),
 
-        _summaryCards(
-          completed,
-          cancelled,
-        ),
+        _summaryCards(histories),
 
         const SizedBox(height: 20),
 
@@ -123,7 +113,7 @@ class _WalkHistoryScreenState
 
         const SizedBox(height: 16),
 
-        _historyList(),
+        _historyList(filtered),
       ],
     );
   }
@@ -134,7 +124,8 @@ class _WalkHistoryScreenState
 
   Widget _header() {
     return const Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
       children: [
         Text(
           'Walk History',
@@ -146,7 +137,7 @@ class _WalkHistoryScreenState
         ),
         SizedBox(height: 5),
         Text(
-          'View and manage all past walks',
+          'View completed walks and their full history',
           style: TextStyle(
             color: dojoGrey,
             fontSize: 14,
@@ -161,12 +152,31 @@ class _WalkHistoryScreenState
   // ==========================================================
 
   Widget _summaryCards(
-    int completed,
-    int cancelled,
+    List<WalkHistoryData> walks,
   ) {
+    final totalDistance =
+        walks.fold<double>(
+      0,
+      (sum, walk) =>
+          sum + walk.distanceKm,
+    );
+
+    final averageRating =
+        walks.isEmpty
+            ? 0.0
+            : walks.fold<int>(
+                  0,
+                  (sum, walk) =>
+                      sum + walk.rating,
+                ) /
+                walks.length;
+
     return LayoutBuilder(
-      builder: (context, constraints) {
-        final columns =
+      builder: (
+        context,
+        constraints,
+      ) {
+        final int columns =
             constraints.maxWidth >= 900
                 ? 3
                 : constraints.maxWidth >= 550
@@ -184,22 +194,27 @@ class _WalkHistoryScreenState
               columns == 1 ? 3.2 : 2.5,
           children: [
             _SummaryCard(
-              title: 'Completed',
-              value: '$completed',
-              icon: Icons.check_circle_outline,
-              color: dojoGreen,
-            ),
-            _SummaryCard(
-              title: 'Cancelled',
-              value: '$cancelled',
-              icon: Icons.cancel_outlined,
+              title: 'Total Walks',
+              value: '${walks.length}',
+              icon:
+                  Icons.history_outlined,
               color: dojoOrange,
             ),
             _SummaryCard(
-              title: 'Total History',
-              value: '${walks.length}',
-              icon: Icons.history,
+              title: 'Total Distance',
+              value:
+                  '${totalDistance.toStringAsFixed(1)} km',
+              icon:
+                  Icons.route_outlined,
               color: dojoBlue,
+            ),
+            _SummaryCard(
+              title: 'Average Rating',
+              value:
+                  averageRating.toStringAsFixed(1),
+              icon:
+                  Icons.star_outline,
+              color: dojoGreen,
             ),
           ],
         );
@@ -213,16 +228,21 @@ class _WalkHistoryScreenState
 
   Widget _toolbar() {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding:
+          const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius:
+            BorderRadius.circular(16),
         border: Border.all(
           color: dojoBorder,
         ),
       ),
       child: LayoutBuilder(
-        builder: (context, constraints) {
+        builder: (
+          context,
+          constraints,
+        ) {
           if (constraints.maxWidth < 650) {
             return Column(
               children: [
@@ -279,7 +299,8 @@ class _WalkHistoryScreenState
                   )
                 : null,
         filled: true,
-        fillColor: const Color(0xFFF8F9FA),
+        fillColor:
+            const Color(0xFFF8F9FA),
         border: OutlineInputBorder(
           borderRadius:
               BorderRadius.circular(11),
@@ -287,17 +308,20 @@ class _WalkHistoryScreenState
             color: dojoBorder,
           ),
         ),
-        enabledBorder: OutlineInputBorder(
+        enabledBorder:
+            OutlineInputBorder(
           borderRadius:
               BorderRadius.circular(11),
           borderSide: const BorderSide(
             color: dojoBorder,
           ),
         ),
-        focusedBorder: OutlineInputBorder(
+        focusedBorder:
+            OutlineInputBorder(
           borderRadius:
               BorderRadius.circular(11),
-          borderSide: const BorderSide(
+          borderSide:
+              const BorderSide(
             color: dojoOrange,
           ),
         ),
@@ -311,24 +335,29 @@ class _WalkHistoryScreenState
       runSpacing: 7,
       children: [
         _filterButton('All'),
-        _filterButton('Completed'),
-        _filterButton('Cancelled'),
+        _filterButton('Rated'),
+        _filterButton('Unrated'),
       ],
     );
   }
 
-  Widget _filterButton(String title) {
-    final selected = selectedFilter == title;
+  Widget _filterButton(
+    String title,
+  ) {
+    final selected =
+        selectedFilter == title;
 
     return InkWell(
-      borderRadius: BorderRadius.circular(10),
+      borderRadius:
+          BorderRadius.circular(10),
       onTap: () {
         setState(() {
           selectedFilter = title;
         });
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(
+        padding:
+            const EdgeInsets.symmetric(
           horizontal: 13,
           vertical: 10,
         ),
@@ -347,12 +376,14 @@ class _WalkHistoryScreenState
         child: Text(
           title,
           style: TextStyle(
-            color:
-                selected ? Colors.white : dojoDark,
+            color: selected
+                ? Colors.white
+                : dojoDark,
             fontSize: 12,
-            fontWeight: selected
-                ? FontWeight.w800
-                : FontWeight.w600,
+            fontWeight:
+                selected
+                    ? FontWeight.w800
+                    : FontWeight.w600,
           ),
         ),
       ),
@@ -360,21 +391,72 @@ class _WalkHistoryScreenState
   }
 
   // ==========================================================
+  // FILTER
+  // ==========================================================
+
+  List<WalkHistoryData> _filterHistory(
+    List<WalkHistoryData> walks,
+  ) {
+    final query =
+        searchController.text
+            .trim()
+            .toLowerCase();
+
+    return walks.where((walk) {
+      final matchesSearch =
+          query.isEmpty ||
+          walk.walkId
+              .toLowerCase()
+              .contains(query) ||
+          walk.ownerName
+              .toLowerCase()
+              .contains(query) ||
+          walk.ownerId
+              .toLowerCase()
+              .contains(query) ||
+          walk.walkerName
+              .toLowerCase()
+              .contains(query) ||
+          walk.walkerUid
+              .toLowerCase()
+              .contains(query) ||
+          walk.dogName
+              .toLowerCase()
+              .contains(query) ||
+          walk.dogBreed
+              .toLowerCase()
+              .contains(query);
+
+      final matchesFilter =
+          selectedFilter == 'All' ||
+          (selectedFilter == 'Rated' &&
+              walk.rating > 0) ||
+          (selectedFilter == 'Unrated' &&
+              walk.rating == 0);
+
+      return matchesSearch &&
+          matchesFilter;
+    }).toList();
+  }
+
+  // ==========================================================
   // HISTORY LIST
   // ==========================================================
 
-  Widget _historyList() {
-    final list = filteredWalks;
-
-    if (list.isEmpty) {
+  Widget _historyList(
+    List<WalkHistoryData> walks,
+  ) {
+    if (walks.isEmpty) {
       return _emptyState();
     }
 
     return Column(
-      children: list.map((walk) {
+      children: walks.map((walk) {
         return Padding(
           padding:
-              const EdgeInsets.only(bottom: 12),
+              const EdgeInsets.only(
+            bottom: 12,
+          ),
           child: _historyCard(walk),
         );
       }).toList(),
@@ -385,15 +467,12 @@ class _WalkHistoryScreenState
   // HISTORY CARD
   // ==========================================================
 
-  Widget _historyCard(WalkHistoryData walk) {
-    final completed =
-        walk.status == 'Completed';
-
-    final statusColor =
-        completed ? dojoGreen : dojoOrange;
-
+  Widget _historyCard(
+    WalkHistoryData walk,
+  ) {
     return Container(
-      padding: const EdgeInsets.all(17),
+      padding:
+          const EdgeInsets.all(17),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius:
@@ -403,30 +482,34 @@ class _WalkHistoryScreenState
         ),
       ),
       child: LayoutBuilder(
-        builder: (context, constraints) {
+        builder: (
+          context,
+          constraints,
+        ) {
           if (constraints.maxWidth < 650) {
-            return _mobileCard(
+            return _mobileHistoryCard(
               walk,
-              statusColor,
             );
           }
 
-          return _desktopCard(
+          return _desktopHistoryCard(
             walk,
-            statusColor,
           );
         },
       ),
     );
   }
 
-  Widget _desktopCard(
+  // ==========================================================
+  // DESKTOP
+  // ==========================================================
+
+  Widget _desktopHistoryCard(
     WalkHistoryData walk,
-    Color statusColor,
   ) {
     return Row(
       children: [
-        _petAvatar(),
+        _dogAvatar(walk),
 
         const SizedBox(width: 14),
 
@@ -436,41 +519,22 @@ class _WalkHistoryScreenState
         ),
 
         Expanded(
-          child: _info(
-            Icons.calendar_today_outlined,
-            'Date',
-            walk.date,
-          ),
-        ),
-
-        Expanded(
-          child: _info(
+          child: _historyInfo(
             Icons.timer_outlined,
             'Duration',
-            walk.duration,
+            '${walk.durationMinutes} min',
           ),
         ),
 
         Expanded(
-          child: _info(
+          child: _historyInfo(
             Icons.route_outlined,
             'Distance',
-            walk.distance,
+            '${walk.distanceKm.toStringAsFixed(1)} km',
           ),
         ),
 
-        Expanded(
-          child: _info(
-            Icons.currency_rupee,
-            'Amount',
-            walk.amount,
-          ),
-        ),
-
-        _statusChip(
-          walk.status,
-          statusColor,
-        ),
+        _ratingChip(walk.rating),
 
         const SizedBox(width: 12),
 
@@ -479,9 +543,12 @@ class _WalkHistoryScreenState
     );
   }
 
-  Widget _mobileCard(
+  // ==========================================================
+  // MOBILE
+  // ==========================================================
+
+  Widget _mobileHistoryCard(
     WalkHistoryData walk,
-    Color statusColor,
   ) {
     return Column(
       crossAxisAlignment:
@@ -489,7 +556,7 @@ class _WalkHistoryScreenState
       children: [
         Row(
           children: [
-            _petAvatar(),
+            _dogAvatar(walk),
 
             const SizedBox(width: 12),
 
@@ -497,9 +564,8 @@ class _WalkHistoryScreenState
               child: _mainInfo(walk),
             ),
 
-            _statusChip(
-              walk.status,
-              statusColor,
+            _ratingChip(
+              walk.rating,
             ),
           ],
         ),
@@ -509,38 +575,40 @@ class _WalkHistoryScreenState
         Row(
           children: [
             Expanded(
-              child: _info(
-                Icons.calendar_today_outlined,
-                'Date',
-                walk.date,
+              child: _historyInfo(
+                Icons.timer_outlined,
+                'Duration',
+                '${walk.durationMinutes} min',
               ),
             ),
             Expanded(
-              child: _info(
-                Icons.timer_outlined,
-                'Duration',
-                walk.duration,
+              child: _historyInfo(
+                Icons.route_outlined,
+                'Distance',
+                '${walk.distanceKm.toStringAsFixed(1)} km',
               ),
             ),
           ],
         ),
 
-        const SizedBox(height: 14),
+        const SizedBox(height: 10),
 
         Row(
           children: [
-            Expanded(
-              child: _info(
-                Icons.route_outlined,
-                'Distance',
-                walk.distance,
-              ),
+            const Icon(
+              Icons.calendar_today_outlined,
+              size: 16,
+              color: dojoBlue,
             ),
+            const SizedBox(width: 6),
             Expanded(
-              child: _info(
-                Icons.currency_rupee,
-                'Amount',
-                walk.amount,
+              child: Text(
+                '${walk.date} • ${walk.timeFormatted}',
+                style:
+                    const TextStyle(
+                  fontSize: 10,
+                  color: dojoGrey,
+                ),
               ),
             ),
           ],
@@ -556,22 +624,54 @@ class _WalkHistoryScreenState
     );
   }
 
-  Widget _petAvatar() {
+  // ==========================================================
+  // DOG AVATAR
+  // ==========================================================
+
+  Widget _dogAvatar(
+    WalkHistoryData walk,
+  ) {
+    if (walk.dogPhoto.isNotEmpty) {
+      return ClipRRect(
+        borderRadius:
+            BorderRadius.circular(15),
+        child: Image.network(
+          walk.dogPhoto,
+          width: 55,
+          height: 55,
+          fit: BoxFit.cover,
+          errorBuilder:
+              (_, __, ___) {
+            return _defaultDogAvatar();
+          },
+        ),
+      );
+    }
+
+    return _defaultDogAvatar();
+  }
+
+  Widget _defaultDogAvatar() {
     return Container(
-      width: 52,
-      height: 52,
+      width: 55,
+      height: 55,
       decoration: BoxDecoration(
-        color: const Color(0xFFFFEEE9),
+        color:
+            const Color(0xFFFFEEE9),
         borderRadius:
             BorderRadius.circular(15),
       ),
       child: const Icon(
         Icons.pets,
         color: dojoOrange,
-        size: 25,
+        size: 27,
       ),
     );
   }
+
+  // ==========================================================
+  // MAIN INFO
+  // ==========================================================
 
   Widget _mainInfo(
     WalkHistoryData walk,
@@ -580,29 +680,70 @@ class _WalkHistoryScreenState
       crossAxisAlignment:
           CrossAxisAlignment.start,
       children: [
-        Text(
-          walk.walkId,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w900,
-            color: dojoDark,
-          ),
+        Row(
+          children: [
+            Flexible(
+              child: Text(
+                walk.walkId,
+                maxLines: 1,
+                overflow:
+                    TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight:
+                      FontWeight.w900,
+                  color: dojoDark,
+                ),
+              ),
+            ),
+            if (walk.badge.isNotEmpty) ...[
+              const SizedBox(width: 7),
+              _badge(walk.badge),
+            ],
+          ],
         ),
+
         const SizedBox(height: 4),
+
         Text(
-          walk.petName,
+          walk.dogName,
           style: const TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w700,
           ),
         ),
+
+        if (walk.dogBreed.isNotEmpty)
+          Text(
+            walk.dogBreed,
+            style: const TextStyle(
+              fontSize: 10,
+              color: dojoGrey,
+            ),
+          ),
+
         const SizedBox(height: 3),
+
         Text(
           '${walk.ownerName} • ${walk.walkerName}',
           maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+          overflow:
+              TextOverflow.ellipsis,
           style: const TextStyle(
             fontSize: 11,
+            color: dojoGrey,
+          ),
+        ),
+
+        const SizedBox(height: 3),
+
+        Text(
+          '${walk.date} • ${walk.timeFormatted}',
+          maxLines: 1,
+          overflow:
+              TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 10,
             color: dojoGrey,
           ),
         ),
@@ -610,7 +751,42 @@ class _WalkHistoryScreenState
     );
   }
 
-  Widget _info(
+  // ==========================================================
+  // BADGE
+  // ==========================================================
+
+  Widget _badge(String text) {
+    return Container(
+      padding:
+          const EdgeInsets.symmetric(
+        horizontal: 7,
+        vertical: 4,
+      ),
+      decoration: BoxDecoration(
+        color:
+            const Color(0xFFFFF3D9),
+        borderRadius:
+            BorderRadius.circular(7),
+      ),
+      child: Text(
+        text,
+        maxLines: 1,
+        overflow:
+            TextOverflow.ellipsis,
+        style: const TextStyle(
+          color: Color(0xFF9A6A00),
+          fontSize: 9,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+
+  // ==========================================================
+  // INFO
+  // ==========================================================
+
+  Widget _historyInfo(
     IconData icon,
     String label,
     String value,
@@ -619,44 +795,41 @@ class _WalkHistoryScreenState
       children: [
         Icon(
           icon,
-          size: 18,
+          size: 19,
           color: dojoBlue,
         ),
         const SizedBox(width: 7),
-        Flexible(
-          child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 10,
-                  color: dojoGrey,
-                ),
+        Column(
+          crossAxisAlignment:
+              CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 10,
+                color: dojoGrey,
               ),
-              const SizedBox(height: 2),
-              Text(
-                value,
-                maxLines: 1,
-                overflow:
-                    TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              value,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight:
+                    FontWeight.w800,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ],
     );
   }
 
-  Widget _statusChip(
-    String status,
-    Color color,
-  ) {
+  // ==========================================================
+  // RATING
+  // ==========================================================
+
+  Widget _ratingChip(int rating) {
     return Container(
       padding:
           const EdgeInsets.symmetric(
@@ -664,25 +837,31 @@ class _WalkHistoryScreenState
         vertical: 6,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(.09),
+        color:
+            const Color(0xFFFFF7E6),
         borderRadius:
             BorderRadius.circular(8),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize:
+            MainAxisSize.min,
         children: [
-          Icon(
-            Icons.circle,
-            size: 7,
-            color: color,
+          const Icon(
+            Icons.star,
+            size: 14,
+            color: Color(0xFFD99A00),
           ),
-          const SizedBox(width: 5),
+          const SizedBox(width: 4),
           Text(
-            status,
-            style: TextStyle(
+            rating > 0
+                ? '$rating'
+                : '-',
+            style: const TextStyle(
               fontSize: 10,
-              fontWeight: FontWeight.w900,
-              color: color,
+              fontWeight:
+                  FontWeight.w900,
+              color:
+                  Color(0xFF9A6A00),
             ),
           ),
         ],
@@ -690,12 +869,16 @@ class _WalkHistoryScreenState
     );
   }
 
+  // ==========================================================
+  // VIEW BUTTON
+  // ==========================================================
+
   Widget _viewButton(
     WalkHistoryData walk,
   ) {
     return OutlinedButton.icon(
       onPressed: () {
-        _showDetails(walk);
+        _showWalkDetails(walk);
       },
       icon: const Icon(
         Icons.visibility_outlined,
@@ -707,7 +890,8 @@ class _WalkHistoryScreenState
         side: const BorderSide(
           color: dojoOrange,
         ),
-        shape: RoundedRectangleBorder(
+        shape:
+            RoundedRectangleBorder(
           borderRadius:
               BorderRadius.circular(10),
         ),
@@ -724,7 +908,7 @@ class _WalkHistoryScreenState
   // DETAILS
   // ==========================================================
 
-  void _showDetails(
+  void _showWalkDetails(
     WalkHistoryData walk,
   ) {
     showDialog(
@@ -734,67 +918,171 @@ class _WalkHistoryScreenState
           title: Row(
             children: [
               const Icon(
-                Icons.history,
+                Icons.history_outlined,
                 color: dojoOrange,
               ),
               const SizedBox(width: 9),
-              Text(
-                walk.walkId,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w800,
+              Expanded(
+                child: Text(
+                  walk.walkId,
+                  style:
+                      const TextStyle(
+                    fontWeight:
+                        FontWeight.w800,
+                  ),
                 ),
               ),
             ],
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
-            children: [
-              _detailRow(
-                'Owner',
-                walk.ownerName,
-              ),
-              _detailRow(
-                'Walker',
-                walk.walkerName,
-              ),
-              _detailRow(
-                'Pet',
-                walk.petName,
-              ),
-              _detailRow(
-                'Date',
-                walk.date,
-              ),
-              _detailRow(
-                'Duration',
-                walk.duration,
-              ),
-              _detailRow(
-                'Distance',
-                walk.distance,
-              ),
-              _detailRow(
-                'Amount',
-                walk.amount,
-              ),
-              _detailRow(
-                'Status',
-                walk.status,
-              ),
-            ],
+          content:
+              SingleChildScrollView(
+            child: Column(
+              mainAxisSize:
+                  MainAxisSize.min,
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: [
+                if (walk.badge.isNotEmpty)
+                  Padding(
+                    padding:
+                        const EdgeInsets.only(
+                      bottom: 14,
+                    ),
+                    child: _badge(
+                      walk.badge,
+                    ),
+                  ),
+
+                _sectionTitle(
+                  'Dog',
+                ),
+
+                _detailRow(
+                  'Name',
+                  walk.dogName,
+                ),
+
+                _detailRow(
+                  'Breed',
+                  walk.dogBreed.isEmpty
+                      ? '-'
+                      : walk.dogBreed,
+                ),
+
+                const SizedBox(height: 7),
+
+                _sectionTitle(
+                  'Owner',
+                ),
+
+                _detailRow(
+                  'Name',
+                  walk.ownerName,
+                ),
+
+                _detailRow(
+                  'Owner ID',
+                  walk.ownerId,
+                ),
+
+                const SizedBox(height: 7),
+
+                _sectionTitle(
+                  'Walker',
+                ),
+
+                _detailRow(
+                  'Name',
+                  walk.walkerName,
+                ),
+
+                _detailRow(
+                  'Walker UID',
+                  walk.walkerUid,
+                ),
+
+                if (walk.walkerNote.isNotEmpty)
+                  _detailRow(
+                    'Note',
+                    walk.walkerNote,
+                  ),
+
+                const SizedBox(height: 7),
+
+                _sectionTitle(
+                  'Walk Summary',
+                ),
+
+                _detailRow(
+                  'Date',
+                  walk.date,
+                ),
+
+                _detailRow(
+                  'Time',
+                  walk.timeFormatted,
+                ),
+
+                _detailRow(
+                  'Duration',
+                  '${walk.durationMinutes} min',
+                ),
+
+                _detailRow(
+                  'Distance',
+                  '${walk.distanceKm.toStringAsFixed(2)} km',
+                ),
+
+                _detailRow(
+                  'Pee',
+                  '${walk.peeCount}',
+                ),
+
+                _detailRow(
+                  'Poop',
+                  '${walk.poopCount}',
+                ),
+
+                _detailRow(
+                  'Rating',
+                  walk.rating > 0
+                      ? '${walk.rating}/5'
+                      : '-',
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.pop(context);
               },
-              child: const Text('Close'),
+              child: const Text(
+                'Close',
+              ),
             ),
           ],
         );
       },
+    );
+  }
+
+  Widget _sectionTitle(
+    String title,
+  ) {
+    return Padding(
+      padding:
+          const EdgeInsets.only(
+        bottom: 9,
+      ),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w900,
+          color: dojoOrange,
+        ),
+      ),
     );
   }
 
@@ -804,11 +1092,15 @@ class _WalkHistoryScreenState
   ) {
     return Padding(
       padding:
-          const EdgeInsets.only(bottom: 9),
+          const EdgeInsets.only(
+        bottom: 9,
+      ),
       child: Row(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 75,
+            width: 85,
             child: Text(
               title,
               style: const TextStyle(
@@ -819,10 +1111,13 @@ class _WalkHistoryScreenState
           ),
           Expanded(
             child: Text(
-              value,
+              value.isEmpty
+                  ? '-'
+                  : value,
               style: const TextStyle(
                 fontSize: 12,
-                fontWeight: FontWeight.w700,
+                fontWeight:
+                    FontWeight.w700,
               ),
             ),
           ),
@@ -849,24 +1144,28 @@ class _WalkHistoryScreenState
       ),
       child: const Center(
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize:
+              MainAxisSize.min,
           children: [
             Icon(
-              Icons.history,
+              Icons.history_outlined,
               size: 50,
               color: dojoGrey,
             ),
             SizedBox(height: 12),
             Text(
-              'No walk history found',
+              'No walk history',
               style: TextStyle(
                 fontSize: 16,
-                fontWeight: FontWeight.w800,
+                fontWeight:
+                    FontWeight.w800,
               ),
             ),
             SizedBox(height: 5),
             Text(
               'Completed walks will appear here.',
+              textAlign:
+                  TextAlign.center,
               style: TextStyle(
                 color: dojoGrey,
                 fontSize: 12,
@@ -877,41 +1176,253 @@ class _WalkHistoryScreenState
       ),
     );
   }
+
+  // ==========================================================
+  // ERROR
+  // ==========================================================
+
+  Widget _errorState(
+    String error,
+  ) {
+    return Container(
+      width: double.infinity,
+      padding:
+          const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius:
+            BorderRadius.circular(17),
+        border: Border.all(
+          color: dojoBorder,
+        ),
+      ),
+      child: Column(
+        children: [
+          const Icon(
+            Icons.error_outline,
+            size: 45,
+            color: dojoOrange,
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Unable to load walk history',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight:
+                  FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            error,
+            textAlign:
+                TextAlign.center,
+            style: const TextStyle(
+              color: dojoGrey,
+              fontSize: 11,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 // ============================================================
-// MODEL
+// FIRESTORE MODEL
 // ============================================================
 
 class WalkHistoryData {
+  final String documentId;
+
   final String walkId;
-  final String ownerName;
-  final String walkerName;
-  final String petName;
+  final String badge;
+
+  final int createdAt;
+
   final String date;
-  final String duration;
-  final String distance;
-  final String amount;
-  final String status;
+  final String timeFormatted;
+
+  final double distanceKm;
+  final int durationMinutes;
+
+  final String dogName;
+  final String dogBreed;
+  final String dogPhoto;
+
+  final String ownerId;
+  final String ownerName;
+
+  final String walkerName;
+  final String walkerUid;
+  final String walkerNote;
+  final String walkerProfileImage;
+
+  final int peeCount;
+  final int poopCount;
+  final int rating;
 
   const WalkHistoryData({
+    required this.documentId,
     required this.walkId,
+    required this.badge,
+    required this.createdAt,
+    required this.date,
+    required this.timeFormatted,
+    required this.distanceKm,
+    required this.durationMinutes,
+    required this.dogName,
+    required this.dogBreed,
+    required this.dogPhoto,
+    required this.ownerId,
     required this.ownerName,
     required this.walkerName,
-    required this.petName,
-    required this.date,
-    required this.duration,
-    required this.distance,
-    required this.amount,
-    required this.status,
+    required this.walkerUid,
+    required this.walkerNote,
+    required this.walkerProfileImage,
+    required this.peeCount,
+    required this.poopCount,
+    required this.rating,
   });
+
+  factory WalkHistoryData.fromFirestore(
+    String documentId,
+    Map<String, dynamic> data,
+  ) {
+    return WalkHistoryData(
+      documentId: documentId,
+
+      // Exact Firestore field:
+      walkId:
+          _string(data, 'id') ??
+          documentId,
+
+      badge:
+          _string(data, 'badge') ?? '',
+
+      createdAt:
+          _int(data['createdAt']) ?? 0,
+
+      date:
+          _string(data, 'date') ?? '',
+
+      timeFormatted:
+          _string(
+            data,
+            'timeFormatted',
+          ) ??
+          '',
+
+      distanceKm:
+          _double(data['distanceKm']) ?? 0,
+
+      durationMinutes:
+          _int(data['durationMinutes']) ?? 0,
+
+      dogName:
+          _string(data, 'dogName') ?? 'Dog',
+
+      dogBreed:
+          _string(data, 'dogBreed') ?? '',
+
+      dogPhoto:
+          _string(data, 'dogPhoto') ?? '',
+
+      ownerId:
+          _string(data, 'ownerId') ?? '-',
+
+      ownerName:
+          _string(data, 'ownerName') ?? 'Owner',
+
+      walkerName:
+          _string(data, 'walkerName') ?? 'Walker',
+
+      // Exact Firestore field is lowercase:
+      walkerUid:
+          _string(data, 'walkeruid') ?? '-',
+
+      walkerNote:
+          _string(data, 'walkerNote') ?? '',
+
+      walkerProfileImage:
+          _string(
+            data,
+            'walkerProfileImage',
+          ) ??
+          '',
+
+      peeCount:
+          _int(data['peeCount']) ?? 0,
+
+      poopCount:
+          _int(data['poopCount']) ?? 0,
+
+      rating:
+          _int(data['rating']) ?? 0,
+    );
+  }
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+
+String? _string(
+  Map<String, dynamic> data,
+  String key,
+) {
+  final value = data[key];
+
+  if (value == null) {
+    return null;
+  }
+
+  final text =
+      value.toString().trim();
+
+  return text.isEmpty
+      ? null
+      : text;
+}
+
+double? _double(
+  dynamic value,
+) {
+  if (value is num) {
+    return value.toDouble();
+  }
+
+  if (value is String) {
+    return double.tryParse(value);
+  }
+
+  return null;
+}
+
+int? _int(
+  dynamic value,
+) {
+  if (value is int) {
+    return value;
+  }
+
+  if (value is num) {
+    return value.toInt();
+  }
+
+  if (value is String) {
+    return int.tryParse(value);
+  }
+
+  return null;
 }
 
 // ============================================================
 // SUMMARY CARD
 // ============================================================
 
-class _SummaryCard extends StatelessWidget {
+class _SummaryCard
+    extends StatelessWidget {
   final String title;
   final String value;
   final IconData icon;
@@ -925,9 +1436,12 @@ class _SummaryCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Container(
-      padding: const EdgeInsets.all(17),
+      padding:
+          const EdgeInsets.all(17),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius:
@@ -962,7 +1476,11 @@ class _SummaryCard extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  maxLines: 1,
+                  overflow:
+                      TextOverflow.ellipsis,
+                  style:
+                      const TextStyle(
                     fontSize: 12,
                     color: dojoGrey,
                   ),
@@ -970,7 +1488,8 @@ class _SummaryCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   value,
-                  style: const TextStyle(
+                  style:
+                      const TextStyle(
                     fontSize: 23,
                     fontWeight:
                         FontWeight.w900,
