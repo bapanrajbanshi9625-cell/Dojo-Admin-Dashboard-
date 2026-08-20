@@ -1,6 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
+// ============================================================
+// DOJO COLORS
+// ============================================================
+
 const Color dojoOrange = Color(0xFFD35435);
 const Color dojoBlue = Color(0xFF3F6FA5);
 const Color dojoGreen = Color(0xFF3F8F68);
@@ -9,21 +13,31 @@ const Color dojoGrey = Color(0xFF6B7280);
 const Color dojoBackground = Color(0xFFF7F8FA);
 const Color dojoBorder = Color(0xFFE7E9ED);
 
+// ============================================================
+// ACTIVE WALKS SCREEN
+// ============================================================
+
 class ActiveWalksScreen extends StatefulWidget {
   const ActiveWalksScreen({super.key});
 
   @override
-  State<ActiveWalksScreen> createState() => _ActiveWalksScreenState();
+  State<ActiveWalksScreen> createState() =>
+      _ActiveWalksScreenState();
 }
 
-class _ActiveWalksScreenState extends State<ActiveWalksScreen> {
+class _ActiveWalksScreenState
+    extends State<ActiveWalksScreen> {
   final TextEditingController searchController =
       TextEditingController();
 
-  String selectedFilter = 'All';
-
   final FirebaseFirestore _firestore =
       FirebaseFirestore.instance;
+
+  String selectedFilter = 'All';
+
+  // ==========================================================
+  // FIRESTORE
+  // ==========================================================
 
   Stream<QuerySnapshot<Map<String, dynamic>>>
       get _activeWalksStream {
@@ -44,32 +58,42 @@ class _ActiveWalksScreenState extends State<ActiveWalksScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<
-        QuerySnapshot<Map<String, dynamic>>>(
-      stream: _activeWalksStream,
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return _errorState(snapshot.error.toString());
-        }
+    return Container(
+      color: dojoBackground,
+      child: StreamBuilder<
+          QuerySnapshot<Map<String, dynamic>>>(
+        stream: _activeWalksStream,
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return _errorState(
+              snapshot.error.toString(),
+            );
+          }
 
-        if (snapshot.connectionState ==
-            ConnectionState.waiting) {
-          return const Center(
-            child: Padding(
-              padding: EdgeInsets.all(50),
+          if (snapshot.connectionState ==
+              ConnectionState.waiting) {
+            return const Center(
               child: CircularProgressIndicator(
                 color: dojoOrange,
               ),
-            ),
+            );
+          }
+
+          final docs =
+              snapshot.data?.docs ?? [];
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: _buildContent(docs),
           );
-        }
-
-        final docs = snapshot.data?.docs ?? [];
-
-        return _buildContent(docs);
-      },
+        },
+      ),
     );
   }
+
+  // ==========================================================
+  // CONTENT
+  // ==========================================================
 
   Widget _buildContent(
     List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
@@ -86,7 +110,8 @@ class _ActiveWalksScreenState extends State<ActiveWalksScreen> {
         )
         .toList();
 
-    final filtered = _filterWalks(walks);
+    final filtered =
+        _filterWalks(walks);
 
     final activeCount = walks
         .where(
@@ -252,6 +277,10 @@ class _ActiveWalksScreenState extends State<ActiveWalksScreen> {
     );
   }
 
+  // ==========================================================
+  // SEARCH
+  // ==========================================================
+
   Widget _searchBox() {
     return TextField(
       controller: searchController,
@@ -260,7 +289,7 @@ class _ActiveWalksScreenState extends State<ActiveWalksScreen> {
       },
       decoration: InputDecoration(
         hintText:
-            'Search walk, owner, walker or pet...',
+            'Search Walk ID, owner, walker or pet...',
         hintStyle: const TextStyle(
           color: dojoGrey,
           fontSize: 12,
@@ -314,6 +343,10 @@ class _ActiveWalksScreenState extends State<ActiveWalksScreen> {
     );
   }
 
+  // ==========================================================
+  // FILTERS
+  // ==========================================================
+
   Widget _filters() {
     return Wrap(
       spacing: 7,
@@ -329,7 +362,7 @@ class _ActiveWalksScreenState extends State<ActiveWalksScreen> {
   Widget _filterButton(
     String title,
   ) {
-    final bool selected =
+    final selected =
         selectedFilter == title;
 
     return InkWell(
@@ -365,10 +398,9 @@ class _ActiveWalksScreenState extends State<ActiveWalksScreen> {
                 ? Colors.white
                 : dojoDark,
             fontSize: 12,
-            fontWeight:
-                selected
-                    ? FontWeight.w800
-                    : FontWeight.w600,
+            fontWeight: selected
+                ? FontWeight.w800
+                : FontWeight.w600,
           ),
         ),
       ),
@@ -376,14 +408,16 @@ class _ActiveWalksScreenState extends State<ActiveWalksScreen> {
   }
 
   // ==========================================================
-  // FILTER
+  // FILTER LOGIC
   // ==========================================================
 
   List<ActiveWalkData> _filterWalks(
     List<ActiveWalkData> walks,
   ) {
     final query =
-        searchController.text.trim().toLowerCase();
+        searchController.text
+            .trim()
+            .toLowerCase();
 
     return walks.where((walk) {
       final matchesSearch =
@@ -394,10 +428,19 @@ class _ActiveWalksScreenState extends State<ActiveWalksScreen> {
           walk.ownerName
               .toLowerCase()
               .contains(query) ||
+          walk.ownerId
+              .toLowerCase()
+              .contains(query) ||
           walk.walkerName
               .toLowerCase()
               .contains(query) ||
+          walk.walkerId
+              .toLowerCase()
+              .contains(query) ||
           walk.petName
+              .toLowerCase()
+              .contains(query) ||
+          walk.petBreed
               .toLowerCase()
               .contains(query);
 
@@ -408,7 +451,8 @@ class _ActiveWalksScreenState extends State<ActiveWalksScreen> {
           (selectedFilter == 'Paused' &&
               walk.status == 'paused');
 
-      return matchesSearch && matchesFilter;
+      return matchesSearch &&
+          matchesFilter;
     }).toList();
   }
 
@@ -443,13 +487,11 @@ class _ActiveWalksScreenState extends State<ActiveWalksScreen> {
   Widget _walkCard(
     ActiveWalkData walk,
   ) {
-    final bool live =
+    final live =
         walk.status == 'active';
 
-    final Color statusColor =
-        live
-            ? dojoGreen
-            : dojoOrange;
+    final statusColor =
+        live ? dojoGreen : dojoOrange;
 
     return Container(
       padding:
@@ -484,7 +526,7 @@ class _ActiveWalksScreenState extends State<ActiveWalksScreen> {
   }
 
   // ==========================================================
-  // DESKTOP CARD
+  // DESKTOP
   // ==========================================================
 
   Widget _desktopWalkCard(
@@ -493,7 +535,7 @@ class _ActiveWalksScreenState extends State<ActiveWalksScreen> {
   ) {
     return Row(
       children: [
-        _petAvatar(walk),
+        _walkIcon(),
 
         const SizedBox(width: 14),
 
@@ -531,7 +573,7 @@ class _ActiveWalksScreenState extends State<ActiveWalksScreen> {
   }
 
   // ==========================================================
-  // MOBILE CARD
+  // MOBILE
   // ==========================================================
 
   Widget _mobileWalkCard(
@@ -544,7 +586,7 @@ class _ActiveWalksScreenState extends State<ActiveWalksScreen> {
       children: [
         Row(
           children: [
-            _petAvatar(walk),
+            _walkIcon(),
 
             const SizedBox(width: 12),
 
@@ -580,9 +622,8 @@ class _ActiveWalksScreenState extends State<ActiveWalksScreen> {
           ],
         ),
 
-        const SizedBox(height: 10),
-
-        if (walk.hasLocation)
+        if (walk.hasLocation) ...[
+          const SizedBox(height: 10),
           Row(
             children: [
               const Icon(
@@ -591,16 +632,19 @@ class _ActiveWalksScreenState extends State<ActiveWalksScreen> {
                 color: dojoGreen,
               ),
               const SizedBox(width: 5),
-              Text(
-                '${walk.lat!.toStringAsFixed(5)}, '
-                '${walk.lng!.toStringAsFixed(5)}',
-                style: const TextStyle(
-                  fontSize: 10,
-                  color: dojoGrey,
+              Expanded(
+                child: Text(
+                  '${walk.lat!.toStringAsFixed(5)}, '
+                  '${walk.lng!.toStringAsFixed(5)}',
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: dojoGrey,
+                  ),
                 ),
               ),
             ],
           ),
+        ],
 
         const SizedBox(height: 14),
 
@@ -613,46 +657,22 @@ class _ActiveWalksScreenState extends State<ActiveWalksScreen> {
   }
 
   // ==========================================================
-  // PET AVATAR
+  // WALK ICON
   // ==========================================================
 
-  Widget _petAvatar(
-    ActiveWalkData walk,
-  ) {
-    if (walk.dogPhoto.isNotEmpty) {
-      return ClipRRect(
-        borderRadius:
-            BorderRadius.circular(15),
-        child: Image.network(
-          walk.dogPhoto,
-          width: 52,
-          height: 52,
-          fit: BoxFit.cover,
-          errorBuilder:
-              (_, __, ___) {
-            return _defaultPetAvatar();
-          },
-        ),
-      );
-    }
-
-    return _defaultPetAvatar();
-  }
-
-  Widget _defaultPetAvatar() {
+  Widget _walkIcon() {
     return Container(
       width: 52,
       height: 52,
       decoration: BoxDecoration(
-        color:
-            const Color(0xFFFFEEE9),
+        color: dojoOrange.withOpacity(.10),
         borderRadius:
             BorderRadius.circular(15),
       ),
       child: const Icon(
-        Icons.pets,
+        Icons.directions_walk_outlined,
         color: dojoOrange,
-        size: 25,
+        size: 26,
       ),
     );
   }
@@ -668,28 +688,86 @@ class _ActiveWalksScreenState extends State<ActiveWalksScreen> {
       crossAxisAlignment:
           CrossAxisAlignment.start,
       children: [
-        Text(
-          walk.walkId,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w900,
-            color: dojoDark,
+        // WALK ID
+        InkWell(
+          borderRadius:
+              BorderRadius.circular(5),
+          onTap: () {
+            _showWalkDetails(walk);
+          },
+          child: Padding(
+            padding:
+                const EdgeInsets.symmetric(
+              vertical: 2,
+              horizontal: 2,
+            ),
+            child: Row(
+              mainAxisSize:
+                  MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.tag,
+                  size: 15,
+                  color: dojoOrange,
+                ),
+                const SizedBox(width: 3),
+                Flexible(
+                  child: Text(
+                    walk.walkId,
+                    overflow:
+                        TextOverflow.ellipsis,
+                    style:
+                        const TextStyle(
+                      fontSize: 14,
+                      fontWeight:
+                          FontWeight.w900,
+                      color: dojoOrange,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                const Icon(
+                  Icons
+                      .open_in_new_outlined,
+                  size: 13,
+                  color: dojoOrange,
+                ),
+              ],
+            ),
           ),
         ),
 
-        const SizedBox(height: 4),
+        const SizedBox(height: 5),
 
-        Text(
-          walk.petName,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-          ),
+        // PET
+        Row(
+          children: [
+            const Icon(
+              Icons.pets,
+              size: 14,
+              color: dojoOrange,
+            ),
+            const SizedBox(width: 5),
+            Flexible(
+              child: Text(
+                walk.petName,
+                overflow:
+                    TextOverflow.ellipsis,
+                style:
+                    const TextStyle(
+                  fontSize: 13,
+                  fontWeight:
+                      FontWeight.w700,
+                  color: dojoDark,
+                ),
+              ),
+            ),
+          ],
         ),
 
-        if (walk.dogBreed.isNotEmpty)
+        if (walk.petBreed.isNotEmpty)
           Text(
-            walk.dogBreed,
+            walk.petBreed,
             style: const TextStyle(
               fontSize: 10,
               color: dojoGrey,
@@ -698,15 +776,49 @@ class _ActiveWalksScreenState extends State<ActiveWalksScreen> {
 
         const SizedBox(height: 3),
 
-        Text(
-          '${walk.ownerName} • ${walk.walkerName}',
-          maxLines: 1,
-          overflow:
-              TextOverflow.ellipsis,
-          style: const TextStyle(
-            fontSize: 11,
-            color: dojoGrey,
-          ),
+        // OWNER + WALKER
+        Row(
+          children: [
+            const Icon(
+              Icons.person_outline,
+              size: 14,
+              color: dojoOrange,
+            ),
+            const SizedBox(width: 3),
+            Flexible(
+              child: Text(
+                walk.ownerName,
+                maxLines: 1,
+                overflow:
+                    TextOverflow.ellipsis,
+                style:
+                    const TextStyle(
+                  fontSize: 11,
+                  color: dojoGrey,
+                ),
+              ),
+            ),
+            const SizedBox(width: 7),
+            const Icon(
+              Icons.directions_walk_outlined,
+              size: 14,
+              color: dojoBlue,
+            ),
+            const SizedBox(width: 3),
+            Flexible(
+              child: Text(
+                walk.walkerName,
+                maxLines: 1,
+                overflow:
+                    TextOverflow.ellipsis,
+                style:
+                    const TextStyle(
+                  fontSize: 11,
+                  color: dojoGrey,
+                ),
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -742,11 +854,12 @@ class _ActiveWalksScreenState extends State<ActiveWalksScreen> {
             ),
             const SizedBox(height: 2),
             Text(
-              value,
+              value.isEmpty ? '-' : value,
               style: const TextStyle(
                 fontSize: 12,
                 fontWeight:
                     FontWeight.w800,
+                color: dojoDark,
               ),
             ),
           ],
@@ -844,86 +957,162 @@ class _ActiveWalksScreenState extends State<ActiveWalksScreen> {
   ) {
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
+          shape:
+              RoundedRectangleBorder(
+            borderRadius:
+                BorderRadius.circular(18),
+          ),
           title: Row(
             children: [
-              const Icon(
-                Icons.directions_walk_outlined,
-                color: dojoOrange,
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color:
+                      dojoOrange.withOpacity(.10),
+                  borderRadius:
+                      BorderRadius.circular(11),
+                ),
+                child: const Icon(
+                  Icons
+                      .directions_walk_outlined,
+                  color: dojoOrange,
+                ),
               ),
-              const SizedBox(width: 9),
+              const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   walk.walkId,
                   style:
                       const TextStyle(
+                    fontSize: 17,
                     fontWeight:
-                        FontWeight.w800,
+                        FontWeight.w900,
+                    color: dojoDark,
                   ),
                 ),
               ),
             ],
           ),
-          content: SingleChildScrollView(
+          content:
+              SingleChildScrollView(
             child: Column(
               mainAxisSize:
                   MainAxisSize.min,
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
               children: [
-                _detailRow(
-                  'Owner',
-                  walk.ownerName,
+                _detailSection(
+                  icon: Icons.person_outline,
+                  color: dojoOrange,
+                  title: 'Owner',
+                  children: [
+                    _detailRow(
+                      'Owner Name',
+                      walk.ownerName,
+                    ),
+                    _detailRow(
+                      'Owner ID',
+                      walk.ownerId,
+                    ),
+                  ],
                 ),
-                _detailRow(
-                  'Owner UID',
-                  walk.ownerUid,
+
+                const SizedBox(height: 12),
+
+                _detailSection(
+                  icon: Icons
+                      .directions_walk_outlined,
+                  color: dojoBlue,
+                  title: 'Walker',
+                  children: [
+                    _detailRow(
+                      'Walker Name',
+                      walk.walkerName,
+                    ),
+                    _detailRow(
+                      'Walker ID',
+                      walk.walkerId,
+                    ),
+                  ],
                 ),
-                _detailRow(
-                  'Walker',
-                  walk.walkerName,
+
+                const SizedBox(height: 12),
+
+                _detailSection(
+                  icon: Icons.pets,
+                  color: dojoOrange,
+                  title: 'Pet',
+                  children: [
+                    _detailRow(
+                      'Pet Name',
+                      walk.petName,
+                    ),
+                    _detailRow(
+                      'Pet Breed',
+                      walk.petBreed.isEmpty
+                          ? '-'
+                          : walk.petBreed,
+                    ),
+                    _detailRow(
+                      'Pet Age',
+                      walk.petAge.isEmpty
+                          ? '-'
+                          : walk.petAge,
+                    ),
+                  ],
                 ),
-                _detailRow(
-                  'Walker UID',
-                  walk.walkerUid,
+
+                const SizedBox(height: 12),
+
+                _detailSection(
+                  icon: Icons
+                      .analytics_outlined,
+                  color: dojoBlue,
+                  title: 'Walk',
+                  children: [
+                    _detailRow(
+                      'Walk ID',
+                      walk.walkId,
+                    ),
+                    _detailRow(
+                      'Duration',
+                      walk.duration,
+                    ),
+                    _detailRow(
+                      'Distance',
+                      walk.distance,
+                    ),
+                    _detailRow(
+                      'Status',
+                      walk.statusLabel,
+                    ),
+                  ],
                 ),
-                _detailRow(
-                  'Pet',
-                  walk.petName,
-                ),
-                _detailRow(
-                  'Breed',
-                  walk.dogBreed.isEmpty
-                      ? '-'
-                      : walk.dogBreed,
-                ),
-                _detailRow(
-                  'Duration',
-                  walk.duration,
-                ),
-                _detailRow(
-                  'Distance',
-                  walk.distance,
-                ),
-                _detailRow(
-                  'Status',
-                  walk.statusLabel,
-                ),
-                _detailRow(
-                  'Pee',
-                  '${walk.peeCount}',
-                ),
-                _detailRow(
-                  'Poop',
-                  '${walk.poopCount}',
-                ),
-                _detailRow(
-                  'Location',
-                  walk.hasLocation
-                      ? '${walk.lat!.toStringAsFixed(6)}, '
-                          '${walk.lng!.toStringAsFixed(6)}'
-                      : 'Unavailable',
+
+                const SizedBox(height: 12),
+
+                _detailSection(
+                  icon: Icons
+                      .location_on_outlined,
+                  color: dojoGreen,
+                  title: 'Live Location',
+                  children: [
+                    _detailRow(
+                      'Latitude',
+                      walk.lat != null
+                          ? walk.lat!
+                              .toStringAsFixed(6)
+                          : 'Unavailable',
+                    ),
+                    _detailRow(
+                      'Longitude',
+                      walk.lng != null
+                          ? walk.lng!
+                              .toStringAsFixed(6)
+                          : 'Unavailable',
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -931,10 +1120,17 @@ class _ActiveWalksScreenState extends State<ActiveWalksScreen> {
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.pop(context);
+                Navigator.pop(
+                  dialogContext,
+                );
               },
               child: const Text(
                 'Close',
+                style: TextStyle(
+                  color: dojoOrange,
+                  fontWeight:
+                      FontWeight.w700,
+                ),
               ),
             ),
           ],
@@ -943,6 +1139,63 @@ class _ActiveWalksScreenState extends State<ActiveWalksScreen> {
     );
   }
 
+  // ==========================================================
+  // DETAIL SECTION
+  // ==========================================================
+
+  Widget _detailSection({
+    required IconData icon,
+    required Color color,
+    required String title,
+    required List<Widget> children,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding:
+          const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F9FA),
+        borderRadius:
+            BorderRadius.circular(13),
+        border: Border.all(
+          color: dojoBorder,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                icon,
+                size: 18,
+                color: color,
+              ),
+              const SizedBox(width: 7),
+              Text(
+                title,
+                style:
+                    const TextStyle(
+                  fontSize: 13,
+                  fontWeight:
+                      FontWeight.w900,
+                  color: dojoDark,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ...children,
+        ],
+      ),
+    );
+  }
+
+  // ==========================================================
+  // DETAIL ROW
+  // ==========================================================
+
   Widget _detailRow(
     String title,
     String value,
@@ -950,29 +1203,32 @@ class _ActiveWalksScreenState extends State<ActiveWalksScreen> {
     return Padding(
       padding:
           const EdgeInsets.only(
-        bottom: 10,
+        bottom: 8,
       ),
       child: Row(
         crossAxisAlignment:
             CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 82,
+            width: 90,
             child: Text(
               title,
-              style: const TextStyle(
+              style:
+                  const TextStyle(
                 color: dojoGrey,
-                fontSize: 12,
+                fontSize: 11,
               ),
             ),
           ),
           Expanded(
             child: Text(
-              value,
-              style: const TextStyle(
-                fontSize: 12,
+              value.isEmpty ? '-' : value,
+              style:
+                  const TextStyle(
+                fontSize: 11,
                 fontWeight:
                     FontWeight.w700,
+                color: dojoDark,
               ),
             ),
           ),
@@ -1003,7 +1259,8 @@ class _ActiveWalksScreenState extends State<ActiveWalksScreen> {
               MainAxisSize.min,
           children: [
             Icon(
-              Icons.directions_walk_outlined,
+              Icons
+                  .directions_walk_outlined,
               size: 50,
               color: dojoGrey,
             ),
@@ -1014,6 +1271,7 @@ class _ActiveWalksScreenState extends State<ActiveWalksScreen> {
                 fontSize: 16,
                 fontWeight:
                     FontWeight.w800,
+                color: dojoDark,
               ),
             ),
             SizedBox(height: 5),
@@ -1035,65 +1293,77 @@ class _ActiveWalksScreenState extends State<ActiveWalksScreen> {
   // ERROR
   // ==========================================================
 
-  Widget _errorState(String error) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius:
-            BorderRadius.circular(17),
-        border: Border.all(
-          color: dojoBorder,
+  Widget _errorState(
+    String error,
+  ) {
+    return Center(
+      child: Container(
+        margin:
+            const EdgeInsets.all(20),
+        padding:
+            const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius:
+              BorderRadius.circular(17),
+          border: Border.all(
+            color: dojoBorder,
+          ),
         ),
-      ),
-      child: Column(
-        children: [
-          const Icon(
-            Icons.error_outline,
-            size: 45,
-            color: dojoOrange,
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            'Unable to load active walks',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
+        child: Column(
+          mainAxisSize:
+              MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.error_outline,
+              size: 45,
+              color: dojoOrange,
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            error,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: dojoGrey,
-              fontSize: 11,
+            const SizedBox(height: 12),
+            const Text(
+              'Unable to load active walks',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight:
+                    FontWeight.w800,
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 8),
+            Text(
+              error,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: dojoGrey,
+                fontSize: 11,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
 // ============================================================
-// FIREBASE DATA MODEL
+// FIRESTORE DATA MODEL
+// EXACT FIRESTORE FIELD NAMES
 // ============================================================
 
 class ActiveWalkData {
   final String documentId;
+
   final String walkId;
 
-  final String ownerUid;
+  final String ownerId;
   final String ownerName;
 
-  final String walkerUid;
+  final String walkerId;
   final String walkerName;
 
   final String petName;
-  final String dogBreed;
-  final String dogPhoto;
+  final String petBreed;
+  final String petAge;
 
   final String duration;
   final String distance;
@@ -1103,131 +1373,123 @@ class ActiveWalkData {
   final double? lat;
   final double? lng;
 
-  final int peeCount;
-  final int poopCount;
-
   const ActiveWalkData({
     required this.documentId,
     required this.walkId,
-    required this.ownerUid,
+    required this.ownerId,
     required this.ownerName,
-    required this.walkerUid,
+    required this.walkerId,
     required this.walkerName,
     required this.petName,
-    required this.dogBreed,
-    required this.dogPhoto,
+    required this.petBreed,
+    required this.petAge,
     required this.duration,
     required this.distance,
     required this.status,
     required this.lat,
     required this.lng,
-    required this.peeCount,
-    required this.poopCount,
   });
+
+  // ==========================================================
+  // FROM FIRESTORE
+  // ==========================================================
 
   factory ActiveWalkData.fromFirestore(
     String documentId,
     Map<String, dynamic> data,
   ) {
-    final walkId =
-        _string(data, 'walkId') ??
-        documentId;
-
-    final ownerUid =
-        _string(data, 'ownerUid') ??
-        _string(data, 'ownerId') ??
-        '-';
-
-    final walkerUid =
-        _string(data, 'walkerUid') ??
-        _string(data, 'walkeruid') ??
-        _string(data, 'walkerId') ??
-        '-';
-
-    final ownerName =
-        _string(data, 'ownerName') ??
-        'Owner';
-
-    final walkerName =
-        _string(data, 'walkerName') ??
-        'Walker';
-
-    final petName =
-        _string(data, 'dogName') ??
-        _string(data, 'petName') ??
-        'Dog';
-
-    final breed =
-        _string(data, 'dogBreed') ?? '';
-
-    final photo =
-        _string(data, 'dogPhoto') ?? '';
-
-    final distanceKm =
-        _double(data['distanceKm']) ??
-        _double(data['distance']) ??
-        0;
-
-    final durationMinutes =
-        _int(data['durationMinutes']) ??
-        _int(data['duration']) ??
-        0;
-
-    final rawStatus =
-        (_string(data, 'status') ?? 'active')
-            .toLowerCase();
-
-    final status =
-        rawStatus == 'paused'
-            ? 'paused'
-            : rawStatus == 'live'
-                ? 'active'
-                : rawStatus;
-
     return ActiveWalkData(
       documentId: documentId,
-      walkId: walkId,
-      ownerUid: ownerUid,
-      ownerName: ownerName,
-      walkerUid: walkerUid,
-      walkerName: walkerName,
-      petName: petName,
-      dogBreed: breed,
-      dogPhoto: photo,
+
+      // EXACT FIELD
+      walkId:
+          _string(data, 'walkId') ??
+              documentId,
+
+      // EXACT FIELD
+      ownerId:
+          _string(data, 'ownerId') ??
+              '-',
+
+      // EXACT FIELD
+      ownerName:
+          _string(data, 'ownerName') ??
+              'Owner',
+
+      // EXACT FIELD
+      walkerId:
+          _string(data, 'walkerId') ??
+              '-',
+
+      // EXACT FIELD
+      walkerName:
+          _string(data, 'walkerName') ??
+              'Walker',
+
+      // EXACT FIELD
+      petName:
+          _string(data, 'petName') ??
+              'Dog',
+
+      // EXACT FIELD
+      petBreed:
+          _string(data, 'petBreed') ??
+              '',
+
+      // EXACT FIELD
+      petAge:
+          _string(data, 'petAge') ??
+              '',
+
+      // EXACT FIELD
       duration:
-          '$durationMinutes min',
+          _string(data, 'duration') ??
+              '',
+
+      // EXACT FIELD
       distance:
-          '${distanceKm.toStringAsFixed(1)} km',
-      status: status,
+          _string(data, 'distance') ??
+              '',
+
+      // EXACT FIELD
+      status:
+          (_string(data, 'status') ??
+                  'active')
+              .toLowerCase(),
+
+      // EXACT FIELD
       lat: _double(
-        data['currentLat'] ??
-            data['lat'] ??
-            data['latitude'],
+        data['currentLat'],
       ),
+
+      // EXACT FIELD
       lng: _double(
-        data['currentLng'] ??
-            data['lng'] ??
-            data['longitude'],
+        data['currentLng'],
       ),
-      peeCount:
-          _int(data['peeCount']) ?? 0,
-      poopCount:
-          _int(data['poopCount']) ?? 0,
     );
   }
 
+  // ==========================================================
+  // STATUS LABEL
+  // ==========================================================
+
   String get statusLabel {
-    if (status == 'active') {
-      return 'Live';
-    }
+    switch (status) {
+      case 'active':
+      case 'live':
+        return 'Live';
 
-    if (status == 'paused') {
-      return 'Paused';
-    }
+      case 'paused':
+        return 'Paused';
 
-    return status.isEmpty
-        ? 'Live'
-        : status;
+      case 'completed':
+        return 'Completed';
+
+      default:
+        return status.isEmpty
+            ? 'Live'
+            : status;
+    }
   }
 
   bool get hasLocation =>
@@ -1235,7 +1497,7 @@ class ActiveWalkData {
 }
 
 // ============================================================
-// FIREBASE HELPERS
+// FIRESTORE HELPERS
 // ============================================================
 
 String? _string(
@@ -1248,12 +1510,17 @@ String? _string(
     return null;
   }
 
-  final text = value.toString().trim();
+  final text =
+      value.toString().trim();
 
-  return text.isEmpty ? null : text;
+  return text.isEmpty
+      ? null
+      : text;
 }
 
-double? _double(dynamic value) {
+double? _double(
+  dynamic value,
+) {
   if (value is num) {
     return value.toDouble();
   }
@@ -1265,27 +1532,12 @@ double? _double(dynamic value) {
   return null;
 }
 
-int? _int(dynamic value) {
-  if (value is int) {
-    return value;
-  }
-
-  if (value is num) {
-    return value.toInt();
-  }
-
-  if (value is String) {
-    return int.tryParse(value);
-  }
-
-  return null;
-}
-
 // ============================================================
 // SUMMARY CARD
 // ============================================================
 
-class _SummaryCard extends StatelessWidget {
+class _SummaryCard
+    extends StatelessWidget {
   final String title;
   final String value;
   final IconData icon;
@@ -1337,7 +1589,8 @@ class _SummaryCard extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style:
+                      const TextStyle(
                     fontSize: 12,
                     color: dojoGrey,
                   ),
@@ -1345,7 +1598,8 @@ class _SummaryCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   value,
-                  style: const TextStyle(
+                  style:
+                      const TextStyle(
                     fontSize: 23,
                     fontWeight:
                         FontWeight.w900,
@@ -1359,4 +1613,4 @@ class _SummaryCard extends StatelessWidget {
       ),
     );
   }
-} 
+}
