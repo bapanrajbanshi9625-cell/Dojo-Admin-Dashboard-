@@ -198,22 +198,6 @@ Widget build(BuildContext context) {
                     columns == 1 ? 3.2 : 2.5,
                 children: [
                   WalkSummaryCard(
-                    title: 'Live Walks',
-                    value:
-                        '${activeWalks.length}',
-                    icon: Icons
-                        .radio_button_checked,
-                    color: dojoRed,
-                  ),
-                  WalkSummaryCard(
-                    title: 'Total Walks',
-                    value:
-                        '${histories.length}',
-                    icon:
-                        Icons.history_outlined,
-                    color: dojoOrange,
-                  ),
-                  WalkSummaryCard(
                     title: 'Total Distance',
                     value:
                         '${totalDistance.toStringAsFixed(1)} km',
