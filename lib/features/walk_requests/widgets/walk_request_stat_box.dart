@@ -14,16 +14,19 @@ class WalkRequestStatBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final colorScheme =
+        Theme.of(context).colorScheme;
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius:
+            BorderRadius.circular(16),
         border: Border.all(
-          color: theme.dividerColor,
+          color: Theme.of(context)
+              .dividerColor,
         ),
+        color: colorScheme.surface,
       ),
       child: Row(
         children: [
@@ -31,18 +34,20 @@ class WalkRequestStatBox extends StatelessWidget {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: theme.colorScheme.primary
-                  .withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius:
+                  BorderRadius.circular(12),
+              color: colorScheme.primary
+                  .withValues(
+                alpha: 0.10,
+              ),
             ),
             child: Icon(
               icon,
-              color: theme.colorScheme.primary,
-              size: 22,
+              color: colorScheme.primary,
             ),
           ),
 
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
 
           Expanded(
             child: Column(
@@ -52,16 +57,23 @@ class WalkRequestStatBox extends StatelessWidget {
                 Text(
                   title,
                   maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall,
+                  overflow:
+                      TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: colorScheme
+                        .onSurfaceVariant,
+                  ),
                 ),
 
-                const SizedBox(height: 3),
+                const SizedBox(height: 2),
 
                 Text(
                   value,
-                  style: theme.textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight:
+                        FontWeight.w800,
                   ),
                 ),
               ],
