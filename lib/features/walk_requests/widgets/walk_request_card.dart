@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'request_status_badge.dart';
+import 'walk_request_status_badge.dart';
 
 class WalkRequestCard extends StatelessWidget {
   final String requestId;
