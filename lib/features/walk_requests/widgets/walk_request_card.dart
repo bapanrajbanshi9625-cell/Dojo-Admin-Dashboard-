@@ -1,213 +1,283 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart';
 
-class WalkRequestCard extends StatelessWidget {
+import 'walk_request_map_preview.dart';
+
+class WalkRequestDetailsSheet extends StatelessWidget {
   final String requestId;
   final Map<String, dynamic> data;
-  final VoidCallback onTap;
+
   final VoidCallback onAssign;
   final VoidCallback onCancel;
 
-  const WalkRequestCard({
+  final Future<void> Function(
+    LatLng location,
+  ) onOpenMaps;
+
+  const WalkRequestDetailsSheet({
     super.key,
     required this.requestId,
     required this.data,
-    required this.onTap,
     required this.onAssign,
     required this.onCancel,
+    required this.onOpenMaps,
   });
+
+  // ==========================================================
+  // VALUE
+  // ==========================================================
 
   String _value(String key) {
     final value = data[key];
 
-    return value == null
-        ? ''
-        : value.toString();
+    if (value == null) {
+      return '';
+    }
+
+    return value.toString();
   }
 
-  String _status() {
-    return _value('status')
-        .trim()
-        .toLowerCase();
+  // ==========================================================
+  // DATE
+  // ==========================================================
+
+  DateTime? _date(dynamic value) {
+    if (value is Timestamp) {
+      return value.toDate();
+    }
+
+    if (value is DateTime) {
+      return value;
+    }
+
+    return null;
   }
+
+  String _dateText(dynamic value) {
+    final date = _date(value);
+
+    if (date == null) {
+      return 'Not available';
+    }
+
+    return '${date.day.toString().padLeft(2, '0')}/'
+        '${date.month.toString().padLeft(2, '0')}/'
+        '${date.year} '
+        '${date.hour.toString().padLeft(2, '0')}:'
+        '${date.minute.toString().padLeft(2, '0')}';
+  }
+
+  // ==========================================================
+  // LOCATION
+  // ==========================================================
+
+  LatLng? _location() {
+    final value = data['ownerLocation'];
+
+    if (value is GeoPoint) {
+      return LatLng(
+        value.latitude,
+        value.longitude,
+      );
+    }
+
+    return null;
+  }
+
+  // ==========================================================
+  // BUILD
+  // ==========================================================
 
   @override
   Widget build(BuildContext context) {
-    final status = _status();
+    final status =
+        _value('status').trim().toLowerCase();
+
+    final location = _location();
 
     final pending =
         status == 'searching' ||
         status == 'pending';
 
-    final accepted =
-        status == 'accepted';
+    final canCancel =
+        pending ||
+        status == 'accepted' ||
+        status == 'active';
 
-    final ownerName =
-        _value('ownerName');
-
-    final address =
-        _value('address');
-
-    final searchType =
-        _value('searchType');
-
-    final radius =
-        _value('searchRadiusKm');
-
-    final walkerName =
-        _value('walkerName');
-
-    return Card(
-      margin: const EdgeInsets.only(
-        bottom: 14,
-      ),
-      clipBehavior:
-          Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding:
-              const EdgeInsets.all(18),
-          child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+    return DraggableScrollableSheet(
+      initialChildSize: 0.90,
+      minChildSize: 0.50,
+      maxChildSize: 0.98,
+      builder: (
+        context,
+        controller,
+      ) {
+        return Material(
+          borderRadius:
+              const BorderRadius.vertical(
+            top: Radius.circular(24),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: ListView(
+            controller: controller,
+            padding: const EdgeInsets.all(20),
             children: [
+              // ==================================================
+              // HANDLE
+              // ==================================================
+
+              Center(
+                child: Container(
+                  width: 42,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade400,
+                    borderRadius:
+                        BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
               // ==================================================
               // HEADER
               // ==================================================
 
               Row(
                 children: [
-                  const CircleAvatar(
-                    child: Icon(
-                      Icons.pets,
+                  const Expanded(
+                    child: Text(
+                      'Walk Request Details',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
-
-                  const SizedBox(
-                    width: 12,
-                  ),
-
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          ownerName.isEmpty
-                              ? 'Unknown Owner'
-                              : ownerName,
-                          style:
-                              const TextStyle(
-                            fontSize: 17,
-                            fontWeight:
-                                FontWeight.w700,
-                          ),
-                        ),
-
-                        const SizedBox(
-                          height: 3,
-                        ),
-
-                        Text(
-                          'Request: $requestId',
-                          maxLines: 1,
-                          overflow:
-                              TextOverflow.ellipsis,
-                          style:
-                              TextStyle(
-                            fontSize: 12,
-                            color:
-                                Theme.of(
-                              context,
-                            )
-                                    .colorScheme
-                                    .onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(
-                    width: 8,
-                  ),
-
                   _StatusBadge(
                     status: status,
                   ),
                 ],
               ),
 
-              const SizedBox(
-                height: 16,
-              ),
+              const SizedBox(height: 20),
 
               // ==================================================
-              // LOCATION
+              // OWNER
               // ==================================================
 
-              Row(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
-                children: [
-                  const Icon(
-                    Icons.location_on_outlined,
-                    size: 20,
+              _section(
+                context,
+                'Owner Details',
+                [
+                  _detail(
+                    'Owner Name',
+                    _value('ownerName'),
                   ),
-
-                  const SizedBox(
-                    width: 8,
+                  _detail(
+                    'Owner ID',
+                    _value('ownerId'),
                   ),
-
-                  Expanded(
-                    child: Text(
-                      address.isEmpty
-                          ? 'Pickup address unavailable'
-                          : address,
-                      maxLines: 2,
-                      overflow:
-                          TextOverflow.ellipsis,
-                    ),
+                  _detail(
+                    'Owner Auth UID',
+                    _value('ownerAuthUid'),
+                  ),
+                  _detail(
+                    'Sender UID',
+                    _value('senderUid'),
+                  ),
+                  _detail(
+                    'Business ID',
+                    _value('businessId'),
                   ),
                 ],
               ),
 
-              const SizedBox(
-                height: 12,
+              // ==================================================
+              // PICKUP LOCATION
+              // ==================================================
+
+              _section(
+                context,
+                'Pickup Location',
+                [
+                  _detail(
+                    'Address',
+                    _value('address'),
+                  ),
+                  if (location != null)
+                    _detail(
+                      'Latitude',
+                      location.latitude
+                          .toStringAsFixed(6),
+                    ),
+                  if (location != null)
+                    _detail(
+                      'Longitude',
+                      location.longitude
+                          .toStringAsFixed(6),
+                    ),
+                ],
               ),
 
               // ==================================================
-              // REQUEST INFO
+              // MAP
               // ==================================================
 
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  Chip(
-                    avatar:
-                        const Icon(
-                      Icons.directions_walk,
-                      size: 18,
-                    ),
-                    label: Text(
-                      searchType.isEmpty
-                          ? 'Walk'
-                          : searchType,
-                    ),
-                  ),
+              if (location != null)
+                WalkRequestMapPreview(
+                  location: location,
+                  onOpenMaps: () {
+                    onOpenMaps(location);
+                  },
+                ),
 
-                  if (radius.isNotEmpty)
-                    Chip(
-                      avatar:
-                          const Icon(
-                        Icons.radar,
-                        size: 18,
-                      ),
-                      label: Text(
-                        '$radius km',
-                      ),
-                    ),
+              // ==================================================
+              // REQUEST DETAILS
+              // ==================================================
+
+              _section(
+                context,
+                'Request Details',
+                [
+                  _detail(
+                    'Request ID',
+                    requestId,
+                  ),
+                  _detail(
+                    'Search Type',
+                    _value('searchType'),
+                  ),
+                  _detail(
+                    'Search Radius',
+                    '${_value('searchRadiusKm')} km',
+                  ),
+                  _detail(
+                    'Location Type',
+                    _value('ownerLocationType'),
+                  ),
+                  _detail(
+                    'Sender Role',
+                    _value('senderRole'),
+                  ),
+                  _detail(
+                    'Created At',
+                    _dateText(data['createdAt']),
+                  ),
+                  _detail(
+                    'Updated At',
+                    _dateText(data['updatedAt']),
+                  ),
+                  _detail(
+                    'Accepted At',
+                    _dateText(data['acceptedAt']),
+                  ),
+                  _detail(
+                    'Accepted By',
+                    _value('acceptedBy'),
+                  ),
                 ],
               ),
 
@@ -215,120 +285,151 @@ class WalkRequestCard extends StatelessWidget {
               // WALKER
               // ==================================================
 
-              if (accepted) ...[
-                const SizedBox(
-                  height: 4,
-                ),
-
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.person_outline,
-                      size: 19,
-                    ),
-
-                    const SizedBox(
-                      width: 7,
-                    ),
-
-                    Expanded(
-                      child: Text(
-                        'Walker: '
-                        '${walkerName.isEmpty ? 'Assigned' : walkerName}',
-                        style:
-                            const TextStyle(
-                          fontWeight:
-                              FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-
-              const SizedBox(
-                height: 14,
-              ),
-
-              // ==================================================
-              // ACTIONS
-              // ==================================================
-
-              Row(
-                children: [
-                  Expanded(
-                    child:
-                        OutlinedButton.icon(
-                      onPressed: onTap,
-                      icon:
-                          const Icon(
-                        Icons
-                            .visibility_outlined,
-                      ),
-                      label:
-                          const Text(
-                        'View Details',
-                      ),
-                    ),
+              _section(
+                context,
+                'Walker Details',
+                [
+                  _detail(
+                    'Walker Name',
+                    _value('walkerName').isEmpty
+                        ? 'Not assigned'
+                        : _value('walkerName'),
                   ),
-
-                  if (pending) ...[
-                    const SizedBox(
-                      width: 8,
-                    ),
-
-                    Expanded(
-                      child:
-                          FilledButton.icon(
-                        onPressed:
-                            onAssign,
-                        icon:
-                            const Icon(
-                          Icons
-                              .person_add_alt_1,
-                        ),
-                        label:
-                            const Text(
-                          'Assign',
-                        ),
-                      ),
-                    ),
-                  ],
+                  _detail(
+                    'Walker ID',
+                    _value('walkerId'),
+                  ),
+                  _detail(
+                    'Walker UID',
+                    _value('walkerUid'),
+                  ),
                 ],
               ),
+
+              const SizedBox(height: 12),
+
+              // ==================================================
+              // ASSIGN
+              // ==================================================
+
+              if (pending)
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: onAssign,
+                    icon: const Icon(
+                      Icons.person_add_alt_1,
+                    ),
+                    label: const Text(
+                      'Assign Walker',
+                    ),
+                  ),
+                ),
 
               // ==================================================
               // CANCEL
               // ==================================================
 
-              if (pending ||
-                  accepted) ...[
-                const SizedBox(
-                  height: 8,
-                ),
-
+              if (canCancel)
                 SizedBox(
-                  width:
-                      double.infinity,
-                  child:
-                      TextButton.icon(
-                    onPressed:
-                        onCancel,
-                    icon:
-                        const Icon(
-                      Icons
-                          .cancel_outlined,
+                  width: double.infinity,
+                  child: TextButton.icon(
+                    onPressed: onCancel,
+                    icon: const Icon(
+                      Icons.cancel_outlined,
                     ),
-                    label:
-                        const Text(
+                    label: const Text(
                       'Cancel Request',
                     ),
                   ),
                 ),
-              ],
+
+              const SizedBox(height: 30),
             ],
           ),
-        ),
+        );
+      },
+    );
+  }
+
+  // ==========================================================
+  // SECTION
+  // ==========================================================
+
+  Widget _section(
+    BuildContext context,
+    String title,
+    List<Widget> children,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.only(
+        bottom: 18,
+      ),
+      child: Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              borderRadius:
+                  BorderRadius.circular(14),
+              border: Border.all(
+                color: Theme.of(context)
+                    .dividerColor,
+              ),
+            ),
+            child: Column(
+              children: children,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================================
+  // DETAIL
+  // ==========================================================
+
+  Widget _detail(
+    String title,
+    String value,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        vertical: 6,
+      ),
+      child: Row(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 135,
+            child: Text(
+              title,
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value.isEmpty
+                  ? 'Not available'
+                  : value,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -338,8 +439,7 @@ class WalkRequestCard extends StatelessWidget {
 // STATUS BADGE
 // ============================================================
 
-class _StatusBadge
-    extends StatelessWidget {
+class _StatusBadge extends StatelessWidget {
   final String status;
 
   const _StatusBadge({
@@ -347,41 +447,33 @@ class _StatusBadge
   });
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    final displayText =
-        status.isEmpty
-            ? 'Unknown'
-            : status[0].toUpperCase() +
-                status.substring(1);
-
-    final colorScheme =
-        Theme.of(context)
-            .colorScheme;
+  Widget build(BuildContext context) {
+    final text = status.isEmpty
+        ? 'Unknown'
+        : status[0].toUpperCase() +
+            status.substring(1);
 
     return Container(
-      padding:
-          const EdgeInsets.symmetric(
+      padding: const EdgeInsets.symmetric(
         horizontal: 10,
         vertical: 6,
       ),
       decoration: BoxDecoration(
         borderRadius:
             BorderRadius.circular(30),
-        color: colorScheme.primary
-            .withValues(
-          alpha: 0.10,
-        ),
+        color: Theme.of(context)
+            .colorScheme
+            .primary
+            .withValues(alpha: 0.10),
       ),
       child: Text(
-        displayText,
+        text,
         style: TextStyle(
           fontSize: 12,
-          fontWeight:
-              FontWeight.w700,
-          color:
-              colorScheme.primary,
+          fontWeight: FontWeight.w700,
+          color: Theme.of(context)
+              .colorScheme
+              .primary,
         ),
       ),
     );
