@@ -99,38 +99,20 @@ Widget build(BuildContext context) {
   // ==========================================================
 
   List<WalkHistoryData> _parseHistory(
-    List<QueryDocumentSnapshot<
-            Map<String, dynamic>>>
-        docs,
-  ) {
-    return docs
-        .map(
-          (doc) =>
-              WalkHistoryData.fromFirestore(
-            doc.id,
-            doc.data(),
-          ),
-        )
-        .toList();
+  List<QueryDocumentSnapshot<
+          Map<String, dynamic>>>
+      docs,
+) {
+  return docs
+      .map(
+        (doc) => WalkHistoryData.fromFirestore(
+          doc.id,
+          doc.data(),
+        ),
+      )
+      .toList();
   }
-
-  List<ActiveWalkData> _parseActive(
-    List<QueryDocumentSnapshot<
-            Map<String, dynamic>>>
-        docs,
-  ) {
-    return docs
-        .map(
-          (doc) =>
-              ActiveWalkData.fromFirestore(
-            doc.id,
-            doc.data(),
-          ),
-        )
-        .where((walk) => walk.isActive)
-        .toList();
-  }
-
+  
   // ==========================================================
   // CONTENT
   // ==========================================================
