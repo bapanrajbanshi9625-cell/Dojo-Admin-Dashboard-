@@ -2,7 +2,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../models/walk_history_models.dart';
-import '../utils/walk_history_helpers.dart';
 import '../widgets/walk_history_widgets.dart';
 
 class WalkHistoryScreen extends StatefulWidget {
