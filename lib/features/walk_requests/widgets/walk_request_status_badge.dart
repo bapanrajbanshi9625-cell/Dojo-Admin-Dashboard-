@@ -30,8 +30,6 @@ class RequestStatusBadge extends StatelessWidget {
         return 'Completed';
 
       case 'cancelled':
-        return 'Cancelled';
-
       case 'canceled':
         return 'Cancelled';
 
@@ -47,11 +45,12 @@ class RequestStatusBadge extends StatelessWidget {
         }
 
         return _normalizedStatus
-            .split('_')
+            .split(RegExp(r'[ _-]+'))
             .map(
               (word) => word.isEmpty
-                  ? ''
-                  : '${word[0].toUpperCase()}${word.substring(1)}',
+                  ? word
+                  : '${word[0].toUpperCase()}'
+                      '${word.substring(1)}',
             )
             .join(' ');
     }
@@ -89,97 +88,86 @@ class RequestStatusBadge extends StatelessWidget {
     }
   }
 
-  Color _foregroundColor(BuildContext context) {
+  Color _color(BuildContext context) {
+    final scheme =
+        Theme.of(context).colorScheme;
+
     switch (_normalizedStatus) {
       case 'searching':
       case 'pending':
-        return Colors.orange.shade800;
+        return scheme.tertiary;
 
       case 'accepted':
-        return Colors.green.shade700;
+      case 'completed':
+        return scheme.primary;
 
       case 'active':
-        return Colors.blue.shade700;
-
-      case 'completed':
-        return Colors.teal.shade700;
+        return scheme.secondary;
 
       case 'cancelled':
       case 'canceled':
       case 'rejected':
-        return Colors.red.shade700;
+        return scheme.error;
 
       case 'expired':
-        return Colors.grey.shade700;
+        return scheme.outline;
 
       default:
-        return Theme.of(context).colorScheme.primary;
-    }
-  }
-
-  Color _backgroundColor(BuildContext context) {
-    switch (_normalizedStatus) {
-      case 'searching':
-      case 'pending':
-        return Colors.orange.withValues(alpha: 0.12);
-
-      case 'accepted':
-        return Colors.green.withValues(alpha: 0.12);
-
-      case 'active':
-        return Colors.blue.withValues(alpha: 0.12);
-
-      case 'completed':
-        return Colors.teal.withValues(alpha: 0.12);
-
-      case 'cancelled':
-      case 'canceled':
-      case 'rejected':
-        return Colors.red.withValues(alpha: 0.12);
-
-      case 'expired':
-        return Colors.grey.withValues(alpha: 0.12);
-
-      default:
-        return Theme.of(context)
-            .colorScheme
-            .primary
-            .withValues(alpha: 0.10);
+        return scheme.outline;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final foreground = _foregroundColor(context);
-    final background = _backgroundColor(context);
+    final color =
+        _color(context);
 
     return Container(
-      padding: const EdgeInsets.symmetric(
+      padding:
+          const EdgeInsets.symmetric(
         horizontal: 10,
-        vertical: 6,
+        vertical: 7,
       ),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: foreground.withValues(alpha: 0.25),
+      decoration:
+          BoxDecoration(
+        color:
+            color.withValues(
+          alpha: 0.12,
+        ),
+        borderRadius:
+            BorderRadius.circular(
+          30,
+        ),
+        border:
+            Border.all(
+          color:
+              color.withValues(
+            alpha: 0.28,
+          ),
         ),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize:
+            MainAxisSize.min,
         children: [
           Icon(
             _icon,
             size: 15,
-            color: foreground,
+            color: color,
           ),
-          const SizedBox(width: 5),
+
+          const SizedBox(
+            width: 5,
+          ),
+
           Text(
             _label,
-            style: TextStyle(
-              color: foreground,
+            style:
+                TextStyle(
+              color: color,
               fontSize: 12,
-              fontWeight: FontWeight.w700,
+              fontWeight:
+                  FontWeight.w700,
             ),
           ),
         ],
