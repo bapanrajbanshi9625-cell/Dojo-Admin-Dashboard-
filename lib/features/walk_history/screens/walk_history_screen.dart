@@ -136,10 +136,9 @@ Widget build(BuildContext context) {
   // ==========================================================
 
   Widget _content(
-    List<WalkHistoryData> histories,
-    List<WalkHistoryData> filtered,
-    List<ActiveWalkData> activeWalks,
-  ) {
+  List<WalkHistoryData> histories,
+  List<WalkHistoryData> filtered,
+) {
     final totalDistance =
         histories.fold<double>(
       0,
