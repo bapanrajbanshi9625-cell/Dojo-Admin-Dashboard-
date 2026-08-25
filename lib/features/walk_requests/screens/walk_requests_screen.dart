@@ -1,8 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-import '../widgets/walk_request_empty_state.dart';
-import '../widgets/walk_request_stat_box.dart';
+import '../widgets/assign_walker_dialog.dart';
+import '../widgets/walk_request_card.dart';
+import '../widgets/walk_request_details_sheet.dart';
 
 class WalkRequestsScreen extends StatefulWidget {
   const WalkRequestsScreen({
@@ -19,10 +22,15 @@ class _WalkRequestsScreenState
   final FirebaseFirestore _firestore =
       FirebaseFirestore.instance;
 
-  final TextEditingController _searchController =
+  final TextEditingController
+      _searchController =
       TextEditingController();
 
   String _filter = 'All';
+
+  // ==========================================================
+  // FIRESTORE STREAM
+  // ==========================================================
 
   Stream<QuerySnapshot<Map<String, dynamic>>>
       get _requestsStream {
@@ -35,27 +43,28 @@ class _WalkRequestsScreenState
         .snapshots();
   }
 
-  String _string(
+  // ==========================================================
+  // STATUS
+  // ==========================================================
+
+  String _status(
     Map<String, dynamic> data,
-    String key,
   ) {
-    final value = data[key];
+    final value = data['status'];
 
     if (value == null) {
       return '';
     }
 
-    return value.toString();
+    return value
+        .toString()
+        .trim()
+        .toLowerCase();
   }
 
-  String _status(
-    Map<String, dynamic> data,
-  ) {
-    return _string(
-      data,
-      'status',
-    ).trim().toLowerCase();
-  }
+  // ==========================================================
+  // FILTER
+  // ==========================================================
 
   bool _matchesFilter(
     Map<String, dynamic> data,
@@ -80,10 +89,26 @@ class _WalkRequestsScreenState
         return status == 'cancelled' ||
             status == 'canceled';
 
-      case 'All':
       default:
         return true;
     }
+  }
+
+  // ==========================================================
+  // SEARCH
+  // ==========================================================
+
+  String _value(
+    Map<String, dynamic> data,
+    String key,
+  ) {
+    final value = data[key];
+
+    if (value == null) {
+      return '';
+    }
+
+    return value.toString();
   }
 
   bool _matchesSearch(
@@ -98,15 +123,15 @@ class _WalkRequestsScreenState
     }
 
     final values = [
-      _string(data, 'requestId'),
-      _string(data, 'ownerName'),
-      _string(data, 'ownerId'),
-      _string(data, 'ownerAuthUid'),
-      _string(data, 'walkerName'),
-      _string(data, 'walkerId'),
-      _string(data, 'walkerUid'),
-      _string(data, 'address'),
-      _string(data, 'searchType'),
+      _value(data, 'requestId'),
+      _value(data, 'ownerName'),
+      _value(data, 'ownerId'),
+      _value(data, 'ownerAuthUid'),
+      _value(data, 'walkerName'),
+      _value(data, 'walkerId'),
+      _value(data, 'walkerUid'),
+      _value(data, 'address'),
+      _value(data, 'searchType'),
     ];
 
     return values.any(
@@ -116,95 +141,193 @@ class _WalkRequestsScreenState
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Walk Requests',
-          style: TextStyle(
-            fontWeight: FontWeight.w700,
+  // ==========================================================
+  // CANCEL REQUEST
+  // ==========================================================
+
+  Future<void> _cancelRequest(
+    String requestId,
+  ) async {
+    if (requestId.trim().isEmpty) {
+      return;
+    }
+
+    final confirmed =
+        await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text(
+            'Cancel Walk Request?',
+          ),
+          content: const Text(
+            'This request will be marked as cancelled.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(
+                  context,
+                  false,
+                );
+              },
+              child: const Text('Keep'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(
+                  context,
+                  true,
+                );
+              },
+              child:
+                  const Text('Cancel Request'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) {
+      return;
+    }
+
+    try {
+      await _firestore
+          .collection('walk_requests')
+          .doc(requestId)
+          .update({
+        'status': 'cancelled',
+        'updatedAt':
+            FieldValue.serverTimestamp(),
+      });
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Walk request cancelled.',
           ),
         ),
-      ),
-      body: StreamBuilder<
-          QuerySnapshot<Map<String, dynamic>>>(
-        stream: _requestsStream,
-        builder: (
-          context,
-          snapshot,
-        ) {
-          if (snapshot.connectionState ==
-              ConnectionState.waiting) {
-            return const Center(
-              child:
-                  CircularProgressIndicator(),
-            );
-          }
+      );
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
 
-          if (snapshot.hasError) {
-            return Center(
-              child: Padding(
-                padding:
-                    const EdgeInsets.all(24),
-                child: Text(
-                  'Unable to load walk requests.\n\n'
-                  '${snapshot.error}',
-                  textAlign:
-                      TextAlign.center,
-                ),
-              ),
-            );
-          }
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        SnackBar(
+          content: Text(
+            'Unable to cancel request: $e',
+          ),
+        ),
+      );
+    }
+  }
 
-          final docs =
-              snapshot.data?.docs ?? [];
+  // ==========================================================
+  // ASSIGN WALKER
+  // ==========================================================
 
-          final filteredDocs =
-              docs.where((doc) {
-            final data = doc.data();
-
-            return _matchesFilter(data) &&
-                _matchesSearch(data);
-          }).toList();
-
-          return Column(
-            children: [
-              _buildTopSection(docs),
-
-              Expanded(
-                child:
-                    filteredDocs.isEmpty
-                        ? const WalkRequestEmptyState()
-                        : ListView.builder(
-                            padding:
-                                const EdgeInsets.all(
-                              20,
-                            ),
-                            itemCount:
-                                filteredDocs.length,
-                            itemBuilder:
-                                (
-                              context,
-                              index,
-                            ) {
-                              final doc =
-                                  filteredDocs[
-                                      index];
-
-                              return _buildRequestCard(
-                                doc.id,
-                                doc.data(),
-                              );
-                            },
-                          ),
-              ),
-            ],
-          );
-        },
-      ),
+  Future<void> _assignWalker(
+    String requestId,
+    Map<String, dynamic> requestData,
+  ) async {
+    await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AssignWalkerDialog(
+          requestId: requestId,
+          requestData: requestData,
+        );
+      },
     );
   }
+
+  // ==========================================================
+  // OPEN MAPS
+  // ==========================================================
+
+  Future<void> _openMaps(
+    LatLng location,
+  ) async {
+    final uri = Uri.parse(
+      'https://www.google.com/maps/search/'
+      '?api=1'
+      '&query=${location.latitude},'
+      '${location.longitude}',
+    );
+
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(
+          uri,
+          mode:
+              LaunchMode.externalApplication,
+        );
+      }
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        SnackBar(
+          content: Text(
+            'Unable to open Maps: $e',
+          ),
+        ),
+      );
+    }
+  }
+
+  // ==========================================================
+  // DETAILS
+  // ==========================================================
+
+  void _showDetails(
+    String requestId,
+    Map<String, dynamic> data,
+  ) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor:
+          Colors.transparent,
+      builder: (context) {
+        return WalkRequestDetailsSheet(
+          requestId: requestId,
+          data: data,
+          onAssign: () {
+            Navigator.pop(context);
+
+            _assignWalker(
+              requestId,
+              data,
+            );
+          },
+          onCancel: () {
+            Navigator.pop(context);
+
+            _cancelRequest(
+              requestId,
+            );
+          },
+          onOpenMaps: _openMaps,
+        );
+      },
+    );
+  }
+
+  // ==========================================================
+  // TOP SECTION
+  // ==========================================================
 
   Widget _buildTopSection(
     List<QueryDocumentSnapshot<
@@ -216,9 +339,8 @@ class _WalkRequestsScreenState
     int cancelled = 0;
 
     for (final doc in docs) {
-      final status = _status(
-        doc.data(),
-      );
+      final status =
+          _status(doc.data());
 
       if (status == 'searching' ||
           status == 'pending') {
@@ -236,8 +358,7 @@ class _WalkRequestsScreenState
     }
 
     return Padding(
-      padding:
-          const EdgeInsets.fromLTRB(
+      padding: const EdgeInsets.fromLTRB(
         20,
         20,
         20,
@@ -245,11 +366,14 @@ class _WalkRequestsScreenState
       ),
       child: Column(
         children: [
+          // ====================================================
+          // STATS
+          // ====================================================
+
           Row(
             children: [
               Expanded(
-                child:
-                    WalkRequestStatBox(
+                child: _StatBox(
                   title: 'Pending',
                   value:
                       pending.toString(),
@@ -259,30 +383,32 @@ class _WalkRequestsScreenState
               ),
               const SizedBox(width: 12),
               Expanded(
-                child:
-                    WalkRequestStatBox(
+                child: _StatBox(
                   title: 'Accepted',
                   value:
                       accepted.toString(),
-                  icon: Icons
-                      .check_circle_outline,
+                  icon:
+                      Icons.check_circle_outline,
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child:
-                    WalkRequestStatBox(
+                child: _StatBox(
                   title: 'Cancelled',
                   value:
                       cancelled.toString(),
-                  icon: Icons
-                      .cancel_outlined,
+                  icon:
+                      Icons.cancel_outlined,
                 ),
               ),
             ],
           ),
 
           const SizedBox(height: 16),
+
+          // ====================================================
+          // SEARCH
+          // ====================================================
 
           TextField(
             controller:
@@ -325,6 +451,10 @@ class _WalkRequestsScreenState
 
           const SizedBox(height: 14),
 
+          // ====================================================
+          // FILTERS
+          // ====================================================
+
           SingleChildScrollView(
             scrollDirection:
                 Axis.horizontal,
@@ -336,28 +466,31 @@ class _WalkRequestsScreenState
                 'Active',
                 'Completed',
                 'Cancelled',
-              ].map((filter) {
-                final selected =
-                    _filter == filter;
+              ].map(
+                (filter) {
+                  final selected =
+                      _filter == filter;
 
-                return Padding(
-                  padding:
-                      const EdgeInsets.only(
-                    right: 8,
-                  ),
-                  child: ChoiceChip(
-                    label:
-                        Text(filter),
-                    selected:
-                        selected,
-                    onSelected: (_) {
-                      setState(() {
-                        _filter = filter;
-                      });
-                    },
-                  ),
-                );
-              }).toList(),
+                  return Padding(
+                    padding:
+                        const EdgeInsets.only(
+                      right: 8,
+                    ),
+                    child: ChoiceChip(
+                      label:
+                          Text(filter),
+                      selected:
+                          selected,
+                      onSelected: (_) {
+                        setState(() {
+                          _filter =
+                              filter;
+                        });
+                      },
+                    ),
+                  );
+                },
+              ).toList(),
             ),
           ),
         ],
@@ -365,81 +498,178 @@ class _WalkRequestsScreenState
     );
   }
 
-  Widget _buildRequestCard(
-    String requestId,
-    Map<String, dynamic> data,
-  ) {
-    final status = _status(data);
+  // ==========================================================
+  // EMPTY
+  // ==========================================================
 
-    final ownerName =
-        _string(data, 'ownerName');
-
-    final address =
-        _string(data, 'address');
-
-    final walkerName =
-        _string(data, 'walkerName');
-
-    return Card(
-      margin:
-          const EdgeInsets.only(
-        bottom: 14,
+  Widget _buildEmptyState() {
+    return const Center(
+      child: Column(
+        mainAxisSize:
+            MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.inbox_outlined,
+            size: 64,
+          ),
+          SizedBox(height: 12),
+          Text(
+            'No walk requests found',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight:
+                  FontWeight.w600,
+            ),
+          ),
+        ],
       ),
-      child: ListTile(
-        contentPadding:
-            const EdgeInsets.all(16),
-        leading: const CircleAvatar(
-          child: Icon(Icons.pets),
-        ),
-        title: Text(
-          ownerName.isEmpty
-              ? 'Unknown Owner'
-              : ownerName,
-          style: const TextStyle(
+    );
+  }
+
+  // ==========================================================
+  // BUILD
+  // ==========================================================
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'Walk Requests',
+          style: TextStyle(
             fontWeight:
                 FontWeight.w700,
           ),
         ),
-        subtitle: Padding(
-          padding:
-              const EdgeInsets.only(
-            top: 8,
-          ),
-          child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+      ),
+
+      body: StreamBuilder<
+          QuerySnapshot<
+              Map<String, dynamic>>>(
+        stream: _requestsStream,
+        builder: (
+          context,
+          snapshot,
+        ) {
+          if (snapshot.connectionState ==
+              ConnectionState.waiting) {
+            return const Center(
+              child:
+                  CircularProgressIndicator(),
+            );
+          }
+
+          if (snapshot.hasError) {
+            return Center(
+              child: Padding(
+                padding:
+                    const EdgeInsets.all(24),
+                child: Text(
+                  'Unable to load walk requests.\n\n'
+                  '${snapshot.error}',
+                  textAlign:
+                      TextAlign.center,
+                ),
+              ),
+            );
+          }
+
+          final docs =
+              snapshot.data?.docs ?? [];
+
+          final filteredDocs =
+              docs.where((doc) {
+            final data =
+                doc.data();
+
+            return _matchesFilter(
+                  data,
+                ) &&
+                _matchesSearch(
+                  data,
+                );
+          }).toList();
+
+          return Column(
             children: [
-              Text(
-                'Request: $requestId',
+              _buildTopSection(
+                docs,
               ),
-              const SizedBox(
-                height: 4,
+
+              Expanded(
+                child:
+                    filteredDocs.isEmpty
+                        ? _buildEmptyState()
+                        : ListView.builder(
+                            padding:
+                                const EdgeInsets.all(
+                              20,
+                            ),
+                            itemCount:
+                                filteredDocs
+                                    .length,
+                            itemBuilder:
+                                (
+                              context,
+                              index,
+                            ) {
+                              final doc =
+                                  filteredDocs[
+                                      index];
+
+                              final data =
+                                  doc.data();
+
+                              final status =
+                                  _status(
+                                data,
+                              );
+
+                              final pending =
+                                  status ==
+                                          'searching' ||
+                                      status ==
+                                          'pending';
+
+                              return WalkRequestCard(
+                                requestId:
+                                    doc.id,
+                                data: data,
+                                onTap: () {
+                                  _showDetails(
+                                    doc.id,
+                                    data,
+                                  );
+                                },
+                                onAssign:
+                                    pending
+                                        ? () {
+                                            _assignWalker(
+                                              doc.id,
+                                              data,
+                                            );
+                                          }
+                                        : null,
+                                onCancel:
+                                    () {
+                                  _cancelRequest(
+                                    doc.id,
+                                  );
+                                },
+                              );
+                            },
+                          ),
               ),
-              Text(
-                address.isEmpty
-                    ? 'Pickup address unavailable'
-                    : address,
-                maxLines: 2,
-                overflow:
-                    TextOverflow.ellipsis,
-              ),
-              if (walkerName.isNotEmpty) ...[
-                const SizedBox(
-                  height: 4,
-                ),
-                Text(
-                  'Walker: $walkerName',
-                ),
-              ],
             ],
-          ),
-        ),
-        trailing: _StatusBadge(
-          status: status,
-        ),
+          );
+        },
       ),
     );
   }
+
+  // ==========================================================
+  // DISPOSE
+  // ==========================================================
 
   @override
   void dispose() {
@@ -448,49 +678,66 @@ class _WalkRequestsScreenState
   }
 }
 
-class _StatusBadge
-    extends StatelessWidget {
-  final String status;
+// ============================================================
+// STAT BOX
+// ============================================================
 
-  const _StatusBadge({
-    required this.status,
+class _StatBox extends StatelessWidget {
+  final String title;
+  final String value;
+  final IconData icon;
+
+  const _StatBox({
+    required this.title,
+    required this.value,
+    required this.icon,
   });
 
   @override
   Widget build(
     BuildContext context,
   ) {
-    final text = status.isEmpty
-        ? 'Unknown'
-        : status[0].toUpperCase() +
-            status.substring(1);
-
     return Container(
       padding:
-          const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 6,
-      ),
+          const EdgeInsets.all(16),
       decoration: BoxDecoration(
         borderRadius:
-            BorderRadius.circular(30),
-        color: Theme.of(context)
-            .colorScheme
-            .primary
-            .withValues(
-          alpha: 0.10,
+            BorderRadius.circular(16),
+        border: Border.all(
+          color:
+              Theme.of(context)
+                  .dividerColor,
         ),
       ),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight:
-              FontWeight.w700,
-          color: Theme.of(context)
-              .colorScheme
-              .primary,
-        ),
+      child: Row(
+        children: [
+          Icon(icon),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style:
+                      const TextStyle(
+                    fontSize: 12,
+                  ),
+                ),
+                Text(
+                  value,
+                  style:
+                      const TextStyle(
+                    fontSize: 22,
+                    fontWeight:
+                        FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
