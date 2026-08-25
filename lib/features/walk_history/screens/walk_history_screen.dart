@@ -29,31 +29,21 @@ class _WalkHistoryScreenState
   // ==========================================================
 
   Stream<QuerySnapshot<Map<String, dynamic>>>
-      get historyStream {
-    return _firestore
-        .collection('walkHistory')
-        .snapshots();
-  }
+    get historyStream {
+  return _firestore
+      .collection('walk_history')
+      .where(
+        'status',
+        isEqualTo: 'Completed',
+      )
+      .snapshots();
+}
 
-  Stream<QuerySnapshot<Map<String, dynamic>>>
-      get activeWalkStream {
-    return _firestore
-        .collection('activeWalk')
-        .snapshots();
-  }
-
-  Stream<QuerySnapshot<Map<String, dynamic>>>
-      get liveSessionStream {
-    return _firestore
-        .collection('liveWalkSessions')
-        .snapshots();
-  }
-
-  @override
-  void dispose() {
-    searchController.dispose();
-    super.dispose();
-  }
+@override
+void dispose() {
+  searchController.dispose();
+  super.dispose();
+}
 
   // ==========================================================
   // BUILD
