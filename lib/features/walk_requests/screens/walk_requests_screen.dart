@@ -1,9 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:url_launcher/url_launcher.dart';
 
-import '../widgets/assign_walker_dialog.dart';
+import '../services/walk_requests_service.dart';
 import '../widgets/walk_request_card.dart';
 import '../widgets/walk_request_details_sheet.dart';
 
@@ -19,59 +18,74 @@ class WalkRequestsScreen extends StatefulWidget {
 
 class _WalkRequestsScreenState
     extends State<WalkRequestsScreen> {
-  final FirebaseFirestore _firestore =
-      FirebaseFirestore.instance;
+  // ==========================================================
+  // SERVICE
+  // ==========================================================
+
+  late final WalkRequestsService _service;
+
+  // ==========================================================
+  // CONTROLLERS
+  // ==========================================================
 
   final TextEditingController
       _searchController =
       TextEditingController();
 
+  // ==========================================================
+  // FILTER
+  // ==========================================================
+
   String _filter = 'All';
 
   // ==========================================================
-  // FIRESTORE STREAM
+  // INIT
   // ==========================================================
 
-  Stream<QuerySnapshot<Map<String, dynamic>>>
-      get _requestsStream {
-    return _firestore
-        .collection('walk_requests')
-        .orderBy(
-          'createdAt',
-          descending: true,
-        )
-        .snapshots();
+  @override
+  void initState() {
+    super.initState();
+
+    _service =
+        WalkRequestsService();
   }
 
   // ==========================================================
-  // STATUS
+  // HELPERS
   // ==========================================================
 
-  String _status(
+  String _string(
     Map<String, dynamic> data,
+    String key,
   ) {
-    final value = data['status'];
+    final value = data[key];
 
     if (value == null) {
       return '';
     }
 
-    return value
-        .toString()
-        .trim()
-        .toLowerCase();
+    return value.toString();
   }
 
-  // ==========================================================
-  // FILTER
-  // ==========================================================
+  String _status(
+    Map<String, dynamic> data,
+  ) {
+    return _string(
+      data,
+      'status',
+    ).trim().toLowerCase();
+  }
 
   bool _matchesFilter(
     Map<String, dynamic> data,
   ) {
-    final status = _status(data);
+    final status =
+        _status(data);
 
     switch (_filter) {
+      case 'All':
+        return true;
+
       case 'Pending':
         return status == 'searching' ||
             status == 'pending';
@@ -94,64 +108,45 @@ class _WalkRequestsScreenState
     }
   }
 
-  // ==========================================================
-  // SEARCH
-  // ==========================================================
-
-  String _value(
-    Map<String, dynamic> data,
-    String key,
-  ) {
-    final value = data[key];
-
-    if (value == null) {
-      return '';
-    }
-
-    return value.toString();
-  }
-
   bool _matchesSearch(
     Map<String, dynamic> data,
   ) {
-    final query = _searchController.text
-        .trim()
-        .toLowerCase();
+    final query =
+        _searchController.text
+            .trim()
+            .toLowerCase();
 
     if (query.isEmpty) {
       return true;
     }
 
     final values = [
-      _value(data, 'requestId'),
-      _value(data, 'ownerName'),
-      _value(data, 'ownerId'),
-      _value(data, 'ownerAuthUid'),
-      _value(data, 'walkerName'),
-      _value(data, 'walkerId'),
-      _value(data, 'walkerUid'),
-      _value(data, 'address'),
-      _value(data, 'searchType'),
+      _string(data, 'requestId'),
+      _string(data, 'ownerName'),
+      _string(data, 'ownerId'),
+      _string(data, 'ownerAuthUid'),
+      _string(data, 'walkerName'),
+      _string(data, 'walkerId'),
+      _string(data, 'walkerUid'),
+      _string(data, 'address'),
+      _string(data, 'searchType'),
     ];
 
     return values.any(
-      (value) => value
-          .toLowerCase()
-          .contains(query),
+      (value) =>
+          value.toLowerCase().contains(
+                query,
+              ),
     );
   }
 
   // ==========================================================
-  // CANCEL REQUEST
+  // CANCEL
   // ==========================================================
 
   Future<void> _cancelRequest(
     String requestId,
   ) async {
-    if (requestId.trim().isEmpty) {
-      return;
-    }
-
     final confirmed =
         await showDialog<bool>(
       context: context,
@@ -171,7 +166,9 @@ class _WalkRequestsScreenState
                   false,
                 );
               },
-              child: const Text('Keep'),
+              child: const Text(
+                'Keep',
+              ),
             ),
             FilledButton(
               onPressed: () {
@@ -180,8 +177,9 @@ class _WalkRequestsScreenState
                   true,
                 );
               },
-              child:
-                  const Text('Cancel Request'),
+              child: const Text(
+                'Cancel Request',
+              ),
             ),
           ],
         );
@@ -193,14 +191,9 @@ class _WalkRequestsScreenState
     }
 
     try {
-      await _firestore
-          .collection('walk_requests')
-          .doc(requestId)
-          .update({
-        'status': 'cancelled',
-        'updatedAt':
-            FieldValue.serverTimestamp(),
-      });
+      await _service.cancelRequest(
+        requestId: requestId,
+      );
 
       if (!mounted) {
         return;
@@ -238,39 +231,25 @@ class _WalkRequestsScreenState
     String requestId,
     Map<String, dynamic> requestData,
   ) async {
-    await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AssignWalkerDialog(
-          requestId: requestId,
-          requestData: requestData,
-        );
-      },
-    );
-  }
-
-  // ==========================================================
-  // OPEN MAPS
-  // ==========================================================
-
-  Future<void> _openMaps(
-    LatLng location,
-  ) async {
-    final uri = Uri.parse(
-      'https://www.google.com/maps/search/'
-      '?api=1'
-      '&query=${location.latitude},'
-      '${location.longitude}',
-    );
-
     try {
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(
-          uri,
-          mode:
-              LaunchMode.externalApplication,
-        );
+      final walkers =
+          await _service.getWalkers();
+
+      if (!mounted) {
+        return;
       }
+
+      await showDialog<void>(
+        context: context,
+        builder: (context) {
+          return _AssignWalkerDialog(
+            requestId: requestId,
+            requestData: requestData,
+            walkers: walkers,
+            service: _service,
+          );
+        },
+      );
     } catch (e) {
       if (!mounted) {
         return;
@@ -280,7 +259,7 @@ class _WalkRequestsScreenState
           .showSnackBar(
         SnackBar(
           content: Text(
-            'Unable to open Maps: $e',
+            'Unable to load walkers: $e',
           ),
         ),
       );
@@ -319,210 +298,8 @@ class _WalkRequestsScreenState
               requestId,
             );
           },
-          onOpenMaps: _openMaps,
         );
       },
-    );
-  }
-
-  // ==========================================================
-  // TOP SECTION
-  // ==========================================================
-
-  Widget _buildTopSection(
-    List<QueryDocumentSnapshot<
-            Map<String, dynamic>>>
-        docs,
-  ) {
-    int pending = 0;
-    int accepted = 0;
-    int cancelled = 0;
-
-    for (final doc in docs) {
-      final status =
-          _status(doc.data());
-
-      if (status == 'searching' ||
-          status == 'pending') {
-        pending++;
-      }
-
-      if (status == 'accepted') {
-        accepted++;
-      }
-
-      if (status == 'cancelled' ||
-          status == 'canceled') {
-        cancelled++;
-      }
-    }
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        20,
-        20,
-        20,
-        10,
-      ),
-      child: Column(
-        children: [
-          // ====================================================
-          // STATS
-          // ====================================================
-
-          Row(
-            children: [
-              Expanded(
-                child: _StatBox(
-                  title: 'Pending',
-                  value:
-                      pending.toString(),
-                  icon:
-                      Icons.pending_actions,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _StatBox(
-                  title: 'Accepted',
-                  value:
-                      accepted.toString(),
-                  icon:
-                      Icons.check_circle_outline,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _StatBox(
-                  title: 'Cancelled',
-                  value:
-                      cancelled.toString(),
-                  icon:
-                      Icons.cancel_outlined,
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 16),
-
-          // ====================================================
-          // SEARCH
-          // ====================================================
-
-          TextField(
-            controller:
-                _searchController,
-            onChanged: (_) {
-              setState(() {});
-            },
-            decoration:
-                InputDecoration(
-              hintText:
-                  'Search owner, request ID, walker...',
-              prefixIcon:
-                  const Icon(Icons.search),
-              suffixIcon:
-                  _searchController
-                          .text
-                          .isEmpty
-                      ? null
-                      : IconButton(
-                          onPressed: () {
-                            _searchController
-                                .clear();
-
-                            setState(() {});
-                          },
-                          icon:
-                              const Icon(
-                            Icons.clear,
-                          ),
-                        ),
-              border:
-                  OutlineInputBorder(
-                borderRadius:
-                    BorderRadius.circular(
-                  14,
-                ),
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 14),
-
-          // ====================================================
-          // FILTERS
-          // ====================================================
-
-          SingleChildScrollView(
-            scrollDirection:
-                Axis.horizontal,
-            child: Row(
-              children: [
-                'All',
-                'Pending',
-                'Accepted',
-                'Active',
-                'Completed',
-                'Cancelled',
-              ].map(
-                (filter) {
-                  final selected =
-                      _filter == filter;
-
-                  return Padding(
-                    padding:
-                        const EdgeInsets.only(
-                      right: 8,
-                    ),
-                    child: ChoiceChip(
-                      label:
-                          Text(filter),
-                      selected:
-                          selected,
-                      onSelected: (_) {
-                        setState(() {
-                          _filter =
-                              filter;
-                        });
-                      },
-                    ),
-                  );
-                },
-              ).toList(),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ==========================================================
-  // EMPTY
-  // ==========================================================
-
-  Widget _buildEmptyState() {
-    return const Center(
-      child: Column(
-        mainAxisSize:
-            MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.inbox_outlined,
-            size: 64,
-          ),
-          SizedBox(height: 12),
-          Text(
-            'No walk requests found',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight:
-                  FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -531,7 +308,9 @@ class _WalkRequestsScreenState
   // ==========================================================
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -542,15 +321,19 @@ class _WalkRequestsScreenState
           ),
         ),
       ),
-
       body: StreamBuilder<
           QuerySnapshot<
               Map<String, dynamic>>>(
-        stream: _requestsStream,
+        stream:
+            _service.watchWalkRequests(),
         builder: (
           context,
           snapshot,
         ) {
+          // ==================================================
+          // LOADING
+          // ==================================================
+
           if (snapshot.connectionState ==
               ConnectionState.waiting) {
             return const Center(
@@ -559,36 +342,73 @@ class _WalkRequestsScreenState
             );
           }
 
+          // ==================================================
+          // ERROR
+          // ==================================================
+
           if (snapshot.hasError) {
             return Center(
               child: Padding(
                 padding:
-                    const EdgeInsets.all(24),
-                child: Text(
-                  'Unable to load walk requests.\n\n'
-                  '${snapshot.error}',
-                  textAlign:
-                      TextAlign.center,
+                    const EdgeInsets.all(
+                  24,
+                ),
+                child: Column(
+                  mainAxisSize:
+                      MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.error_outline,
+                      size: 56,
+                    ),
+                    const SizedBox(
+                      height: 12,
+                    ),
+                    const Text(
+                      'Unable to load walk requests.',
+                      textAlign:
+                          TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight:
+                            FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(
+                      height: 8,
+                    ),
+                    Text(
+                      '${snapshot.error}',
+                      textAlign:
+                          TextAlign.center,
+                    ),
+                  ],
                 ),
               ),
             );
           }
 
+          // ==================================================
+          // DOCUMENTS
+          // ==================================================
+
           final docs =
               snapshot.data?.docs ?? [];
 
           final filteredDocs =
-              docs.where((doc) {
-            final data =
-                doc.data();
+              docs.where(
+            (doc) {
+              final data =
+                  doc.data();
 
-            return _matchesFilter(
-                  data,
-                ) &&
-                _matchesSearch(
-                  data,
-                );
-          }).toList();
+              return _matchesFilter(
+                    data,
+                  ) &&
+                  _matchesSearch(
+                    data,
+                  );
+            },
+          ).toList();
 
           return Column(
             children: [
@@ -620,36 +440,25 @@ class _WalkRequestsScreenState
                               final data =
                                   doc.data();
 
-                              final status =
-                                  _status(
-                                data,
-                              );
-
-                              final pending =
-                                  status ==
-                                          'searching' ||
-                                      status ==
-                                          'pending';
-
                               return WalkRequestCard(
                                 requestId:
                                     doc.id,
-                                data: data,
-                                onTap: () {
+                                data:
+                                    data,
+                                onTap:
+                                    () {
                                   _showDetails(
                                     doc.id,
                                     data,
                                   );
                                 },
                                 onAssign:
-                                    pending
-                                        ? () {
-                                            _assignWalker(
-                                              doc.id,
-                                              data,
-                                            );
-                                          }
-                                        : null,
+                                    () {
+                                  _assignWalker(
+                                    doc.id,
+                                    data,
+                                  );
+                                },
                                 onCancel:
                                     () {
                                   _cancelRequest(
@@ -663,6 +472,229 @@ class _WalkRequestsScreenState
             ],
           );
         },
+      ),
+    );
+  }
+
+  // ==========================================================
+  // TOP SECTION
+  // ==========================================================
+
+  Widget _buildTopSection(
+    List<
+            QueryDocumentSnapshot<
+                Map<String, dynamic>>>
+        docs,
+  ) {
+    int pending = 0;
+    int accepted = 0;
+    int cancelled = 0;
+
+    for (final doc in docs) {
+      final status =
+          _status(
+        doc.data(),
+      );
+
+      if (status == 'searching' ||
+          status == 'pending') {
+        pending++;
+      }
+
+      if (status == 'accepted') {
+        accepted++;
+      }
+
+      if (status == 'cancelled' ||
+          status == 'canceled') {
+        cancelled++;
+      }
+    }
+
+    return Container(
+      width: double.infinity,
+      padding:
+          const EdgeInsets.fromLTRB(
+        20,
+        20,
+        20,
+        10,
+      ),
+      child: Column(
+        children: [
+          // ==================================================
+          // STATS
+          // ==================================================
+
+          Row(
+            children: [
+              Expanded(
+                child: _StatBox(
+                  title: 'Pending',
+                  value:
+                      pending.toString(),
+                  icon:
+                      Icons.pending_actions,
+                ),
+              ),
+              const SizedBox(
+                width: 12,
+              ),
+              Expanded(
+                child: _StatBox(
+                  title: 'Accepted',
+                  value:
+                      accepted.toString(),
+                  icon:
+                      Icons.check_circle_outline,
+                ),
+              ),
+              const SizedBox(
+                width: 12,
+              ),
+              Expanded(
+                child: _StatBox(
+                  title: 'Cancelled',
+                  value:
+                      cancelled.toString(),
+                  icon:
+                      Icons.cancel_outlined,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(
+            height: 16,
+          ),
+
+          // ==================================================
+          // SEARCH
+          // ==================================================
+
+          TextField(
+            controller:
+                _searchController,
+            onChanged: (_) {
+              setState(() {});
+            },
+            decoration:
+                InputDecoration(
+              hintText:
+                  'Search owner, request ID, walker...',
+              prefixIcon:
+                  const Icon(
+                Icons.search,
+              ),
+              suffixIcon:
+                  _searchController
+                          .text
+                          .isEmpty
+                      ? null
+                      : IconButton(
+                          onPressed: () {
+                            _searchController
+                                .clear();
+
+                            setState(() {});
+                          },
+                          icon:
+                              const Icon(
+                            Icons.clear,
+                          ),
+                        ),
+              border:
+                  OutlineInputBorder(
+                borderRadius:
+                    BorderRadius.circular(
+                  14,
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(
+            height: 14,
+          ),
+
+          // ==================================================
+          // FILTER
+          // ==================================================
+
+          SingleChildScrollView(
+            scrollDirection:
+                Axis.horizontal,
+            child: Row(
+              children: [
+                'All',
+                'Pending',
+                'Accepted',
+                'Active',
+                'Completed',
+                'Cancelled',
+              ].map(
+                (filter) {
+                  final selected =
+                      _filter ==
+                          filter;
+
+                  return Padding(
+                    padding:
+                        const EdgeInsets.only(
+                      right: 8,
+                    ),
+                    child:
+                        ChoiceChip(
+                      label:
+                          Text(
+                        filter,
+                      ),
+                      selected:
+                          selected,
+                      onSelected:
+                          (_) {
+                        setState(() {
+                          _filter =
+                              filter;
+                        });
+                      },
+                    ),
+                  );
+                },
+              ).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================================
+  // EMPTY STATE
+  // ==========================================================
+
+  Widget _buildEmptyState() {
+    return const Center(
+      child: Column(
+        mainAxisSize:
+            MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.inbox_outlined,
+            size: 64,
+          ),
+          SizedBox(
+            height: 12,
+          ),
+          Text(
+            'No walk requests found',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight:
+                  FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -682,7 +714,8 @@ class _WalkRequestsScreenState
 // STAT BOX
 // ============================================================
 
-class _StatBox extends StatelessWidget {
+class _StatBox
+    extends StatelessWidget {
   final String title;
   final String value;
   final IconData icon;
@@ -700,9 +733,12 @@ class _StatBox extends StatelessWidget {
     return Container(
       padding:
           const EdgeInsets.all(16),
-      decoration: BoxDecoration(
+      decoration:
+          BoxDecoration(
         borderRadius:
-            BorderRadius.circular(16),
+            BorderRadius.circular(
+          16,
+        ),
         border: Border.all(
           color:
               Theme.of(context)
@@ -712,11 +748,14 @@ class _StatBox extends StatelessWidget {
       child: Row(
         children: [
           Icon(icon),
-          const SizedBox(width: 10),
+          const SizedBox(
+            width: 10,
+          ),
           Expanded(
             child: Column(
               crossAxisAlignment:
-                  CrossAxisAlignment.start,
+                  CrossAxisAlignment
+                      .start,
               children: [
                 Text(
                   title,
@@ -739,6 +778,353 @@ class _StatBox extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ============================================================
+// ASSIGN WALKER DIALOG
+// ============================================================
+
+class _AssignWalkerDialog
+    extends StatefulWidget {
+  final String requestId;
+  final Map<String, dynamic>
+      requestData;
+
+  final List<
+          QueryDocumentSnapshot<
+              Map<String, dynamic>>>
+      walkers;
+
+  final WalkRequestsService service;
+
+  const _AssignWalkerDialog({
+    required this.requestId,
+    required this.requestData,
+    required this.walkers,
+    required this.service,
+  });
+
+  @override
+  State<_AssignWalkerDialog>
+      createState() =>
+          _AssignWalkerDialogState();
+}
+
+class _AssignWalkerDialogState
+    extends State<_AssignWalkerDialog> {
+  String? selectedDocId;
+
+  bool saving = false;
+
+  String _value(
+    Map<String, dynamic> data,
+    String key,
+  ) {
+    final value =
+        data[key];
+
+    return value == null
+        ? ''
+        : value.toString();
+  }
+
+  // ==========================================================
+  // ASSIGN
+  // ==========================================================
+
+  Future<void> _assign() async {
+    if (selectedDocId == null) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Please select a walker.',
+          ),
+        ),
+      );
+
+      return;
+    }
+
+    final walker =
+        widget.walkers.firstWhere(
+      (doc) =>
+          doc.id ==
+          selectedDocId,
+    );
+
+    final data =
+        walker.data();
+
+    final walkerUid =
+        _value(
+          data,
+          'authUid',
+        ).isNotEmpty
+            ? _value(
+                data,
+                'authUid',
+              )
+            : _value(
+                data,
+                'walkerUid',
+              );
+
+    final walkerId =
+        _value(
+      data,
+      'walkerId',
+    );
+
+    final walkerName =
+        _value(
+          data,
+          'name',
+        ).isNotEmpty
+            ? _value(
+                data,
+                'name',
+              )
+            : _value(
+                data,
+                'walkerName',
+              );
+
+    if (walkerUid.isEmpty) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Selected walker has no valid UID.',
+          ),
+        ),
+      );
+
+      return;
+    }
+
+    if (walkerId.isEmpty) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Selected walker has no Walker ID.',
+          ),
+        ),
+      );
+
+      return;
+    }
+
+    setState(() {
+      saving = true;
+    });
+
+    try {
+      await widget.service
+          .assignWalker(
+        requestId:
+            widget.requestId,
+        walkerUid:
+            walkerUid,
+        walkerId:
+            walkerId,
+        walkerName:
+            walkerName,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      Navigator.pop(context);
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Walker assigned successfully.',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        saving = false;
+      });
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        SnackBar(
+          content: Text(
+            'Failed to assign walker: $e',
+          ),
+        ),
+      );
+    }
+  }
+
+  // ==========================================================
+  // BUILD
+  // ==========================================================
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    return AlertDialog(
+      title: const Text(
+        'Assign Walker',
+      ),
+      content: SizedBox(
+        width: 500,
+        child:
+            widget.walkers.isEmpty
+                ? const Padding(
+                    padding:
+                        EdgeInsets.all(
+                      20,
+                    ),
+                    child: Text(
+                      'No walkers found.',
+                    ),
+                  )
+                : ListView.builder(
+                    shrinkWrap:
+                        true,
+                    itemCount:
+                        widget.walkers
+                            .length,
+                    itemBuilder:
+                        (
+                      context,
+                      index,
+                    ) {
+                      final doc =
+                          widget.walkers[
+                              index];
+
+                      final data =
+                          doc.data();
+
+                      final name =
+                          _value(
+                            data,
+                            'name',
+                          ).isNotEmpty
+                              ? _value(
+                                  data,
+                                  'name',
+                                )
+                              : _value(
+                                  data,
+                                  'walkerName',
+                                );
+
+                      final walkerId =
+                          _value(
+                        data,
+                        'walkerId',
+                      );
+
+                      final selected =
+                          selectedDocId ==
+                              doc.id;
+
+                      return Card(
+                        child:
+                            ListTile(
+                          leading:
+                              const CircleAvatar(
+                            child:
+                                Icon(
+                              Icons.person,
+                            ),
+                          ),
+                          title:
+                              Text(
+                            name.isEmpty
+                                ? 'Walker'
+                                : name,
+                          ),
+                          subtitle:
+                              Text(
+                            walkerId
+                                    .isEmpty
+                                ? doc.id
+                                : walkerId,
+                          ),
+                          trailing:
+                              Radio<
+                                  String>(
+                            value:
+                                doc.id,
+                            groupValue:
+                                selectedDocId,
+                            onChanged:
+                                (value) {
+                              setState(
+                                () {
+                                  selectedDocId =
+                                      value;
+                                },
+                              );
+                            },
+                          ),
+                          selected:
+                              selected,
+                          onTap: () {
+                            setState(
+                              () {
+                                selectedDocId =
+                                    doc.id;
+                              },
+                            );
+                          },
+                        ),
+                      );
+                    },
+                  ),
+      ),
+      actions: [
+        TextButton(
+          onPressed:
+              saving
+                  ? null
+                  : () {
+                      Navigator.pop(
+                        context,
+                      );
+                    },
+          child:
+              const Text(
+            'Cancel',
+          ),
+        ),
+        FilledButton(
+          onPressed:
+              saving
+                  ? null
+                  : _assign,
+          child: saving
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child:
+                      CircularProgressIndicator(
+                    strokeWidth: 2,
+                  ),
+                )
+              : const Text(
+                  'Assign Walker',
+                ),
+        ),
+      ],
     );
   }
 }
