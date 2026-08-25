@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 
 import 'walk_request_map_preview.dart';
+import 'walk_request_status_badge.dart';
 
 class WalkRequestDetailsSheet extends StatelessWidget {
   final String requestId;
@@ -35,15 +36,7 @@ class WalkRequestDetailsSheet extends StatelessWidget {
       return '';
     }
 
-    return value.toString().trim();
-  }
-
-  // ==========================================================
-  // STATUS
-  // ==========================================================
-
-  String _status() {
-    return _value('status').toLowerCase();
+    return value.toString();
   }
 
   // ==========================================================
@@ -69,16 +62,11 @@ class WalkRequestDetailsSheet extends StatelessWidget {
       return 'Not available';
     }
 
-    final hour =
-        date.hour.toString().padLeft(2, '0');
-
-    final minute =
-        date.minute.toString().padLeft(2, '0');
-
     return '${date.day.toString().padLeft(2, '0')}/'
         '${date.month.toString().padLeft(2, '0')}/'
         '${date.year} '
-        '$hour:$minute';
+        '${date.hour.toString().padLeft(2, '0')}:'
+        '${date.minute.toString().padLeft(2, '0')}';
   }
 
   // ==========================================================
@@ -104,7 +92,9 @@ class WalkRequestDetailsSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final status = _status();
+    final status = _value('status')
+        .trim()
+        .toLowerCase();
 
     final location = _location();
 
@@ -112,34 +102,23 @@ class WalkRequestDetailsSheet extends StatelessWidget {
         status == 'searching' ||
         status == 'pending';
 
-    final canCancel =
-        pending ||
-        status == 'accepted' ||
-        status == 'active';
-
     return DraggableScrollableSheet(
       initialChildSize: 0.90,
       minChildSize: 0.50,
       maxChildSize: 0.98,
-      expand: false,
       builder: (
         context,
         controller,
       ) {
         return Material(
-          color: Theme.of(context)
-              .colorScheme
-              .surface,
           borderRadius:
               const BorderRadius.vertical(
             top: Radius.circular(24),
           ),
-          clipBehavior:
-              Clip.antiAlias,
+          clipBehavior: Clip.antiAlias,
           child: ListView(
             controller: controller,
-            padding:
-                const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(20),
             children: [
               // ==================================================
               // HANDLE
@@ -149,8 +128,7 @@ class WalkRequestDetailsSheet extends StatelessWidget {
                 child: Container(
                   width: 42,
                   height: 5,
-                  decoration:
-                      BoxDecoration(
+                  decoration: BoxDecoration(
                     color: Colors.grey.shade400,
                     borderRadius:
                         BorderRadius.circular(10),
@@ -171,12 +149,11 @@ class WalkRequestDetailsSheet extends StatelessWidget {
                       'Walk Request Details',
                       style: TextStyle(
                         fontSize: 22,
-                        fontWeight:
-                            FontWeight.w800,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
                   ),
-                  _StatusBadge(
+                  WalkRequestStatusBadge(
                     status: status,
                   ),
                 ],
@@ -185,7 +162,7 @@ class WalkRequestDetailsSheet extends StatelessWidget {
               const SizedBox(height: 20),
 
               // ==================================================
-              // OWNER
+              // OWNER DETAILS
               // ==================================================
 
               _section(
@@ -227,10 +204,6 @@ class WalkRequestDetailsSheet extends StatelessWidget {
                     'Address',
                     _value('address'),
                   ),
-                  _detail(
-                    'Location Type',
-                    _value('ownerLocationType'),
-                  ),
                   if (location != null)
                     _detail(
                       'Latitude',
@@ -247,7 +220,7 @@ class WalkRequestDetailsSheet extends StatelessWidget {
               ),
 
               // ==================================================
-              // MAP
+              // OPEN STREET MAP
               // ==================================================
 
               if (location != null)
@@ -271,16 +244,16 @@ class WalkRequestDetailsSheet extends StatelessWidget {
                     requestId,
                   ),
                   _detail(
-                    'Status',
-                    _displayStatus(status),
-                  ),
-                  _detail(
                     'Search Type',
                     _value('searchType'),
                   ),
                   _detail(
                     'Search Radius',
-                    _radius(),
+                    '${_value('searchRadiusKm')} km',
+                  ),
+                  _detail(
+                    'Location Type',
+                    _value('ownerLocationType'),
                   ),
                   _detail(
                     'Sender Role',
@@ -288,21 +261,15 @@ class WalkRequestDetailsSheet extends StatelessWidget {
                   ),
                   _detail(
                     'Created At',
-                    _dateText(
-                      data['createdAt'],
-                    ),
+                    _dateText(data['createdAt']),
                   ),
                   _detail(
                     'Updated At',
-                    _dateText(
-                      data['updatedAt'],
-                    ),
+                    _dateText(data['updatedAt']),
                   ),
                   _detail(
                     'Accepted At',
-                    _dateText(
-                      data['acceptedAt'],
-                    ),
+                    _dateText(data['acceptedAt']),
                   ),
                   _detail(
                     'Accepted By',
@@ -312,7 +279,7 @@ class WalkRequestDetailsSheet extends StatelessWidget {
               ),
 
               // ==================================================
-              // WALKER
+              // WALKER DETAILS
               // ==================================================
 
               _section(
@@ -336,10 +303,10 @@ class WalkRequestDetailsSheet extends StatelessWidget {
                 ],
               ),
 
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
 
               // ==================================================
-              // ASSIGN
+              // ASSIGN WALKER
               // ==================================================
 
               if (pending)
@@ -360,7 +327,9 @@ class WalkRequestDetailsSheet extends StatelessWidget {
               // CANCEL
               // ==================================================
 
-              if (canCancel)
+              if (pending ||
+                  status == 'accepted' ||
+                  status == 'active')
                 SizedBox(
                   width: double.infinity,
                   child: TextButton.icon(
@@ -383,44 +352,6 @@ class WalkRequestDetailsSheet extends StatelessWidget {
   }
 
   // ==========================================================
-  // RADIUS
-  // ==========================================================
-
-  String _radius() {
-    final value =
-        data['searchRadiusKm'];
-
-    if (value == null) {
-      return 'Not available';
-    }
-
-    if (value is num) {
-      return '${value.toStringAsFixed(1)} km';
-    }
-
-    final text = value.toString().trim();
-
-    if (text.isEmpty) {
-      return 'Not available';
-    }
-
-    return '$text km';
-  }
-
-  // ==========================================================
-  // STATUS DISPLAY
-  // ==========================================================
-
-  String _displayStatus(String status) {
-    if (status.isEmpty) {
-      return 'Unknown';
-    }
-
-    return status[0].toUpperCase() +
-        status.substring(1);
-  }
-
-  // ==========================================================
   // SECTION
   // ==========================================================
 
@@ -430,8 +361,7 @@ class WalkRequestDetailsSheet extends StatelessWidget {
     List<Widget> children,
   ) {
     return Padding(
-      padding:
-          const EdgeInsets.only(
+      padding: const EdgeInsets.only(
         bottom: 18,
       ),
       child: Column(
@@ -442,8 +372,7 @@ class WalkRequestDetailsSheet extends StatelessWidget {
             title,
             style: const TextStyle(
               fontSize: 17,
-              fontWeight:
-                  FontWeight.w800,
+              fontWeight: FontWeight.w800,
             ),
           ),
 
@@ -451,14 +380,14 @@ class WalkRequestDetailsSheet extends StatelessWidget {
 
           Container(
             width: double.infinity,
-            padding:
-                const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               borderRadius:
                   BorderRadius.circular(14),
               border: Border.all(
-                color: Theme.of(context)
-                    .dividerColor,
+                color:
+                    Theme.of(context)
+                        .dividerColor,
               ),
             ),
             child: Column(
@@ -479,8 +408,7 @@ class WalkRequestDetailsSheet extends StatelessWidget {
     String value,
   ) {
     return Padding(
-      padding:
-          const EdgeInsets.symmetric(
+      padding: const EdgeInsets.symmetric(
         vertical: 6,
       ),
       child: Row(
@@ -492,11 +420,11 @@ class WalkRequestDetailsSheet extends StatelessWidget {
             child: Text(
               title,
               style: const TextStyle(
-                fontWeight:
-                    FontWeight.w600,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
+
           Expanded(
             child: Text(
               value.isEmpty
@@ -505,56 +433,6 @@ class WalkRequestDetailsSheet extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-// ============================================================
-// STATUS BADGE
-// ============================================================
-
-class _StatusBadge
-    extends StatelessWidget {
-  final String status;
-
-  const _StatusBadge({
-    required this.status,
-  });
-
-  @override
-  Widget build(
-    BuildContext context,
-  ) {
-    final text = status.isEmpty
-        ? 'Unknown'
-        : status[0].toUpperCase() +
-            status.substring(1);
-
-    return Container(
-      padding:
-          const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 6,
-      ),
-      decoration: BoxDecoration(
-        borderRadius:
-            BorderRadius.circular(30),
-        color: Theme.of(context)
-            .colorScheme
-            .primary
-            .withValues(alpha: 0.10),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight:
-              FontWeight.w700,
-          color: Theme.of(context)
-              .colorScheme
-              .primary,
-        ),
       ),
     );
   }
