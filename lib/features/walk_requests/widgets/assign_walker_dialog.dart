@@ -3,21 +3,12 @@ import 'package:flutter/material.dart';
 
 class AssignWalkerDialog extends StatefulWidget {
   final String requestId;
-
   final Map<String, dynamic> requestData;
-
-  final List<
-      QueryDocumentSnapshot<
-          Map<String, dynamic>>> walkers;
-
-  final FirebaseFirestore firestore;
 
   const AssignWalkerDialog({
     super.key,
     required this.requestId,
     required this.requestData,
-    required this.walkers,
-    required this.firestore,
   });
 
   @override
@@ -27,9 +18,60 @@ class AssignWalkerDialog extends StatefulWidget {
 
 class _AssignWalkerDialogState
     extends State<AssignWalkerDialog> {
-  String? selectedDocId;
+  final FirebaseFirestore _firestore =
+      FirebaseFirestore.instance;
 
-  bool saving = false;
+  String? _selectedWalkerDocId;
+
+  bool _loading = true;
+  bool _saving = false;
+
+  List<QueryDocumentSnapshot<
+      Map<String, dynamic>>> _walkers = [];
+
+  // ==========================================================
+  // LOAD WALKERS
+  // ==========================================================
+
+  @override
+  void initState() {
+    super.initState();
+    _loadWalkers();
+  }
+
+  Future<void> _loadWalkers() async {
+    try {
+      final snapshot = await _firestore
+          .collection('walkers')
+          .get();
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _walkers = snapshot.docs;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _loading = false;
+      });
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        SnackBar(
+          content: Text(
+            'Unable to load walkers: $e',
+          ),
+        ),
+      );
+    }
+  }
 
   // ==========================================================
   // VALUE
@@ -46,30 +88,6 @@ class _AssignWalkerDialogState
     }
 
     return value.toString().trim();
-  }
-
-  // ==========================================================
-  // WALKER NAME
-  // ==========================================================
-
-  String _walkerName(
-    Map<String, dynamic> data,
-  ) {
-    final name =
-        _value(data, 'name');
-
-    if (name.isNotEmpty) {
-      return name;
-    }
-
-    final walkerName =
-        _value(data, 'walkerName');
-
-    if (walkerName.isNotEmpty) {
-      return walkerName;
-    }
-
-    return 'Walker';
   }
 
   // ==========================================================
@@ -96,73 +114,129 @@ class _AssignWalkerDialogState
     final uid =
         _value(data, 'uid');
 
-    if (uid.isNotEmpty) {
-      return uid;
+    return uid;
+  }
+
+  // ==========================================================
+  // WALKER ID
+  // ==========================================================
+
+  String _walkerId(
+    QueryDocumentSnapshot<
+            Map<String, dynamic>>
+        doc,
+    Map<String, dynamic> data,
+  ) {
+    final walkerId =
+        _value(data, 'walkerId');
+
+    if (walkerId.isNotEmpty) {
+      return walkerId;
     }
 
-    return '';
+    return doc.id;
+  }
+
+  // ==========================================================
+  // WALKER NAME
+  // ==========================================================
+
+  String _walkerName(
+    Map<String, dynamic> data,
+  ) {
+    final name =
+        _value(data, 'name');
+
+    if (name.isNotEmpty) {
+      return name;
+    }
+
+    return _value(
+      data,
+      'walkerName',
+    );
   }
 
   // ==========================================================
   // ASSIGN
   // ==========================================================
 
-  Future<void> _assign() async {
-    if (selectedDocId == null) {
-      _showMessage(
-        'Please select a walker.',
+  Future<void> _assignWalker() async {
+    final selectedId =
+        _selectedWalkerDocId;
+
+    if (selectedId == null) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Please select a walker.',
+          ),
+        ),
       );
 
       return;
     }
 
-    final walker =
-        widget.walkers.firstWhere(
-      (doc) =>
-          doc.id == selectedDocId,
-    );
+    QueryDocumentSnapshot<
+            Map<String, dynamic>>?
+        selectedWalker;
 
-    final data = walker.data();
+    for (final walker in _walkers) {
+      if (walker.id == selectedId) {
+        selectedWalker = walker;
+        break;
+      }
+    }
+
+    if (selectedWalker == null) {
+      return;
+    }
+
+    final walkerData =
+        selectedWalker.data();
 
     final walkerUid =
-        _walkerUid(data);
+        _walkerUid(walkerData);
 
     final walkerId =
-        _value(data, 'walkerId');
+        _walkerId(
+      selectedWalker,
+      walkerData,
+    );
 
     final walkerName =
-        _walkerName(data);
+        _walkerName(walkerData);
 
     if (walkerUid.isEmpty) {
-      _showMessage(
-        'Selected walker has no valid UID.',
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Selected walker has no valid UID.',
+          ),
+        ),
       );
 
       return;
     }
 
     setState(() {
-      saving = true;
+      _saving = true;
     });
 
     try {
-      await widget.firestore
+      await _firestore
           .collection('walk_requests')
           .doc(widget.requestId)
           .update({
         'status': 'accepted',
 
-        'walkerUid':
-            walkerUid,
+        'walkerUid': walkerUid,
+        'walkerId': walkerId,
+        'walkerName': walkerName,
 
-        'walkerId':
-            walkerId,
-
-        'walkerName':
-            walkerName,
-
-        'acceptedBy':
-            walkerUid,
+        'acceptedBy': walkerUid,
 
         'acceptedAt':
             FieldValue.serverTimestamp(),
@@ -177,9 +251,8 @@ class _AssignWalkerDialogState
 
       Navigator.of(context).pop(true);
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         const SnackBar(
           content: Text(
             'Walker assigned successfully.',
@@ -192,33 +265,18 @@ class _AssignWalkerDialogState
       }
 
       setState(() {
-        saving = false;
+        _saving = false;
       });
 
-      _showMessage(
-        'Failed to assign walker: $e',
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        SnackBar(
+          content: Text(
+            'Failed to assign walker: $e',
+          ),
+        ),
       );
     }
-  }
-
-  // ==========================================================
-  // MESSAGE
-  // ==========================================================
-
-  void _showMessage(
-    String message,
-  ) {
-    if (!mounted) {
-      return;
-    }
-
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(
-      SnackBar(
-        content: Text(message),
-      ),
-    );
   }
 
   // ==========================================================
@@ -226,225 +284,38 @@ class _AssignWalkerDialogState
   // ==========================================================
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Row(
-        children: [
-          Icon(
-            Icons.person_add_alt_1,
-          ),
-          SizedBox(width: 10),
-          Text(
-            'Assign Walker',
-          ),
-        ],
+      title: const Text(
+        'Assign Walker',
+        style: TextStyle(
+          fontWeight: FontWeight.w700,
+        ),
       ),
 
       content: SizedBox(
-        width: 520,
-        child: widget.walkers.isEmpty
-            ? const Padding(
-                padding:
-                    EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize:
-                      MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons
-                          .person_off_outlined,
-                      size: 48,
-                    ),
-                    SizedBox(
-                      height: 12,
-                    ),
-                    Text(
-                      'No walkers found.',
-                      textAlign:
-                          TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight:
-                            FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              )
-            : ConstrainedBox(
-                constraints:
-                    const BoxConstraints(
-                  maxHeight: 500,
-                ),
-                child: ListView.separated(
-                  shrinkWrap: true,
-                  itemCount:
-                      widget.walkers.length,
-                  separatorBuilder:
-                      (
-                    context,
-                    index,
-                  ) {
-                    return const SizedBox(
-                      height: 8,
-                    );
-                  },
-                  itemBuilder:
-                      (
-                    context,
-                    index,
-                  ) {
-                    final doc =
-                        widget.walkers[index];
-
-                    final data =
-                        doc.data();
-
-                    final name =
-                        _walkerName(
-                      data,
-                    );
-
-                    final walkerId =
-                        _value(
-                      data,
-                      'walkerId',
-                    );
-
-                    final uid =
-                        _walkerUid(
-                      data,
-                    );
-
-                    final selected =
-                        selectedDocId ==
-                            doc.id;
-
-                    return Card(
-                      margin:
-                          EdgeInsets.zero,
-                      elevation:
-                          selected
-                              ? 2
-                              : 0,
-                      color: selected
-                          ? Theme.of(
-                              context,
-                            )
-                              .colorScheme
-                              .primaryContainer
-                          : null,
-                      child: ListTile(
-                        contentPadding:
-                            const EdgeInsets
-                                .symmetric(
-                          horizontal: 14,
-                          vertical: 6,
-                        ),
-
-                        leading:
-                            CircleAvatar(
-                          child:
-                              const Icon(
-                            Icons.person,
-                          ),
-                        ),
-
-                        title: Text(
-                          name,
-                          style:
-                              const TextStyle(
-                            fontWeight:
-                                FontWeight.w700,
-                          ),
-                        ),
-
-                        subtitle:
-                            Column(
-                          crossAxisAlignment:
-                              CrossAxisAlignment
-                                  .start,
-                          children: [
-                            if (walkerId
-                                .isNotEmpty)
-                              Text(
-                                'Walker ID: '
-                                '$walkerId',
-                              ),
-
-                            if (uid
-                                .isNotEmpty)
-                              Text(
-                                'UID: $uid',
-                                maxLines: 1,
-                                overflow:
-                                    TextOverflow
-                                        .ellipsis,
-                              ),
-                          ],
-                        ),
-
-                        trailing:
-                            Radio<String>(
-                          value:
-                              doc.id,
-                          groupValue:
-                              selectedDocId,
-                          onChanged:
-                              saving
-                                  ? null
-                                  : (
-                                      value,
-                                    ) {
-                                      setState(
-                                        () {
-                                          selectedDocId =
-                                              value;
-                                        },
-                                      );
-                                    },
-                        ),
-
-                        selected:
-                            selected,
-
-                        onTap: saving
-                            ? null
-                            : () {
-                                setState(
-                                  () {
-                                    selectedDocId =
-                                        doc.id;
-                                  },
-                                );
-                              },
-                      ),
-                    );
-                  },
-                ),
-              ),
+        width: 500,
+        child: _buildContent(),
       ),
 
       actions: [
         TextButton(
-          onPressed: saving
+          onPressed: _saving
               ? null
               : () {
-                  Navigator.of(
-                    context,
-                  ).pop();
+                  Navigator.of(context)
+                      .pop();
                 },
-          child: const Text(
-            'Cancel',
-          ),
+          child:
+              const Text('Cancel'),
         ),
 
-        FilledButton.icon(
+        FilledButton(
           onPressed:
-              saving ? null : _assign,
-          icon: saving
+              _saving
+                  ? null
+                  : _assignWalker,
+          child: _saving
               ? const SizedBox(
                   width: 18,
                   height: 18,
@@ -453,16 +324,142 @@ class _AssignWalkerDialogState
                     strokeWidth: 2,
                   ),
                 )
-              : const Icon(
-                  Icons.check,
+              : const Text(
+                  'Assign Walker',
                 ),
-          label: Text(
-            saving
-                ? 'Assigning...'
-                : 'Assign Walker',
-          ),
         ),
       ],
+    );
+  }
+
+  // ==========================================================
+  // CONTENT
+  // ==========================================================
+
+  Widget _buildContent() {
+    if (_loading) {
+      return const SizedBox(
+        height: 180,
+        child: Center(
+          child:
+              CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (_walkers.isEmpty) {
+      return const Padding(
+        padding:
+            EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize:
+              MainAxisSize.min,
+          children: [
+            Icon(
+              Icons
+                  .person_off_outlined,
+              size: 48,
+            ),
+            SizedBox(height: 12),
+            Text(
+              'No walkers found.',
+              textAlign:
+                  TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ConstrainedBox(
+      constraints:
+          const BoxConstraints(
+        maxHeight: 420,
+      ),
+      child: ListView.builder(
+        shrinkWrap: true,
+        itemCount: _walkers.length,
+        itemBuilder: (
+          context,
+          index,
+        ) {
+          final doc =
+              _walkers[index];
+
+          final data =
+              doc.data();
+
+          final name =
+              _walkerName(data);
+
+          final walkerId =
+              _walkerId(
+            doc,
+            data,
+          );
+
+          final selected =
+              _selectedWalkerDocId ==
+                  doc.id;
+
+          return Card(
+            margin:
+                const EdgeInsets.only(
+              bottom: 8,
+            ),
+            child: ListTile(
+              leading:
+                  CircleAvatar(
+                child: const Icon(
+                  Icons.person,
+                ),
+              ),
+
+              title: Text(
+                name.isEmpty
+                    ? 'Walker'
+                    : name,
+                style:
+                    const TextStyle(
+                  fontWeight:
+                      FontWeight.w600,
+                ),
+              ),
+
+              subtitle: Text(
+                walkerId,
+              ),
+
+              trailing:
+                  Radio<String>(
+                value: doc.id,
+                groupValue:
+                    _selectedWalkerDocId,
+                onChanged:
+                    _saving
+                        ? null
+                        : (value) {
+                            setState(() {
+                              _selectedWalkerDocId =
+                                  value;
+                            });
+                          },
+              ),
+
+              selected: selected,
+
+              onTap: _saving
+                  ? null
+                  : () {
+                      setState(() {
+                        _selectedWalkerDocId =
+                            doc.id;
+                      });
+                    },
+            ),
+          );
+        },
+      ),
     );
   }
 }
