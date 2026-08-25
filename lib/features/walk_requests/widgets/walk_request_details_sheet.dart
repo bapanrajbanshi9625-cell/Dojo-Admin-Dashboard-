@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 
 import 'walk_request_map_preview.dart';
-import 'walk_request_status_badge.dart';
 
 class WalkRequestDetailsSheet extends StatelessWidget {
   final String requestId;
@@ -12,9 +11,7 @@ class WalkRequestDetailsSheet extends StatelessWidget {
   final VoidCallback onAssign;
   final VoidCallback onCancel;
 
-  final Future<void> Function(
-    LatLng location,
-  ) onOpenMaps;
+  final Future<void> Function(LatLng location) onOpenMaps;
 
   const WalkRequestDetailsSheet({
     super.key,
@@ -26,7 +23,7 @@ class WalkRequestDetailsSheet extends StatelessWidget {
   });
 
   // ==========================================================
-  // VALUE
+  // VALUE HELPER
   // ==========================================================
 
   String _value(String key) {
@@ -40,7 +37,25 @@ class WalkRequestDetailsSheet extends StatelessWidget {
   }
 
   // ==========================================================
-  // DATE
+  // STATUS
+  // ==========================================================
+
+  String _status() {
+    return _value('status').trim().toLowerCase();
+  }
+
+  String _displayStatus() {
+    final status = _status();
+
+    if (status.isEmpty) {
+      return 'Unknown';
+    }
+
+    return status[0].toUpperCase() + status.substring(1);
+  }
+
+  // ==========================================================
+  // TIMESTAMP
   // ==========================================================
 
   DateTime? _date(dynamic value) {
@@ -62,11 +77,13 @@ class WalkRequestDetailsSheet extends StatelessWidget {
       return 'Not available';
     }
 
+    final hour = date.hour.toString().padLeft(2, '0');
+    final minute = date.minute.toString().padLeft(2, '0');
+
     return '${date.day.toString().padLeft(2, '0')}/'
         '${date.month.toString().padLeft(2, '0')}/'
         '${date.year} '
-        '${date.hour.toString().padLeft(2, '0')}:'
-        '${date.minute.toString().padLeft(2, '0')}';
+        '$hour:$minute';
   }
 
   // ==========================================================
@@ -92,9 +109,7 @@ class WalkRequestDetailsSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final status = _value('status')
-        .trim()
-        .toLowerCase();
+    final status = _status();
 
     final location = _location();
 
@@ -102,23 +117,34 @@ class WalkRequestDetailsSheet extends StatelessWidget {
         status == 'searching' ||
         status == 'pending';
 
+    final canCancel =
+        pending ||
+        status == 'accepted' ||
+        status == 'active';
+
     return DraggableScrollableSheet(
       initialChildSize: 0.90,
       minChildSize: 0.50,
       maxChildSize: 0.98,
+      expand: false,
       builder: (
         context,
-        controller,
+        scrollController,
       ) {
         return Material(
-          borderRadius:
-              const BorderRadius.vertical(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(
             top: Radius.circular(24),
           ),
           clipBehavior: Clip.antiAlias,
           child: ListView(
-            controller: controller,
-            padding: const EdgeInsets.all(20),
+            controller: scrollController,
+            padding: const EdgeInsets.fromLTRB(
+              20,
+              12,
+              20,
+              30,
+            ),
             children: [
               // ==================================================
               // HANDLE
@@ -143,6 +169,8 @@ class WalkRequestDetailsSheet extends StatelessWidget {
               // ==================================================
 
               Row(
+                crossAxisAlignment:
+                    CrossAxisAlignment.start,
                 children: [
                   const Expanded(
                     child: Text(
@@ -153,8 +181,8 @@ class WalkRequestDetailsSheet extends StatelessWidget {
                       ),
                     ),
                   ),
-                  WalkRequestStatusBadge(
-                    status: status,
+                  _StatusBadge(
+                    status: _displayStatus(),
                   ),
                 ],
               ),
@@ -165,27 +193,28 @@ class WalkRequestDetailsSheet extends StatelessWidget {
               // OWNER DETAILS
               // ==================================================
 
-              _section(
+              _buildSection(
                 context,
-                'Owner Details',
-                [
-                  _detail(
+                title: 'Owner Details',
+                icon: Icons.person_outline,
+                children: [
+                  _buildDetail(
                     'Owner Name',
                     _value('ownerName'),
                   ),
-                  _detail(
+                  _buildDetail(
                     'Owner ID',
                     _value('ownerId'),
                   ),
-                  _detail(
+                  _buildDetail(
                     'Owner Auth UID',
                     _value('ownerAuthUid'),
                   ),
-                  _detail(
+                  _buildDetail(
                     'Sender UID',
                     _value('senderUid'),
                   ),
-                  _detail(
+                  _buildDetail(
                     'Business ID',
                     _value('businessId'),
                   ),
@@ -196,22 +225,27 @@ class WalkRequestDetailsSheet extends StatelessWidget {
               // PICKUP LOCATION
               // ==================================================
 
-              _section(
+              _buildSection(
                 context,
-                'Pickup Location',
-                [
-                  _detail(
+                title: 'Pickup Location',
+                icon: Icons.location_on_outlined,
+                children: [
+                  _buildDetail(
                     'Address',
                     _value('address'),
                   ),
+                  _buildDetail(
+                    'Location Type',
+                    _value('ownerLocationType'),
+                  ),
                   if (location != null)
-                    _detail(
+                    _buildDetail(
                       'Latitude',
                       location.latitude
                           .toStringAsFixed(6),
                     ),
                   if (location != null)
-                    _detail(
+                    _buildDetail(
                       'Longitude',
                       location.longitude
                           .toStringAsFixed(6),
@@ -223,55 +257,65 @@ class WalkRequestDetailsSheet extends StatelessWidget {
               // OPEN STREET MAP
               // ==================================================
 
-              if (location != null)
+              if (location != null) ...[
+                const SizedBox(height: 2),
+
                 WalkRequestMapPreview(
                   location: location,
                   onOpenMaps: () {
                     onOpenMaps(location);
                   },
                 ),
+              ],
 
               // ==================================================
               // REQUEST DETAILS
               // ==================================================
 
-              _section(
+              _buildSection(
                 context,
-                'Request Details',
-                [
-                  _detail(
+                title: 'Request Details',
+                icon: Icons.receipt_long_outlined,
+                children: [
+                  _buildDetail(
                     'Request ID',
                     requestId,
                   ),
-                  _detail(
+                  _buildDetail(
+                    'Status',
+                    _displayStatus(),
+                  ),
+                  _buildDetail(
                     'Search Type',
                     _value('searchType'),
                   ),
-                  _detail(
+                  _buildDetail(
                     'Search Radius',
-                    '${_value('searchRadiusKm')} km',
+                    _formatRadius(),
                   ),
-                  _detail(
-                    'Location Type',
-                    _value('ownerLocationType'),
-                  ),
-                  _detail(
+                  _buildDetail(
                     'Sender Role',
                     _value('senderRole'),
                   ),
-                  _detail(
+                  _buildDetail(
                     'Created At',
-                    _dateText(data['createdAt']),
+                    _dateText(
+                      data['createdAt'],
+                    ),
                   ),
-                  _detail(
+                  _buildDetail(
                     'Updated At',
-                    _dateText(data['updatedAt']),
+                    _dateText(
+                      data['updatedAt'],
+                    ),
                   ),
-                  _detail(
+                  _buildDetail(
                     'Accepted At',
-                    _dateText(data['acceptedAt']),
+                    _dateText(
+                      data['acceptedAt'],
+                    ),
                   ),
-                  _detail(
+                  _buildDetail(
                     'Accepted By',
                     _value('acceptedBy'),
                   ),
@@ -282,28 +326,29 @@ class WalkRequestDetailsSheet extends StatelessWidget {
               // WALKER DETAILS
               // ==================================================
 
-              _section(
+              _buildSection(
                 context,
-                'Walker Details',
-                [
-                  _detail(
+                title: 'Walker Details',
+                icon: Icons.directions_walk,
+                children: [
+                  _buildDetail(
                     'Walker Name',
                     _value('walkerName').isEmpty
                         ? 'Not assigned'
                         : _value('walkerName'),
                   ),
-                  _detail(
+                  _buildDetail(
                     'Walker ID',
                     _value('walkerId'),
                   ),
-                  _detail(
+                  _buildDetail(
                     'Walker UID',
                     _value('walkerUid'),
                   ),
                 ],
               ),
 
-              const SizedBox(height: 12),
+              const SizedBox(height: 4),
 
               // ==================================================
               // ASSIGN WALKER
@@ -324,12 +369,11 @@ class WalkRequestDetailsSheet extends StatelessWidget {
                 ),
 
               // ==================================================
-              // CANCEL
+              // CANCEL REQUEST
               // ==================================================
 
-              if (pending ||
-                  status == 'accepted' ||
-                  status == 'active')
+              if (canCancel) ...[
+                const SizedBox(height: 8),
                 SizedBox(
                   width: double.infinity,
                   child: TextButton.icon(
@@ -342,8 +386,9 @@ class WalkRequestDetailsSheet extends StatelessWidget {
                     ),
                   ),
                 ),
+              ],
 
-              const SizedBox(height: 30),
+              const SizedBox(height: 20),
             ],
           ),
         );
@@ -352,14 +397,41 @@ class WalkRequestDetailsSheet extends StatelessWidget {
   }
 
   // ==========================================================
+  // SEARCH RADIUS
+  // ==========================================================
+
+  String _formatRadius() {
+    final value = data['searchRadiusKm'];
+
+    if (value == null) {
+      return 'Not available';
+    }
+
+    if (value is num) {
+      return '${value.toStringAsFixed(1)} km';
+    }
+
+    final parsed = double.tryParse(
+      value.toString(),
+    );
+
+    if (parsed != null) {
+      return '${parsed.toStringAsFixed(1)} km';
+    }
+
+    return value.toString();
+  }
+
+  // ==========================================================
   // SECTION
   // ==========================================================
 
-  Widget _section(
-    BuildContext context,
-    String title,
-    List<Widget> children,
-  ) {
+  Widget _buildSection(
+    BuildContext context, {
+    required String title,
+    required IconData icon,
+    required List<Widget> children,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(
         bottom: 18,
@@ -368,12 +440,24 @@ class WalkRequestDetailsSheet extends StatelessWidget {
         crossAxisAlignment:
             CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.w800,
-            ),
+          Row(
+            children: [
+              Icon(
+                icon,
+                size: 20,
+                color: Theme.of(context)
+                    .colorScheme
+                    .primary,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
           ),
 
           const SizedBox(height: 10),
@@ -385,9 +469,8 @@ class WalkRequestDetailsSheet extends StatelessWidget {
               borderRadius:
                   BorderRadius.circular(14),
               border: Border.all(
-                color:
-                    Theme.of(context)
-                        .dividerColor,
+                color: Theme.of(context)
+                    .dividerColor,
               ),
             ),
             child: Column(
@@ -400,13 +483,18 @@ class WalkRequestDetailsSheet extends StatelessWidget {
   }
 
   // ==========================================================
-  // DETAIL
+  // DETAIL ROW
   // ==========================================================
 
-  Widget _detail(
+  Widget _buildDetail(
     String title,
     String value,
   ) {
+    final displayValue =
+        value.trim().isEmpty
+            ? 'Not available'
+            : value;
+
     return Padding(
       padding: const EdgeInsets.symmetric(
         vertical: 6,
@@ -424,15 +512,51 @@ class WalkRequestDetailsSheet extends StatelessWidget {
               ),
             ),
           ),
-
           Expanded(
-            child: Text(
-              value.isEmpty
-                  ? 'Not available'
-                  : value,
+            child: SelectableText(
+              displayValue,
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ============================================================
+// STATUS BADGE
+// ============================================================
+
+class _StatusBadge extends StatelessWidget {
+  final String status;
+
+  const _StatusBadge({
+    required this.status,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme =
+        Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 11,
+        vertical: 7,
+      ),
+      decoration: BoxDecoration(
+        borderRadius:
+            BorderRadius.circular(30),
+        color: colorScheme.primary
+            .withValues(alpha: 0.10),
+      ),
+      child: Text(
+        status.isEmpty ? 'Unknown' : status,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: colorScheme.primary,
+        ),
       ),
     );
   }
