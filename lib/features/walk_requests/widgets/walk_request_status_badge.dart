@@ -1,79 +1,93 @@
 import 'package:flutter/material.dart';
 
-class WalkRequestStatusBadge extends StatelessWidget {
+class RequestStatusBadge extends StatelessWidget {
   final String status;
 
-  const WalkRequestStatusBadge({
+  const RequestStatusBadge({
     super.key,
     required this.status,
   });
 
-  String get _displayStatus {
-    final value = status.trim();
+  @override
+  Widget build(BuildContext context) {
+    final cleanStatus = status.trim().toLowerCase();
 
-    if (value.isEmpty) {
-      return 'Unknown';
-    }
+    String text;
+    IconData icon;
+    Color color;
 
-    return value[0].toUpperCase() +
-        value.substring(1);
-  }
-
-  Color _statusColor(
-    BuildContext context,
-  ) {
-    final colorScheme =
-        Theme.of(context).colorScheme;
-
-    switch (status.trim().toLowerCase()) {
+    switch (cleanStatus) {
       case 'searching':
       case 'pending':
-        return colorScheme.tertiary;
+        text = 'Pending';
+        icon = Icons.pending_actions;
+        color = Colors.orange;
+        break;
 
       case 'accepted':
-        return Colors.green;
+        text = 'Accepted';
+        icon = Icons.check_circle_outline;
+        color = Colors.blue;
+        break;
 
       case 'active':
-        return colorScheme.primary;
+        text = 'Active';
+        icon = Icons.directions_walk;
+        color = Colors.green;
+        break;
 
       case 'completed':
-        return Colors.blue;
+        text = 'Completed';
+        icon = Icons.task_alt;
+        color = Colors.teal;
+        break;
 
       case 'cancelled':
       case 'canceled':
-        return colorScheme.error;
+        text = 'Cancelled';
+        icon = Icons.cancel_outlined;
+        color = Colors.red;
+        break;
 
       default:
-        return colorScheme.onSurfaceVariant;
+        text = cleanStatus.isEmpty
+            ? 'Unknown'
+            : cleanStatus[0].toUpperCase() +
+                cleanStatus.substring(1);
+        icon = Icons.help_outline;
+        color = Colors.grey;
     }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final color =
-        _statusColor(context);
 
     return Container(
-      padding:
-          const EdgeInsets.symmetric(
+      padding: const EdgeInsets.symmetric(
         horizontal: 10,
         vertical: 6,
       ),
       decoration: BoxDecoration(
-        borderRadius:
-            BorderRadius.circular(30),
-        color: color.withValues(
-          alpha: 0.10,
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(
+          color: color.withValues(alpha: 0.25),
         ),
       ),
-      child: Text(
-        _displayStatus,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight:
-              FontWeight.w700,
-          color: color,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 15,
+            color: color,
+          ),
+          const SizedBox(width: 5),
+          Text(
+            text,
+            style: TextStyle(
+              color: color,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
     );
   }
