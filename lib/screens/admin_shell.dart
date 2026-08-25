@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'dashboard_screen.dart';
 import 'live_walk_screen.dart';
 import 'active_walks_screen.dart';
-import '../features/walk_history/screens/walk_history_screen.dart';
 import 'owners_screen.dart';
 import 'walkers_screen.dart';
 import 'pets_screen.dart';
@@ -17,6 +16,8 @@ import 'notifications_screen.dart';
 import 'admins_screen.dart' as admins;
 import 'activity_logs_screen.dart';
 import 'settings_screen.dart';
+
+import '../features/walk_history/screens/walk_history_screen.dart';
 
 const Color dojoOrange = Color(0xFFD35435);
 const Color dojoBlue = Color(0xFF3F6FA5);
