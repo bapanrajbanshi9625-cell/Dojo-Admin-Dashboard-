@@ -50,96 +50,49 @@ void dispose() {
   // ==========================================================
 
   @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<
-        QuerySnapshot<Map<String, dynamic>>>(
-      stream: historyStream,
-      builder: (context, historySnapshot) {
-        if (historySnapshot.hasError) {
-          return _error(
-            historySnapshot.error.toString(),
-          );
-        }
-
-        if (historySnapshot.connectionState ==
-            ConnectionState.waiting) {
-          return const Center(
-            child: CircularProgressIndicator(
-              color: dojoOrange,
-            ),
-          );
-        }
-
-        return StreamBuilder<
-            QuerySnapshot<Map<String, dynamic>>>(
-          stream: activeWalkStream,
-          builder: (context, activeSnapshot) {
-            if (activeSnapshot.hasError) {
-              return _error(
-                activeSnapshot.error.toString(),
-              );
-            }
-
-            if (activeSnapshot.connectionState ==
-                ConnectionState.waiting) {
-              return const Center(
-                child: CircularProgressIndicator(
-                  color: dojoOrange,
-                ),
-              );
-            }
-
-            return StreamBuilder<
-                QuerySnapshot<Map<String, dynamic>>>(
-              stream: liveSessionStream,
-              builder: (context, liveSnapshot) {
-                if (liveSnapshot.hasError) {
-                  return _error(
-                    liveSnapshot.error.toString(),
-                  );
-                }
-
-                if (liveSnapshot.connectionState ==
-                    ConnectionState.waiting) {
-                  return const Center(
-                    child: CircularProgressIndicator(
-                      color: dojoOrange,
-                    ),
-                  );
-                }
-
-                final histories =
-                    _parseHistory(
-                  historySnapshot.data?.docs ?? [],
-                );
-
-                final activeWalks =
-                    _parseActive(
-                  activeSnapshot.data?.docs ?? [],
-                );
-
-                histories.sort(
-                  (a, b) =>
-                      b.createdAt.compareTo(
-                    a.createdAt,
-                  ),
-                );
-
-                final filtered =
-                    _filterHistory(histories);
-
-                return _content(
-                  histories,
-                  filtered,
-                  activeWalks,
-                );
-              },
-            );
-          },
+Widget build(BuildContext context) {
+  return StreamBuilder<
+      QuerySnapshot<Map<String, dynamic>>>(
+    stream: historyStream,
+    builder: (
+      context,
+      snapshot,
+    ) {
+      if (snapshot.hasError) {
+        return _error(
+          snapshot.error.toString(),
         );
-      },
-    );
-  }
+      }
+
+      if (snapshot.connectionState ==
+          ConnectionState.waiting) {
+        return const Center(
+          child: CircularProgressIndicator(
+            color: dojoOrange,
+          ),
+        );
+      }
+
+      final histories = _parseHistory(
+        snapshot.data?.docs ?? [],
+      );
+
+      histories.sort(
+        (a, b) => b.createdAt.compareTo(
+          a.createdAt,
+        ),
+      );
+
+      final filtered =
+          _filterHistory(histories);
+
+      return _content(
+        histories,
+        filtered,
+      );
+    },
+  );
+}
 
   // ==========================================================
   // PARSE
