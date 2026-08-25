@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../services/walk_requests_service.dart';
 import '../widgets/walk_request_card.dart';
@@ -25,11 +26,10 @@ class _WalkRequestsScreenState
   late final WalkRequestsService _service;
 
   // ==========================================================
-  // CONTROLLERS
+  // CONTROLLER
   // ==========================================================
 
-  final TextEditingController
-      _searchController =
+  final TextEditingController _searchController =
       TextEditingController();
 
   // ==========================================================
@@ -46,12 +46,11 @@ class _WalkRequestsScreenState
   void initState() {
     super.initState();
 
-    _service =
-        WalkRequestsService();
+    _service = WalkRequestsService();
   }
 
   // ==========================================================
-  // HELPERS
+  // STRING HELPER
   // ==========================================================
 
   String _string(
@@ -67,6 +66,10 @@ class _WalkRequestsScreenState
     return value.toString();
   }
 
+  // ==========================================================
+  // STATUS
+  // ==========================================================
+
   String _status(
     Map<String, dynamic> data,
   ) {
@@ -76,11 +79,14 @@ class _WalkRequestsScreenState
     ).trim().toLowerCase();
   }
 
+  // ==========================================================
+  // FILTER MATCH
+  // ==========================================================
+
   bool _matchesFilter(
     Map<String, dynamic> data,
   ) {
-    final status =
-        _status(data);
+    final status = _status(data);
 
     switch (_filter) {
       case 'All':
@@ -108,13 +114,16 @@ class _WalkRequestsScreenState
     }
   }
 
+  // ==========================================================
+  // SEARCH MATCH
+  // ==========================================================
+
   bool _matchesSearch(
     Map<String, dynamic> data,
   ) {
-    final query =
-        _searchController.text
-            .trim()
-            .toLowerCase();
+    final query = _searchController.text
+        .trim()
+        .toLowerCase();
 
     if (query.isEmpty) {
       return true;
@@ -133,22 +142,60 @@ class _WalkRequestsScreenState
     ];
 
     return values.any(
-      (value) =>
-          value.toLowerCase().contains(
-                query,
-              ),
+      (value) => value.toLowerCase().contains(query),
     );
   }
 
   // ==========================================================
-  // CANCEL
+  // OPEN GOOGLE MAPS
+  // ==========================================================
+
+  Future<void> _openMaps(
+    LatLng location,
+  ) async {
+    final uri = Uri.parse(
+      'https://www.google.com/maps/search/?api=1'
+      '&query=${location.latitude},${location.longitude}',
+    );
+
+    try {
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+
+      if (!launched && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Unable to open Google Maps.',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Unable to open Maps: $e',
+          ),
+        ),
+      );
+    }
+  }
+
+  // ==========================================================
+  // CANCEL REQUEST
   // ==========================================================
 
   Future<void> _cancelRequest(
     String requestId,
   ) async {
-    final confirmed =
-        await showDialog<bool>(
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) {
         return AlertDialog(
@@ -199,8 +246,7 @@ class _WalkRequestsScreenState
         return;
       }
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
             'Walk request cancelled.',
@@ -212,8 +258,7 @@ class _WalkRequestsScreenState
         return;
       }
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             'Unable to cancel request: $e',
@@ -232,8 +277,7 @@ class _WalkRequestsScreenState
     Map<String, dynamic> requestData,
   ) async {
     try {
-      final walkers =
-          await _service.getWalkers();
+      final walkers = await _service.getWalkers();
 
       if (!mounted) {
         return;
@@ -255,8 +299,7 @@ class _WalkRequestsScreenState
         return;
       }
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             'Unable to load walkers: $e',
@@ -267,7 +310,7 @@ class _WalkRequestsScreenState
   }
 
   // ==========================================================
-  // DETAILS
+  // SHOW DETAILS
   // ==========================================================
 
   void _showDetails(
@@ -277,12 +320,16 @@ class _WalkRequestsScreenState
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor:
-          Colors.transparent,
+      backgroundColor: Colors.transparent,
       builder: (context) {
         return WalkRequestDetailsSheet(
           requestId: requestId,
           data: data,
+
+          // ==================================================
+          // ASSIGN
+          // ==================================================
+
           onAssign: () {
             Navigator.pop(context);
 
@@ -291,6 +338,11 @@ class _WalkRequestsScreenState
               data,
             );
           },
+
+          // ==================================================
+          // CANCEL
+          // ==================================================
+
           onCancel: () {
             Navigator.pop(context);
 
@@ -298,6 +350,12 @@ class _WalkRequestsScreenState
               requestId,
             );
           },
+
+          // ==================================================
+          // OPEN MAPS
+          // ==================================================
+
+          onOpenMaps: _openMaps,
         );
       },
     );
@@ -316,16 +374,14 @@ class _WalkRequestsScreenState
         title: const Text(
           'Walk Requests',
           style: TextStyle(
-            fontWeight:
-                FontWeight.w700,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ),
       body: StreamBuilder<
           QuerySnapshot<
               Map<String, dynamic>>>(
-        stream:
-            _service.watchWalkRequests(),
+        stream: _service.watchWalkRequests(),
         builder: (
           context,
           snapshot,
@@ -337,8 +393,7 @@ class _WalkRequestsScreenState
           if (snapshot.connectionState ==
               ConnectionState.waiting) {
             return const Center(
-              child:
-                  CircularProgressIndicator(),
+              child: CircularProgressIndicator(),
             );
           }
 
@@ -349,13 +404,9 @@ class _WalkRequestsScreenState
           if (snapshot.hasError) {
             return Center(
               child: Padding(
-                padding:
-                    const EdgeInsets.all(
-                  24,
-                ),
+                padding: const EdgeInsets.all(24),
                 child: Column(
-                  mainAxisSize:
-                      MainAxisSize.min,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     const Icon(
                       Icons.error_outline,
@@ -366,12 +417,10 @@ class _WalkRequestsScreenState
                     ),
                     const Text(
                       'Unable to load walk requests.',
-                      textAlign:
-                          TextAlign.center,
+                      textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 17,
-                        fontWeight:
-                            FontWeight.w600,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(
@@ -379,8 +428,7 @@ class _WalkRequestsScreenState
                     ),
                     Text(
                       '${snapshot.error}',
-                      textAlign:
-                          TextAlign.center,
+                      textAlign: TextAlign.center,
                     ),
                   ],
                 ),
@@ -392,82 +440,66 @@ class _WalkRequestsScreenState
           // DOCUMENTS
           // ==================================================
 
-          final docs =
-              snapshot.data?.docs ?? [];
+          final docs = snapshot.data?.docs ?? [];
 
-          final filteredDocs =
-              docs.where(
+          final filteredDocs = docs.where(
             (doc) {
-              final data =
-                  doc.data();
+              final data = doc.data();
 
-              return _matchesFilter(
-                    data,
-                  ) &&
-                  _matchesSearch(
-                    data,
-                  );
+              return _matchesFilter(data) &&
+                  _matchesSearch(data);
             },
           ).toList();
 
+          // ==================================================
+          // CONTENT
+          // ==================================================
+
           return Column(
             children: [
-              _buildTopSection(
-                docs,
-              ),
+              _buildTopSection(docs),
 
               Expanded(
-                child:
-                    filteredDocs.isEmpty
-                        ? _buildEmptyState()
-                        : ListView.builder(
-                            padding:
-                                const EdgeInsets.all(
-                              20,
-                            ),
-                            itemCount:
-                                filteredDocs
-                                    .length,
-                            itemBuilder:
-                                (
-                              context,
-                              index,
-                            ) {
-                              final doc =
-                                  filteredDocs[
-                                      index];
+                child: filteredDocs.isEmpty
+                    ? _buildEmptyState()
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(20),
+                        itemCount: filteredDocs.length,
+                        itemBuilder: (
+                          context,
+                          index,
+                        ) {
+                          final doc =
+                              filteredDocs[index];
 
-                              final data =
-                                  doc.data();
+                          final data = doc.data();
 
-                              return WalkRequestCard(
-                                requestId:
-                                    doc.id,
-                                data:
-                                    data,
-                                onTap:
-                                    () {
-                                  _showDetails(
-                                    doc.id,
-                                    data,
-                                  );
-                                },
-                                onAssign:
-                                    () {
-                                  _assignWalker(
-                                    doc.id,
-                                    data,
-                                  );
-                                },
-                                onCancel:
-                                    () {
-                                  _cancelRequest(
-                                    doc.id,
-                                  );
-                                },
+                          return WalkRequestCard(
+                            requestId: doc.id,
+                            data: data,
+
+                            onTap: () {
+                              _showDetails(
+                                doc.id,
+                                data,
                               );
                             },
-                          ),
+
+                            onAssign: () {
+                              _assignWalker(
+                                doc.id,
+                                data,
+                              );
+                            },
+
+                            onCancel: () {
+                              _cancelRequest(
+                                doc.id,
+                              );
+                            },
+                          );
+                        },
+                      ),
               ),
             ],
           );
@@ -491,8 +523,7 @@ class _WalkRequestsScreenState
     int cancelled = 0;
 
     for (final doc in docs) {
-      final status =
-          _status(
+      final status = _status(
         doc.data(),
       );
 
@@ -513,8 +544,7 @@ class _WalkRequestsScreenState
 
     return Container(
       width: double.infinity,
-      padding:
-          const EdgeInsets.fromLTRB(
+      padding: const EdgeInsets.fromLTRB(
         20,
         20,
         20,
@@ -531,99 +561,79 @@ class _WalkRequestsScreenState
               Expanded(
                 child: _StatBox(
                   title: 'Pending',
-                  value:
-                      pending.toString(),
-                  icon:
-                      Icons.pending_actions,
+                  value: pending.toString(),
+                  icon: Icons.pending_actions,
                 ),
               ),
-              const SizedBox(
-                width: 12,
-              ),
+
+              const SizedBox(width: 12),
+
               Expanded(
                 child: _StatBox(
                   title: 'Accepted',
-                  value:
-                      accepted.toString(),
-                  icon:
-                      Icons.check_circle_outline,
+                  value: accepted.toString(),
+                  icon: Icons.check_circle_outline,
                 ),
               ),
-              const SizedBox(
-                width: 12,
-              ),
+
+              const SizedBox(width: 12),
+
               Expanded(
                 child: _StatBox(
                   title: 'Cancelled',
-                  value:
-                      cancelled.toString(),
-                  icon:
-                      Icons.cancel_outlined,
+                  value: cancelled.toString(),
+                  icon: Icons.cancel_outlined,
                 ),
               ),
             ],
           ),
 
-          const SizedBox(
-            height: 16,
-          ),
+          const SizedBox(height: 16),
 
           // ==================================================
           // SEARCH
           // ==================================================
 
           TextField(
-            controller:
-                _searchController,
+            controller: _searchController,
             onChanged: (_) {
               setState(() {});
             },
-            decoration:
-                InputDecoration(
+            decoration: InputDecoration(
               hintText:
                   'Search owner, request ID, walker...',
-              prefixIcon:
-                  const Icon(
+              prefixIcon: const Icon(
                 Icons.search,
               ),
               suffixIcon:
-                  _searchController
-                          .text
-                          .isEmpty
+                  _searchController.text.isEmpty
                       ? null
                       : IconButton(
                           onPressed: () {
-                            _searchController
-                                .clear();
+                            _searchController.clear();
 
                             setState(() {});
                           },
-                          icon:
-                              const Icon(
+                          icon: const Icon(
                             Icons.clear,
                           ),
                         ),
-              border:
-                  OutlineInputBorder(
-                borderRadius:
-                    BorderRadius.circular(
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(
                   14,
                 ),
               ),
             ),
           ),
 
-          const SizedBox(
-            height: 14,
-          ),
+          const SizedBox(height: 14),
 
           // ==================================================
-          // FILTER
+          // FILTERS
           // ==================================================
 
           SingleChildScrollView(
-            scrollDirection:
-                Axis.horizontal,
+            scrollDirection: Axis.horizontal,
             child: Row(
               children: [
                 'All',
@@ -635,27 +645,18 @@ class _WalkRequestsScreenState
               ].map(
                 (filter) {
                   final selected =
-                      _filter ==
-                          filter;
+                      _filter == filter;
 
                   return Padding(
-                    padding:
-                        const EdgeInsets.only(
+                    padding: const EdgeInsets.only(
                       right: 8,
                     ),
-                    child:
-                        ChoiceChip(
-                      label:
-                          Text(
-                        filter,
-                      ),
-                      selected:
-                          selected,
-                      onSelected:
-                          (_) {
+                    child: ChoiceChip(
+                      label: Text(filter),
+                      selected: selected,
+                      onSelected: (_) {
                         setState(() {
-                          _filter =
-                              filter;
+                          _filter = filter;
                         });
                       },
                     ),
@@ -676,22 +677,18 @@ class _WalkRequestsScreenState
   Widget _buildEmptyState() {
     return const Center(
       child: Column(
-        mainAxisSize:
-            MainAxisSize.min,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
             Icons.inbox_outlined,
             size: 64,
           ),
-          SizedBox(
-            height: 12,
-          ),
+          SizedBox(height: 12),
           Text(
             'No walk requests found',
             style: TextStyle(
               fontSize: 18,
-              fontWeight:
-                  FontWeight.w600,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
@@ -714,8 +711,7 @@ class _WalkRequestsScreenState
 // STAT BOX
 // ============================================================
 
-class _StatBox
-    extends StatelessWidget {
+class _StatBox extends StatelessWidget {
   final String title;
   final String value;
   final IconData icon;
@@ -731,46 +727,35 @@ class _StatBox
     BuildContext context,
   ) {
     return Container(
-      padding:
-          const EdgeInsets.all(16),
-      decoration:
-          BoxDecoration(
-        borderRadius:
-            BorderRadius.circular(
-          16,
-        ),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color:
-              Theme.of(context)
-                  .dividerColor,
+          color: Theme.of(context).dividerColor,
         ),
       ),
       child: Row(
         children: [
           Icon(icon),
-          const SizedBox(
-            width: 10,
-          ),
+
+          const SizedBox(width: 10),
+
           Expanded(
             child: Column(
               crossAxisAlignment:
-                  CrossAxisAlignment
-                      .start,
+                  CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
-                  style:
-                      const TextStyle(
+                  style: const TextStyle(
                     fontSize: 12,
                   ),
                 ),
                 Text(
                   value,
-                  style:
-                      const TextStyle(
+                  style: const TextStyle(
                     fontSize: 22,
-                    fontWeight:
-                        FontWeight.w800,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ],
@@ -789,8 +774,8 @@ class _StatBox
 class _AssignWalkerDialog
     extends StatefulWidget {
   final String requestId;
-  final Map<String, dynamic>
-      requestData;
+
+  final Map<String, dynamic> requestData;
 
   final List<
           QueryDocumentSnapshot<
@@ -807,9 +792,8 @@ class _AssignWalkerDialog
   });
 
   @override
-  State<_AssignWalkerDialog>
-      createState() =>
-          _AssignWalkerDialogState();
+  State<_AssignWalkerDialog> createState() =>
+      _AssignWalkerDialogState();
 }
 
 class _AssignWalkerDialogState
@@ -818,12 +802,15 @@ class _AssignWalkerDialogState
 
   bool saving = false;
 
+  // ==========================================================
+  // VALUE
+  // ==========================================================
+
   String _value(
     Map<String, dynamic> data,
     String key,
   ) {
-    final value =
-        data[key];
+    final value = data[key];
 
     return value == null
         ? ''
@@ -836,8 +823,7 @@ class _AssignWalkerDialogState
 
   Future<void> _assign() async {
     if (selectedDocId == null) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
             'Please select a walker.',
@@ -848,15 +834,15 @@ class _AssignWalkerDialogState
       return;
     }
 
-    final walker =
-        widget.walkers.firstWhere(
-      (doc) =>
-          doc.id ==
-          selectedDocId,
+    final walker = widget.walkers.firstWhere(
+      (doc) => doc.id == selectedDocId,
     );
 
-    final data =
-        walker.data();
+    final data = walker.data();
+
+    // ========================================================
+    // WALKER UID
+    // ========================================================
 
     final walkerUid =
         _value(
@@ -872,11 +858,18 @@ class _AssignWalkerDialogState
                 'walkerUid',
               );
 
-    final walkerId =
-        _value(
+    // ========================================================
+    // WALKER ID
+    // ========================================================
+
+    final walkerId = _value(
       data,
       'walkerId',
     );
+
+    // ========================================================
+    // WALKER NAME
+    // ========================================================
 
     final walkerName =
         _value(
@@ -892,9 +885,12 @@ class _AssignWalkerDialogState
                 'walkerName',
               );
 
+    // ========================================================
+    // VALIDATION
+    // ========================================================
+
     if (walkerUid.isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
             'Selected walker has no valid UID.',
@@ -906,8 +902,7 @@ class _AssignWalkerDialogState
     }
 
     if (walkerId.isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
             'Selected walker has no Walker ID.',
@@ -922,17 +917,16 @@ class _AssignWalkerDialogState
       saving = true;
     });
 
+    // ========================================================
+    // SAVE
+    // ========================================================
+
     try {
-      await widget.service
-          .assignWalker(
-        requestId:
-            widget.requestId,
-        walkerUid:
-            walkerUid,
-        walkerId:
-            walkerId,
-        walkerName:
-            walkerName,
+      await widget.service.assignWalker(
+        requestId: widget.requestId,
+        walkerUid: walkerUid,
+        walkerId: walkerId,
+        walkerName: walkerName,
       );
 
       if (!mounted) {
@@ -941,8 +935,7 @@ class _AssignWalkerDialogState
 
       Navigator.pop(context);
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
             'Walker assigned successfully.',
@@ -958,8 +951,7 @@ class _AssignWalkerDialogState
         saving = false;
       });
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             'Failed to assign walker: $e',
@@ -981,136 +973,116 @@ class _AssignWalkerDialogState
       title: const Text(
         'Assign Walker',
       ),
+
       content: SizedBox(
         width: 500,
-        child:
-            widget.walkers.isEmpty
-                ? const Padding(
-                    padding:
-                        EdgeInsets.all(
-                      20,
-                    ),
-                    child: Text(
-                      'No walkers found.',
-                    ),
-                  )
-                : ListView.builder(
-                    shrinkWrap:
-                        true,
-                    itemCount:
-                        widget.walkers
-                            .length,
-                    itemBuilder:
-                        (
-                      context,
-                      index,
-                    ) {
-                      final doc =
-                          widget.walkers[
-                              index];
 
-                      final data =
-                          doc.data();
+        child: widget.walkers.isEmpty
+            ? const Padding(
+                padding: EdgeInsets.all(20),
+                child: Text(
+                  'No walkers found.',
+                ),
+              )
+            : ListView.builder(
+                shrinkWrap: true,
+                itemCount: widget.walkers.length,
+                itemBuilder: (
+                  context,
+                  index,
+                ) {
+                  final doc =
+                      widget.walkers[index];
 
-                      final name =
-                          _value(
-                            data,
-                            'name',
-                          ).isNotEmpty
-                              ? _value(
-                                  data,
-                                  'name',
-                                )
-                              : _value(
-                                  data,
-                                  'walkerName',
-                                );
+                  final data = doc.data();
 
-                      final walkerId =
-                          _value(
+                  final name =
+                      _value(
+                        data,
+                        'name',
+                      ).isNotEmpty
+                          ? _value(
+                              data,
+                              'name',
+                            )
+                          : _value(
+                              data,
+                              'walkerName',
+                            );
+
+                  final walkerId =
+                      _value(
                         data,
                         'walkerId',
                       );
 
-                      final selected =
-                          selectedDocId ==
-                              doc.id;
+                  final selected =
+                      selectedDocId == doc.id;
 
-                      return Card(
-                        child:
-                            ListTile(
-                          leading:
-                              const CircleAvatar(
-                            child:
-                                Icon(
-                              Icons.person,
-                            ),
-                          ),
-                          title:
-                              Text(
-                            name.isEmpty
-                                ? 'Walker'
-                                : name,
-                          ),
-                          subtitle:
-                              Text(
-                            walkerId
-                                    .isEmpty
-                                ? doc.id
-                                : walkerId,
-                          ),
-                          trailing:
-                              Radio<
-                                  String>(
-                            value:
-                                doc.id,
-                            groupValue:
-                                selectedDocId,
-                            onChanged:
-                                (value) {
-                              setState(
-                                () {
-                                  selectedDocId =
-                                      value;
-                                },
-                              );
-                            },
-                          ),
-                          selected:
-                              selected,
-                          onTap: () {
-                            setState(
-                              () {
-                                selectedDocId =
-                                    doc.id;
-                              },
-                            );
-                          },
+                  return Card(
+                    child: ListTile(
+                      leading:
+                          const CircleAvatar(
+                        child: Icon(
+                          Icons.person,
                         ),
-                      );
-                    },
-                  ),
+                      ),
+
+                      title: Text(
+                        name.isEmpty
+                            ? 'Walker'
+                            : name,
+                      ),
+
+                      subtitle: Text(
+                        walkerId.isEmpty
+                            ? doc.id
+                            : walkerId,
+                      ),
+
+                      trailing:
+                          Radio<String>(
+                        value: doc.id,
+                        groupValue:
+                            selectedDocId,
+                        onChanged: (value) {
+                          setState(() {
+                            selectedDocId =
+                                value;
+                          });
+                        },
+                      ),
+
+                      selected: selected,
+
+                      onTap: () {
+                        setState(() {
+                          selectedDocId =
+                              doc.id;
+                        });
+                      },
+                    ),
+                  );
+                },
+              ),
       ),
+
       actions: [
         TextButton(
-          onPressed:
-              saving
-                  ? null
-                  : () {
-                      Navigator.pop(
-                        context,
-                      );
-                    },
-          child:
-              const Text(
+          onPressed: saving
+              ? null
+              : () {
+                  Navigator.pop(context);
+                },
+          child: const Text(
             'Cancel',
           ),
         ),
+
         FilledButton(
-          onPressed:
-              saving
-                  ? null
-                  : _assign,
+          onPressed: saving
+              ? null
+              : _assign,
           child: saving
               ? const SizedBox(
                   width: 18,
