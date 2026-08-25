@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 class WalkRequestCard extends StatelessWidget {
   final String requestId;
   final Map<String, dynamic> data;
-
   final VoidCallback onTap;
   final VoidCallback onAssign;
   final VoidCallback onCancel;
@@ -17,70 +16,19 @@ class WalkRequestCard extends StatelessWidget {
     required this.onCancel,
   });
 
-  // ==========================================================
-  // VALUE
-  // ==========================================================
-
   String _value(String key) {
     final value = data[key];
 
-    if (value == null) {
-      return '';
-    }
-
-    return value.toString().trim();
+    return value == null
+        ? ''
+        : value.toString();
   }
-
-  // ==========================================================
-  // STATUS
-  // ==========================================================
 
   String _status() {
-    return _value('status').toLowerCase();
+    return _value('status')
+        .trim()
+        .toLowerCase();
   }
-
-  // ==========================================================
-  // RADIUS
-  // ==========================================================
-
-  String _radius() {
-    final value = data['searchRadiusKm'];
-
-    if (value == null) {
-      return '0.0 km';
-    }
-
-    if (value is num) {
-      return '${value.toStringAsFixed(1)} km';
-    }
-
-    final text = value.toString().trim();
-
-    if (text.isEmpty) {
-      return '0.0 km';
-    }
-
-    return '$text km';
-  }
-
-  // ==========================================================
-  // SEARCH TYPE
-  // ==========================================================
-
-  String _searchType() {
-    final value =
-        _value('searchType');
-
-    if (value.isEmpty) {
-      return 'Walk';
-    }
-
-    return value;
-  }
-
-  // ==========================================================
-  // BUILD
-  // ==========================================================
 
   @override
   Widget build(BuildContext context) {
@@ -93,18 +41,23 @@ class WalkRequestCard extends StatelessWidget {
     final accepted =
         status == 'accepted';
 
-    final owner =
+    final ownerName =
         _value('ownerName');
 
     final address =
         _value('address');
 
+    final searchType =
+        _value('searchType');
+
+    final radius =
+        _value('searchRadiusKm');
+
     final walkerName =
         _value('walkerName');
 
     return Card(
-      margin:
-          const EdgeInsets.only(
+      margin: const EdgeInsets.only(
         bottom: 14,
       ),
       clipBehavior:
@@ -123,17 +76,16 @@ class WalkRequestCard extends StatelessWidget {
               // ==================================================
 
               Row(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
                 children: [
-                  CircleAvatar(
-                    radius: 24,
-                    child: const Icon(
+                  const CircleAvatar(
+                    child: Icon(
                       Icons.pets,
                     ),
                   ),
 
-                  const SizedBox(width: 12),
+                  const SizedBox(
+                    width: 12,
+                  ),
 
                   Expanded(
                     child: Column(
@@ -141,12 +93,9 @@ class WalkRequestCard extends StatelessWidget {
                           CrossAxisAlignment.start,
                       children: [
                         Text(
-                          owner.isEmpty
+                          ownerName.isEmpty
                               ? 'Unknown Owner'
-                              : owner,
-                          maxLines: 1,
-                          overflow:
-                              TextOverflow.ellipsis,
+                              : ownerName,
                           style:
                               const TextStyle(
                             fontSize: 17,
@@ -167,29 +116,34 @@ class WalkRequestCard extends StatelessWidget {
                           style:
                               TextStyle(
                             fontSize: 12,
-                            color: Theme.of(
+                            color:
+                                Theme.of(
                               context,
                             )
-                                .colorScheme
-                                .onSurfaceVariant,
+                                    .colorScheme
+                                    .onSurfaceVariant,
                           ),
                         ),
                       ],
                     ),
                   ),
 
-                  const SizedBox(width: 8),
+                  const SizedBox(
+                    width: 8,
+                  ),
 
-                  WalkRequestStatusBadge(
+                  _StatusBadge(
                     status: status,
                   ),
                 ],
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(
+                height: 16,
+              ),
 
               // ==================================================
-              // ADDRESS
+              // LOCATION
               // ==================================================
 
               Row(
@@ -201,7 +155,9 @@ class WalkRequestCard extends StatelessWidget {
                     size: 20,
                   ),
 
-                  const SizedBox(width: 8),
+                  const SizedBox(
+                    width: 8,
+                  ),
 
                   Expanded(
                     child: Text(
@@ -216,7 +172,9 @@ class WalkRequestCard extends StatelessWidget {
                 ],
               ),
 
-              const SizedBox(height: 12),
+              const SizedBox(
+                height: 12,
+              ),
 
               // ==================================================
               // REQUEST INFO
@@ -227,24 +185,29 @@ class WalkRequestCard extends StatelessWidget {
                 runSpacing: 8,
                 children: [
                   Chip(
-                    avatar: const Icon(
+                    avatar:
+                        const Icon(
                       Icons.directions_walk,
-                      size: 17,
+                      size: 18,
                     ),
                     label: Text(
-                      _searchType(),
+                      searchType.isEmpty
+                          ? 'Walk'
+                          : searchType,
                     ),
                   ),
 
-                  Chip(
-                    avatar: const Icon(
-                      Icons.radar,
-                      size: 17,
+                  if (radius.isNotEmpty)
+                    Chip(
+                      avatar:
+                          const Icon(
+                        Icons.radar,
+                        size: 18,
+                      ),
+                      label: Text(
+                        '$radius km',
+                      ),
                     ),
-                    label: Text(
-                      _radius(),
-                    ),
-                  ),
                 ],
               ),
 
@@ -253,49 +216,39 @@ class WalkRequestCard extends StatelessWidget {
               // ==================================================
 
               if (accepted) ...[
-                const SizedBox(height: 8),
+                const SizedBox(
+                  height: 4,
+                ),
 
-                Container(
-                  width: double.infinity,
-                  padding:
-                      const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    borderRadius:
-                        BorderRadius.circular(
-                      12,
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.person_outline,
+                      size: 19,
                     ),
-                    color: Theme.of(context)
-                        .colorScheme
-                        .surfaceContainerHighest,
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.person,
-                        size: 20,
-                      ),
 
-                      const SizedBox(
-                        width: 8,
-                      ),
+                    const SizedBox(
+                      width: 7,
+                    ),
 
-                      Expanded(
-                        child: Text(
-                          'Walker: '
-                          '${walkerName.isEmpty ? 'Assigned' : walkerName}',
-                          style:
-                              const TextStyle(
-                            fontWeight:
-                                FontWeight.w600,
-                          ),
+                    Expanded(
+                      child: Text(
+                        'Walker: '
+                        '${walkerName.isEmpty ? 'Assigned' : walkerName}',
+                        style:
+                            const TextStyle(
+                          fontWeight:
+                              FontWeight.w600,
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ],
 
-              const SizedBox(height: 14),
+              const SizedBox(
+                height: 14,
+              ),
 
               // ==================================================
               // ACTIONS
@@ -309,7 +262,8 @@ class WalkRequestCard extends StatelessWidget {
                       onPressed: onTap,
                       icon:
                           const Icon(
-                        Icons.visibility_outlined,
+                        Icons
+                            .visibility_outlined,
                       ),
                       label:
                           const Text(
@@ -319,12 +273,15 @@ class WalkRequestCard extends StatelessWidget {
                   ),
 
                   if (pending) ...[
-                    const SizedBox(width: 8),
+                    const SizedBox(
+                      width: 8,
+                    ),
 
                     Expanded(
                       child:
                           FilledButton.icon(
-                        onPressed: onAssign,
+                        onPressed:
+                            onAssign,
                         icon:
                             const Icon(
                           Icons
@@ -346,16 +303,21 @@ class WalkRequestCard extends StatelessWidget {
 
               if (pending ||
                   accepted) ...[
-                const SizedBox(height: 8),
+                const SizedBox(
+                  height: 8,
+                ),
 
                 SizedBox(
-                  width: double.infinity,
+                  width:
+                      double.infinity,
                   child:
                       TextButton.icon(
-                    onPressed: onCancel,
+                    onPressed:
+                        onCancel,
                     icon:
                         const Icon(
-                      Icons.cancel_outlined,
+                      Icons
+                          .cancel_outlined,
                     ),
                     label:
                         const Text(
@@ -376,66 +338,27 @@ class WalkRequestCard extends StatelessWidget {
 // STATUS BADGE
 // ============================================================
 
-class WalkRequestStatusBadge
+class _StatusBadge
     extends StatelessWidget {
   final String status;
 
-  const WalkRequestStatusBadge({
-    super.key,
+  const _StatusBadge({
     required this.status,
   });
-
-  // ==========================================================
-  // DISPLAY TEXT
-  // ==========================================================
-
-  String _displayStatus() {
-    if (status.isEmpty) {
-      return 'Unknown';
-    }
-
-    return status[0].toUpperCase() +
-        status.substring(1);
-  }
-
-  // ==========================================================
-  // ICON
-  // ==========================================================
-
-  IconData _icon() {
-    switch (status) {
-      case 'searching':
-      case 'pending':
-        return Icons.pending_actions;
-
-      case 'accepted':
-        return Icons.check_circle_outline;
-
-      case 'active':
-        return Icons.directions_walk;
-
-      case 'completed':
-        return Icons.task_alt;
-
-      case 'cancelled':
-      case 'canceled':
-        return Icons.cancel_outlined;
-
-      default:
-        return Icons.help_outline;
-    }
-  }
-
-  // ==========================================================
-  // BUILD
-  // ==========================================================
 
   @override
   Widget build(
     BuildContext context,
   ) {
+    final displayText =
+        status.isEmpty
+            ? 'Unknown'
+            : status[0].toUpperCase() +
+                status.substring(1);
+
     final colorScheme =
-        Theme.of(context).colorScheme;
+        Theme.of(context)
+            .colorScheme;
 
     return Container(
       padding:
@@ -451,30 +374,15 @@ class WalkRequestStatusBadge
           alpha: 0.10,
         ),
       ),
-      child: Row(
-        mainAxisSize:
-            MainAxisSize.min,
-        children: [
-          Icon(
-            _icon(),
-            size: 14,
-            color:
-                colorScheme.primary,
-          ),
-
-          const SizedBox(width: 5),
-
-          Text(
-            _displayStatus(),
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight:
-                  FontWeight.w700,
-              color:
-                  colorScheme.primary,
-            ),
-          ),
-        ],
+      child: Text(
+        displayText,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight:
+              FontWeight.w700,
+          color:
+              colorScheme.primary,
+        ),
       ),
     );
   }
