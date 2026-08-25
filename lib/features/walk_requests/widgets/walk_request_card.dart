@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'walk_request_status_badge.dart';
-
 class WalkRequestCard extends StatelessWidget {
   final String requestId;
   final Map<String, dynamic> data;
@@ -19,6 +17,10 @@ class WalkRequestCard extends StatelessWidget {
     required this.onCancel,
   });
 
+  // ==========================================================
+  // VALUE
+  // ==========================================================
+
   String _value(String key) {
     final value = data[key];
 
@@ -26,16 +28,22 @@ class WalkRequestCard extends StatelessWidget {
       return '';
     }
 
-    return value.toString();
+    return value.toString().trim();
   }
+
+  // ==========================================================
+  // STATUS
+  // ==========================================================
 
   String _status() {
-    return _value('status')
-        .trim()
-        .toLowerCase();
+    return _value('status').toLowerCase();
   }
 
-  String _distance() {
+  // ==========================================================
+  // RADIUS
+  // ==========================================================
+
+  String _radius() {
     final value = data['searchRadiusKm'];
 
     if (value == null) {
@@ -43,18 +51,36 @@ class WalkRequestCard extends StatelessWidget {
     }
 
     if (value is num) {
-      return '${value.toDouble().toStringAsFixed(1)} km';
+      return '${value.toStringAsFixed(1)} km';
     }
 
-    final parsed =
-        double.tryParse(value.toString());
+    final text = value.toString().trim();
 
-    if (parsed == null) {
+    if (text.isEmpty) {
       return '0.0 km';
     }
 
-    return '${parsed.toStringAsFixed(1)} km';
+    return '$text km';
   }
+
+  // ==========================================================
+  // SEARCH TYPE
+  // ==========================================================
+
+  String _searchType() {
+    final value =
+        _value('searchType');
+
+    if (value.isEmpty) {
+      return 'Walk';
+    }
+
+    return value;
+  }
+
+  // ==========================================================
+  // BUILD
+  // ==========================================================
 
   @override
   Widget build(BuildContext context) {
@@ -67,10 +93,7 @@ class WalkRequestCard extends StatelessWidget {
     final accepted =
         status == 'accepted';
 
-    final active =
-        status == 'active';
-
-    final ownerName =
+    final owner =
         _value('ownerName');
 
     final address =
@@ -79,33 +102,32 @@ class WalkRequestCard extends StatelessWidget {
     final walkerName =
         _value('walkerName');
 
-    final searchType =
-        _value('searchType');
-
     return Card(
-      margin: const EdgeInsets.only(
+      margin:
+          const EdgeInsets.only(
         bottom: 14,
       ),
-      clipBehavior: Clip.antiAlias,
-      elevation: 1,
+      clipBehavior:
+          Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(18),
+          padding:
+              const EdgeInsets.all(18),
           child: Column(
             crossAxisAlignment:
                 CrossAxisAlignment.start,
             children: [
-              // =================================================
+              // ==================================================
               // HEADER
-              // =================================================
+              // ==================================================
 
               Row(
                 crossAxisAlignment:
                     CrossAxisAlignment.start,
                 children: [
                   CircleAvatar(
-                    radius: 23,
+                    radius: 24,
                     child: const Icon(
                       Icons.pets,
                     ),
@@ -119,9 +141,9 @@ class WalkRequestCard extends StatelessWidget {
                           CrossAxisAlignment.start,
                       children: [
                         Text(
-                          ownerName.isEmpty
+                          owner.isEmpty
                               ? 'Unknown Owner'
-                              : ownerName,
+                              : owner,
                           maxLines: 1,
                           overflow:
                               TextOverflow.ellipsis,
@@ -133,7 +155,9 @@ class WalkRequestCard extends StatelessWidget {
                           ),
                         ),
 
-                        const SizedBox(height: 3),
+                        const SizedBox(
+                          height: 3,
+                        ),
 
                         Text(
                           'Request: $requestId',
@@ -141,9 +165,14 @@ class WalkRequestCard extends StatelessWidget {
                           overflow:
                               TextOverflow.ellipsis,
                           style:
-                              Theme.of(context)
-                                  .textTheme
-                                  .bodySmall,
+                              TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(
+                              context,
+                            )
+                                .colorScheme
+                                .onSurfaceVariant,
+                          ),
                         ),
                       ],
                     ),
@@ -159,21 +188,17 @@ class WalkRequestCard extends StatelessWidget {
 
               const SizedBox(height: 16),
 
-              // =================================================
-              // PICKUP
-              // =================================================
+              // ==================================================
+              // ADDRESS
+              // ==================================================
 
               Row(
                 crossAxisAlignment:
                     CrossAxisAlignment.start,
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.location_on_outlined,
-                    size: 21,
-                    color:
-                        Theme.of(context)
-                            .colorScheme
-                            .primary,
+                    size: 20,
                   ),
 
                   const SizedBox(width: 8),
@@ -186,12 +211,6 @@ class WalkRequestCard extends StatelessWidget {
                       maxLines: 2,
                       overflow:
                           TextOverflow.ellipsis,
-                      style:
-                          const TextStyle(
-                        fontSize: 14,
-                        fontWeight:
-                            FontWeight.w500,
-                      ),
                     ),
                   ),
                 ],
@@ -199,9 +218,9 @@ class WalkRequestCard extends StatelessWidget {
 
               const SizedBox(height: 12),
 
-              // =================================================
+              // ==================================================
               // REQUEST INFO
-              // =================================================
+              // ==================================================
 
               Wrap(
                 spacing: 8,
@@ -213,9 +232,7 @@ class WalkRequestCard extends StatelessWidget {
                       size: 17,
                     ),
                     label: Text(
-                      searchType.isEmpty
-                          ? 'Walk'
-                          : searchType,
+                      _searchType(),
                     ),
                   ),
 
@@ -225,19 +242,17 @@ class WalkRequestCard extends StatelessWidget {
                       size: 17,
                     ),
                     label: Text(
-                      _distance(),
+                      _radius(),
                     ),
                   ),
                 ],
               ),
 
-              // =================================================
+              // ==================================================
               // WALKER
-              // =================================================
+              // ==================================================
 
-              if (accepted ||
-                  active ||
-                  walkerName.isNotEmpty) ...[
+              if (accepted) ...[
                 const SizedBox(height: 8),
 
                 Container(
@@ -246,27 +261,28 @@ class WalkRequestCard extends StatelessWidget {
                       const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     borderRadius:
-                        BorderRadius.circular(12),
-                    color:
-                        Colors.green.withValues(
-                      alpha: 0.08,
+                        BorderRadius.circular(
+                      12,
                     ),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .surfaceContainerHighest,
                   ),
                   child: Row(
                     children: [
                       const Icon(
-                        Icons.person_outline,
+                        Icons.person,
                         size: 20,
-                        color: Colors.green,
                       ),
 
-                      const SizedBox(width: 8),
+                      const SizedBox(
+                        width: 8,
+                      ),
 
                       Expanded(
                         child: Text(
-                          walkerName.isEmpty
-                              ? 'Walker Assigned'
-                              : 'Walker: $walkerName',
+                          'Walker: '
+                          '${walkerName.isEmpty ? 'Assigned' : walkerName}',
                           style:
                               const TextStyle(
                             fontWeight:
@@ -281,9 +297,9 @@ class WalkRequestCard extends StatelessWidget {
 
               const SizedBox(height: 14),
 
-              // =================================================
-              // ACTION BUTTONS
-              // =================================================
+              // ==================================================
+              // ACTIONS
+              // ==================================================
 
               Row(
                 children: [
@@ -291,10 +307,12 @@ class WalkRequestCard extends StatelessWidget {
                     child:
                         OutlinedButton.icon(
                       onPressed: onTap,
-                      icon: const Icon(
+                      icon:
+                          const Icon(
                         Icons.visibility_outlined,
                       ),
-                      label: const Text(
+                      label:
+                          const Text(
                         'View Details',
                       ),
                     ),
@@ -307,10 +325,13 @@ class WalkRequestCard extends StatelessWidget {
                       child:
                           FilledButton.icon(
                         onPressed: onAssign,
-                        icon: const Icon(
-                          Icons.person_add_alt_1,
+                        icon:
+                            const Icon(
+                          Icons
+                              .person_add_alt_1,
                         ),
-                        label: const Text(
+                        label:
+                            const Text(
                           'Assign',
                         ),
                       ),
@@ -319,23 +340,25 @@ class WalkRequestCard extends StatelessWidget {
                 ],
               ),
 
-              // =================================================
+              // ==================================================
               // CANCEL
-              // =================================================
+              // ==================================================
 
               if (pending ||
-                  accepted ||
-                  active) ...[
+                  accepted) ...[
                 const SizedBox(height: 8),
 
                 SizedBox(
                   width: double.infinity,
-                  child: TextButton.icon(
+                  child:
+                      TextButton.icon(
                     onPressed: onCancel,
-                    icon: const Icon(
+                    icon:
+                        const Icon(
                       Icons.cancel_outlined,
                     ),
-                    label: const Text(
+                    label:
+                        const Text(
                       'Cancel Request',
                     ),
                   ),
@@ -344,6 +367,114 @@ class WalkRequestCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ============================================================
+// STATUS BADGE
+// ============================================================
+
+class WalkRequestStatusBadge
+    extends StatelessWidget {
+  final String status;
+
+  const WalkRequestStatusBadge({
+    super.key,
+    required this.status,
+  });
+
+  // ==========================================================
+  // DISPLAY TEXT
+  // ==========================================================
+
+  String _displayStatus() {
+    if (status.isEmpty) {
+      return 'Unknown';
+    }
+
+    return status[0].toUpperCase() +
+        status.substring(1);
+  }
+
+  // ==========================================================
+  // ICON
+  // ==========================================================
+
+  IconData _icon() {
+    switch (status) {
+      case 'searching':
+      case 'pending':
+        return Icons.pending_actions;
+
+      case 'accepted':
+        return Icons.check_circle_outline;
+
+      case 'active':
+        return Icons.directions_walk;
+
+      case 'completed':
+        return Icons.task_alt;
+
+      case 'cancelled':
+      case 'canceled':
+        return Icons.cancel_outlined;
+
+      default:
+        return Icons.help_outline;
+    }
+  }
+
+  // ==========================================================
+  // BUILD
+  // ==========================================================
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final colorScheme =
+        Theme.of(context).colorScheme;
+
+    return Container(
+      padding:
+          const EdgeInsets.symmetric(
+        horizontal: 10,
+        vertical: 6,
+      ),
+      decoration: BoxDecoration(
+        borderRadius:
+            BorderRadius.circular(30),
+        color: colorScheme.primary
+            .withValues(
+          alpha: 0.10,
+        ),
+      ),
+      child: Row(
+        mainAxisSize:
+            MainAxisSize.min,
+        children: [
+          Icon(
+            _icon(),
+            size: 14,
+            color:
+                colorScheme.primary,
+          ),
+
+          const SizedBox(width: 5),
+
+          Text(
+            _displayStatus(),
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight:
+                  FontWeight.w700,
+              color:
+                  colorScheme.primary,
+            ),
+          ),
+        ],
       ),
     );
   }
