@@ -21,7 +21,7 @@ class WalkRequestsService {
           _firestore.collection('walkers');
 
   // ==========================================================
-  // GET WALK REQUESTS
+  // WATCH WALK REQUESTS
   // ==========================================================
 
   Stream<QuerySnapshot<Map<String, dynamic>>>
@@ -105,6 +105,18 @@ class WalkRequestsService {
     if (cleanWalkerUid.isEmpty) {
       throw Exception(
         'Walker UID is empty.',
+      );
+    }
+
+    if (cleanWalkerId.isEmpty) {
+      throw Exception(
+        'Walker ID is empty.',
+      );
+    }
+
+    if (cleanWalkerName.isEmpty) {
+      throw Exception(
+        'Walker name is empty.',
       );
     }
 
