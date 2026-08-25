@@ -8,143 +8,72 @@ class WalkRequestStatusBadge extends StatelessWidget {
     required this.status,
   });
 
-  String _displayStatus() {
-    final cleanStatus = status.trim();
+  String get _displayStatus {
+    final value = status.trim();
 
-    if (cleanStatus.isEmpty) {
+    if (value.isEmpty) {
       return 'Unknown';
     }
 
-    return cleanStatus[0].toUpperCase() +
-        cleanStatus.substring(1);
+    return value[0].toUpperCase() +
+        value.substring(1);
   }
 
-  Color _backgroundColor(BuildContext context) {
+  Color _statusColor(
+    BuildContext context,
+  ) {
     final colorScheme =
         Theme.of(context).colorScheme;
 
     switch (status.trim().toLowerCase()) {
       case 'searching':
       case 'pending':
-        return colorScheme.primary.withValues(
-          alpha: 0.10,
-        );
+        return colorScheme.tertiary;
 
       case 'accepted':
-        return Colors.green.withValues(
-          alpha: 0.12,
-        );
+        return Colors.green;
 
       case 'active':
-        return Colors.blue.withValues(
-          alpha: 0.12,
-        );
-
-      case 'completed':
-        return Colors.teal.withValues(
-          alpha: 0.12,
-        );
-
-      case 'cancelled':
-      case 'canceled':
-        return Colors.red.withValues(
-          alpha: 0.12,
-        );
-
-      default:
-        return colorScheme.onSurface.withValues(
-          alpha: 0.08,
-        );
-    }
-  }
-
-  Color _textColor(BuildContext context) {
-    final colorScheme =
-        Theme.of(context).colorScheme;
-
-    switch (status.trim().toLowerCase()) {
-      case 'searching':
-      case 'pending':
         return colorScheme.primary;
 
-      case 'accepted':
-        return Colors.green.shade700;
-
-      case 'active':
-        return Colors.blue.shade700;
-
       case 'completed':
-        return Colors.teal.shade700;
+        return Colors.blue;
 
       case 'cancelled':
       case 'canceled':
-        return Colors.red.shade700;
+        return colorScheme.error;
 
       default:
-        return colorScheme.onSurface;
-    }
-  }
-
-  IconData _icon() {
-    switch (status.trim().toLowerCase()) {
-      case 'searching':
-        return Icons.radar;
-
-      case 'pending':
-        return Icons.pending_actions;
-
-      case 'accepted':
-        return Icons.check_circle_outline;
-
-      case 'active':
-        return Icons.directions_walk;
-
-      case 'completed':
-        return Icons.task_alt;
-
-      case 'cancelled':
-      case 'canceled':
-        return Icons.cancel_outlined;
-
-      default:
-        return Icons.help_outline;
+        return colorScheme.onSurfaceVariant;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final textColor =
-        _textColor(context);
+    final color =
+        _statusColor(context);
 
     return Container(
-      padding: const EdgeInsets.symmetric(
+      padding:
+          const EdgeInsets.symmetric(
         horizontal: 10,
         vertical: 6,
       ),
       decoration: BoxDecoration(
-        color: _backgroundColor(context),
-        borderRadius: BorderRadius.circular(30),
+        borderRadius:
+            BorderRadius.circular(30),
+        color: color.withValues(
+          alpha: 0.10,
+        ),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            _icon(),
-            size: 14,
-            color: textColor,
-          ),
-
-          const SizedBox(width: 5),
-
-          Text(
-            _displayStatus(),
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: textColor,
-            ),
-          ),
-        ],
+      child: Text(
+        _displayStatus,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight:
+              FontWeight.w700,
+          color: color,
+        ),
       ),
     );
   }
