@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../widgets/dashboard/dashboard_components.dart';
 import '../widgets/dashboard/dashboard_header.dart';
@@ -24,42 +26,27 @@ class _DashboardScreenState extends State<DashboardScreen>
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // ============================================================
-  // FIRESTORE STREAMS
+  // ORIGINAL FIRESTORE COLLECTIONS
   // ============================================================
 
   Stream<QuerySnapshot<Map<String, dynamic>>> get _ownersStream {
-    return _firestore
-        .collection('users')
-        .where('role', isEqualTo: 'owner')
-        .snapshots();
+    return _firestore.collection('owners').snapshots();
   }
 
   Stream<QuerySnapshot<Map<String, dynamic>>> get _walkersStream {
-    return _firestore.collection('walkerProfiles').snapshots();
+    return _firestore.collection('walkers').snapshots();
   }
 
   Stream<QuerySnapshot<Map<String, dynamic>>> get _activeWalksStream {
-    return _firestore
-        .collection('active_walk')
-        .where('status', isEqualTo: 'active')
-        .snapshots();
+    return _firestore.collection('active_walks').snapshots();
   }
 
-  /*
-   * Intentionally no orderBy('createdAt') here.
-   *
-   * This avoids:
-   * - missing-field issues
-   * - unnecessary composite/index problems
-   *
-   * We sort the documents locally instead.
-   */
   Stream<QuerySnapshot<Map<String, dynamic>>> get _historyStream {
-    return _firestore.collection('walkHistory').snapshots();
+    return _firestore.collection('walk_history').snapshots();
   }
 
   // ============================================================
-  // INIT / DISPOSE
+  // INIT
   // ============================================================
 
   @override
@@ -96,15 +83,11 @@ class _DashboardScreenState extends State<DashboardScreen>
               }
             },
           ),
-
           const SizedBox(height: 20),
-
           DashboardTabs(
             controller: _tabController,
           ),
-
           const SizedBox(height: 20),
-
           Expanded(
             child: TabBarView(
               controller: _tabController,
@@ -132,17 +115,11 @@ class _DashboardScreenState extends State<DashboardScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _liveMapContainer(),
-
           const SizedBox(height: 18),
-
           _statsGrid(),
-
           const SizedBox(height: 18),
-
           _quickActions(),
-
           const SizedBox(height: 18),
-
           _overviewPanels(),
         ],
       ),
@@ -178,16 +155,15 @@ class _DashboardScreenState extends State<DashboardScreen>
                   stream: _activeWalksStream,
                   builder: (context, activeSnapshot) {
                     final activeCount =
-                        activeSnapshot.data?.docs.length ?? 0;
+                        _activeWalkCount(activeSnapshot.data?.docs);
 
                     return StreamBuilder<
                         QuerySnapshot<Map<String, dynamic>>>(
                       stream: _historyStream,
                       builder: (context, historySnapshot) {
-                        final historyDocs =
-                            _sortedHistoryDocs(historySnapshot.data?.docs);
-
-                        final completedCount = historyDocs.length;
+                        final historyDocs = _sortedHistoryDocs(
+                          historySnapshot.data?.docs,
+                        );
 
                         return GridView.count(
                           crossAxisCount: columns,
@@ -219,7 +195,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                             ),
                             StatCard(
                               title: 'Completed Walks',
-                              value: '$completedCount',
+                              value: '${historyDocs.length}',
                               icon: Icons.check_circle_outline,
                               iconColor: green,
                             ),
@@ -237,8 +213,23 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
+  int _activeWalkCount(
+    List<QueryDocumentSnapshot<Map<String, dynamic>>>? docs,
+  ) {
+    final list = docs ?? const [];
+
+    return list.where((doc) {
+      final status = _readString(doc.data(), 'status')?.toLowerCase();
+
+      return status == 'active' ||
+          status == 'on_the_way' ||
+          status == 'walking' ||
+          status == 'started';
+    }).length;
+  }
+
   // ============================================================
-  // LIVE MAP
+  // REAL OPENSTREETMAP
   // ============================================================
 
   Widget _liveMapContainer() {
@@ -253,8 +244,38 @@ class _DashboardScreenState extends State<DashboardScreen>
 
         final docs = snapshot.data?.docs ?? [];
 
+        final validLocations = <_WalkMapPoint>[];
+
+        for (final doc in docs) {
+          final data = doc.data();
+
+          final location = _readGeoPoint(
+            data,
+            'walkerLocation',
+          );
+
+          if (location != null &&
+              !(location.latitude == 0 &&
+                  location.longitude == 0)) {
+            validLocations.add(
+              _WalkMapPoint(
+                documentId: doc.id,
+                data: data,
+                location: location,
+              ),
+            );
+          }
+        }
+
+        final center = validLocations.isNotEmpty
+            ? LatLng(
+                validLocations.first.location.latitude,
+                validLocations.first.location.longitude,
+              )
+            : const LatLng(28.6139, 77.2090);
+
         return Container(
-          height: 300,
+          height: 330,
           width: double.infinity,
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
@@ -265,55 +286,120 @@ class _DashboardScreenState extends State<DashboardScreen>
           child: Stack(
             children: [
               Positioned.fill(
-                child: CustomPaint(
-                  painter: DashboardMapPainter(),
+                child: FlutterMap(
+                  options: MapOptions(
+                    initialCenter: center,
+                    initialZoom:
+                        validLocations.isNotEmpty ? 14 : 11,
+                    interactionOptions: const InteractionOptions(
+                      flags: InteractiveFlag.all,
+                    ),
+                  ),
+                  children: [
+                    TileLayer(
+                      urlTemplate:
+                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      userAgentPackageName:
+                          'com.doojowalker.app',
+                    ),
+
+                    MarkerLayer(
+                      markers: validLocations
+                          .map(
+                            (item) => Marker(
+                              point: LatLng(
+                                item.location.latitude,
+                                item.location.longitude,
+                              ),
+                              width: 150,
+                              height: 85,
+                              child: _LiveWalkerMarker(
+                                data: item.data,
+                              ),
+                            ),
+                          )
+                          .toList(),
+                    ),
+
+                    RichAttributionWidget(
+                      attributions: [
+                        TextSourceAttribution(
+                          'OpenStreetMap contributors',
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
 
               Positioned(
                 top: 15,
                 left: 15,
-                child: _mapLabel(docs.length),
+                child: _mapLabel(
+                  validLocations.length,
+                ),
               ),
 
-              if (docs.isEmpty)
-                const Center(
-                  child: Text(
-                    'No active walks right now.',
-                    style: TextStyle(
-                      color: grey,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
+              if (docs.isNotEmpty &&
+                  validLocations.isEmpty)
+                Positioned.fill(
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius:
+                            BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color:
+                                Colors.black.withValues(
+                              alpha: .08,
+                            ),
+                            blurRadius: 12,
+                          ),
+                        ],
+                      ),
+                      child: const Text(
+                        'Active walk found,\nbut walker location is unavailable.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: grey,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ),
-                )
-              else
-                ..._buildMapMarkers(
-                  docs,
                 ),
 
-              Positioned(
-                right: 15,
-                bottom: 15,
-                child: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(.08),
-                        blurRadius: 10,
+              if (docs.isEmpty)
+                Positioned.fill(
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
                       ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.my_location,
-                    color: orange,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius:
+                            BorderRadius.circular(12),
+                      ),
+                      child: const Text(
+                        'No active walks right now.',
+                        style: TextStyle(
+                          color: grey,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
         );
@@ -332,7 +418,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         borderRadius: BorderRadius.circular(10),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(.07),
+            color: Colors.black.withValues(alpha: .08),
             blurRadius: 10,
           ),
         ],
@@ -349,7 +435,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           Text(
             count == 0
                 ? 'Live Walk Map'
-                : '$count Active Walk${count == 1 ? '' : 's'}',
+                : '$count Live Walker${count == 1 ? '' : 's'}',
             style: const TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w800,
@@ -357,60 +443,6 @@ class _DashboardScreenState extends State<DashboardScreen>
           ),
         ],
       ),
-    );
-  }
-
-  List<Widget> _buildMapMarkers(
-    List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
-  ) {
-    final positions = <Offset>[
-      const Offset(80, 90),
-      const Offset(220, 145),
-      const Offset(150, 205),
-      const Offset(300, 80),
-      const Offset(60, 210),
-      const Offset(330, 190),
-    ];
-
-    final count = docs.length > positions.length
-        ? positions.length
-        : docs.length;
-
-    return List.generate(
-      count,
-      (index) {
-        final data = docs[index].data();
-
-        final walkerUid = _firstString(
-          data,
-          [
-            'walkerUid',
-            'walkeruid',
-            'walkerId',
-          ],
-        );
-
-        final walkerName = _firstString(
-          data,
-          [
-            'walkerName',
-            'walkerFullName',
-          ],
-        );
-
-        final title = walkerName ??
-            (walkerUid != null
-                ? 'Walker ${_shortId(walkerUid)}'
-                : 'Active Walk');
-
-        return Positioned(
-          left: positions[index].dx,
-          top: positions[index].dy,
-          child: _MapMarker(
-            title: title,
-          ),
-        );
-      },
     );
   }
 
@@ -436,9 +468,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               fontWeight: FontWeight.w800,
             ),
           ),
-
           const SizedBox(height: 14),
-
           Wrap(
             spacing: 10,
             runSpacing: 10,
@@ -508,7 +538,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   // ============================================================
-  // ACTIVE WALK PANEL
+  // ACTIVE WALKS
   // ============================================================
 
   Widget _activeWalkPanel() {
@@ -561,7 +591,6 @@ class _DashboardScreenState extends State<DashboardScreen>
       data,
       [
         'walkerUid',
-        'walkeruid',
         'walkerId',
       ],
     );
@@ -569,8 +598,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     final ownerUid = _firstString(
       data,
       [
-        'ownerUid',
-        'owneruid',
         'ownerId',
       ],
     );
@@ -579,7 +606,6 @@ class _DashboardScreenState extends State<DashboardScreen>
       data,
       [
         'walkerName',
-        'walkerFullName',
       ],
     );
 
@@ -587,25 +613,31 @@ class _DashboardScreenState extends State<DashboardScreen>
       data,
       [
         'ownerName',
-        'ownerFullName',
+      ],
+    );
+
+    final dogName = _firstString(
+      data,
+      [
+        'dogName',
       ],
     );
 
     final distance = _firstValue(
-      data,
-      [
-        'distanceKm',
-        'distance',
-      ],
-    ) ?? '0';
+          data,
+          [
+            'distanceKm',
+          ],
+        ) ??
+        '0';
 
     final duration = _firstValue(
-      data,
-      [
-        'durationMinutes',
-        'duration',
-      ],
-    ) ?? '0';
+          data,
+          [
+            'durationMinutes',
+          ],
+        ) ??
+        '0';
 
     return Row(
       children: [
@@ -613,7 +645,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           width: 38,
           height: 38,
           decoration: BoxDecoration(
-            color: orange.withOpacity(.10),
+            color: orange.withValues(alpha: .10),
             borderRadius: BorderRadius.circular(10),
           ),
           child: const Icon(
@@ -622,12 +654,11 @@ class _DashboardScreenState extends State<DashboardScreen>
             size: 20,
           ),
         ),
-
         const SizedBox(width: 10),
-
         Expanded(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
             children: [
               Text(
                 walkerName ??
@@ -642,9 +673,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                   color: dark,
                 ),
               ),
-
               const SizedBox(height: 3),
-
               Text(
                 ownerName ??
                     (ownerUid != null
@@ -657,15 +686,25 @@ class _DashboardScreenState extends State<DashboardScreen>
                   color: grey,
                 ),
               ),
+              if (dogName != null)
+                Text(
+                  dogName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: grey,
+                  ),
+                ),
             ],
           ),
         ),
-
         Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
+          crossAxisAlignment:
+              CrossAxisAlignment.end,
           children: [
             Text(
-              '$distance',
+              '$distance km',
               style: const TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w800,
@@ -685,7 +724,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   // ============================================================
-  // RECENT ACTIVITY PANEL
+  // RECENT ACTIVITY
   // ============================================================
 
   Widget _recentActivityPanel() {
@@ -742,17 +781,17 @@ class _DashboardScreenState extends State<DashboardScreen>
     final walkerName =
         _readString(data, 'walkerName') ?? 'Walker';
 
-    final distance =
-        _firstValue(data, [
-          'distanceKm',
-          'distance',
-        ]) ?? '0';
+    final distance = _firstValue(
+          data,
+          ['distanceKm'],
+        ) ??
+        '0';
 
-    final duration =
-        _firstValue(data, [
-          'durationMinutes',
-          'duration',
-        ]) ?? '0';
+    final duration = _firstValue(
+          data,
+          ['durationMinutes'],
+        ) ??
+        '0';
 
     final rating = _readInt(
       data,
@@ -765,7 +804,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           width: 38,
           height: 38,
           decoration: BoxDecoration(
-            color: blue.withOpacity(.10),
+            color: blue.withValues(alpha: .10),
             borderRadius: BorderRadius.circular(10),
           ),
           child: const Icon(
@@ -774,12 +813,11 @@ class _DashboardScreenState extends State<DashboardScreen>
             size: 20,
           ),
         ),
-
         const SizedBox(width: 10),
-
         Expanded(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
             children: [
               Text(
                 dogName,
@@ -790,9 +828,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                   fontWeight: FontWeight.w800,
                 ),
               ),
-
               const SizedBox(height: 3),
-
               Text(
                 walkerName,
                 maxLines: 1,
@@ -805,9 +841,9 @@ class _DashboardScreenState extends State<DashboardScreen>
             ],
           ),
         ),
-
         Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
+          crossAxisAlignment:
+              CrossAxisAlignment.end,
           children: [
             Text(
               '$distance km',
@@ -893,20 +929,17 @@ class _DashboardScreenState extends State<DashboardScreen>
         }
 
         return SingleChildScrollView(
-          padding: const EdgeInsets.only(
-            bottom: 30,
-          ),
+          padding: const EdgeInsets.only(bottom: 30),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
             children: [
               _financeStats(
                 todayRevenue: today,
                 totalPayments: total,
                 pendingPayouts: 0,
               ),
-
               const SizedBox(height: 18),
-
               _financePanel(
                 title: 'Revenue Overview',
                 icon: Icons.trending_up,
@@ -915,9 +948,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     ? 'No completed walk payments yet.'
                     : 'Total completed walk revenue: ₹${_money(total)}',
               ),
-
               const SizedBox(height: 14),
-
               _financePanel(
                 title: 'Pending Payouts',
                 icon: Icons.account_balance_wallet_outlined,
@@ -967,8 +998,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             StatCard(
               title: 'Pending Payouts',
               value: '₹${_money(pendingPayouts)}',
-              icon:
-                  Icons.account_balance_wallet_outlined,
+              icon: Icons.account_balance_wallet_outlined,
               iconColor: orange,
             ),
           ],
@@ -993,7 +1023,8 @@ class _DashboardScreenState extends State<DashboardScreen>
         border: Border.all(color: border),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
           Row(
             children: [
@@ -1011,7 +1042,6 @@ class _DashboardScreenState extends State<DashboardScreen>
               ),
             ],
           ),
-
           Expanded(
             child: Center(
               child: Text(
@@ -1049,23 +1079,21 @@ class _DashboardScreenState extends State<DashboardScreen>
         final docs = snapshot.data?.docs ?? [];
 
         return SingleChildScrollView(
-          padding: const EdgeInsets.only(
-            bottom: 30,
-          ),
+          padding: const EdgeInsets.only(bottom: 30),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
             children: [
               _liveMapContainer(),
-
               const SizedBox(height: 18),
-
               DataPanel(
                 title: 'Active Walks',
                 icon: Icons.directions_walk_outlined,
                 color: orange,
                 child: docs.isEmpty
                     ? const EmptyMessage(
-                        text: 'Live walks will appear here.',
+                        text:
+                            'Live walks will appear here.',
                       )
                     : ListView.separated(
                         shrinkWrap: true,
@@ -1091,94 +1119,39 @@ class _DashboardScreenState extends State<DashboardScreen>
   Widget _liveWalkDetailedRow(
     Map<String, dynamic> data,
   ) {
-    final ownerUid = _firstString(
-          data,
-          [
-            'ownerUid',
-            'owneruid',
-            'ownerId',
-          ],
-        ) ??
-        '-';
+    final ownerUid =
+        _readString(data, 'ownerId') ?? '-';
 
-    final walkerUid = _firstString(
-          data,
-          [
-            'walkerUid',
-            'walkeruid',
-            'walkerId',
-          ],
-        ) ??
-        '-';
+    final walkerUid =
+        _readString(data, 'walkerUid') ?? '-';
 
-    final ownerName = _firstString(
-      data,
-      [
-        'ownerName',
-        'ownerFullName',
-      ],
-    );
+    final ownerName =
+        _readString(data, 'ownerName');
 
-    final walkerName = _firstString(
-      data,
-      [
-        'walkerName',
-        'walkerFullName',
-      ],
-    );
+    final walkerName =
+        _readString(data, 'walkerName');
 
-    final lat = _firstDouble(
-      data,
-      [
-        'currentLat',
-        'latitude',
-        'lat',
-      ],
-    );
+    final dogName =
+        _readString(data, 'dogName');
 
-    final lng = _firstDouble(
-      data,
-      [
-        'currentLng',
-        'longitude',
-        'lng',
-        'lon',
-      ],
-    );
+    final location =
+        _readGeoPoint(data, 'walkerLocation');
 
-    final distance = _firstValue(
-          data,
-          [
-            'distanceKm',
-            'distance',
-          ],
-        ) ??
-        '-';
+    final distance =
+        _firstValue(data, ['distanceKm']) ?? '-';
 
-    final duration = _firstValue(
-          data,
-          [
-            'durationMinutes',
-            'duration',
-          ],
-        ) ??
-        '-';
+    final duration =
+        _firstValue(data, ['durationMinutes']) ?? '-';
 
     final pee = _firstInt(
           data,
-          [
-            'peeCount',
-            'pee',
-          ],
+          ['peeCount'],
         ) ??
         0;
 
     final poop = _firstInt(
           data,
-          [
-            'poopCount',
-            'poop',
-          ],
+          ['poopCount'],
         ) ??
         0;
 
@@ -1192,7 +1165,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             width: 45,
             height: 45,
             decoration: BoxDecoration(
-              color: orange.withOpacity(.10),
+              color: orange.withValues(alpha: .10),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(
@@ -1200,12 +1173,11 @@ class _DashboardScreenState extends State<DashboardScreen>
               color: orange,
             ),
           ),
-
           const SizedBox(width: 12),
-
           Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
               children: [
                 Text(
                   walkerName ??
@@ -1215,9 +1187,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-
                 const SizedBox(height: 3),
-
                 Text(
                   ownerName ??
                       'Owner ${_shortId(ownerUid)}',
@@ -1226,14 +1196,20 @@ class _DashboardScreenState extends State<DashboardScreen>
                     color: grey,
                   ),
                 ),
-
+                if (dogName != null)
+                  Text(
+                    dogName,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: grey,
+                    ),
+                  ),
                 const SizedBox(height: 3),
-
                 Text(
-                  lat == null || lng == null
+                  location == null
                       ? 'Location unavailable'
-                      : '📍 ${lat.toStringAsFixed(5)}, '
-                          '${lng.toStringAsFixed(5)}',
+                      : '📍 ${location.latitude.toStringAsFixed(5)}, '
+                          '${location.longitude.toStringAsFixed(5)}',
                   style: const TextStyle(
                     fontSize: 10,
                     color: grey,
@@ -1242,14 +1218,13 @@ class _DashboardScreenState extends State<DashboardScreen>
               ],
             ),
           ),
-
           const SizedBox(width: 8),
-
           Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+            crossAxisAlignment:
+                CrossAxisAlignment.end,
             children: [
               Text(
-                '$distance',
+                '$distance km',
                 style: const TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w800,
@@ -1288,7 +1263,8 @@ class _DashboardScreenState extends State<DashboardScreen>
           return const SingleChildScrollView(
             padding: EdgeInsets.only(bottom: 30),
             child: EmptyMessage(
-              text: 'Unable to load recent activity.',
+              text:
+                  'Unable to load recent activity.',
             ),
           );
         }
@@ -1298,11 +1274,10 @@ class _DashboardScreenState extends State<DashboardScreen>
         );
 
         return SingleChildScrollView(
-          padding: const EdgeInsets.only(
-            bottom: 30,
-          ),
+          padding: const EdgeInsets.only(bottom: 30),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
             children: [
               DataPanel(
                 title: 'Recent Activity',
@@ -1327,9 +1302,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                         },
                       ),
               ),
-
               const SizedBox(height: 14),
-
               const DataPanel(
                 title: 'System Activity',
                 icon: Icons.receipt_long_outlined,
@@ -1365,22 +1338,10 @@ class _DashboardScreenState extends State<DashboardScreen>
         _readString(data, 'badge');
 
     final distance =
-        _firstDouble(
-          data,
-          [
-            'distanceKm',
-            'distance',
-          ],
-        );
+        _firstDouble(data, ['distanceKm']);
 
     final duration =
-        _firstInt(
-          data,
-          [
-            'durationMinutes',
-            'duration',
-          ],
-        );
+        _firstDouble(data, ['durationMinutes']);
 
     final rating =
         _readInt(data, 'rating');
@@ -1399,12 +1360,11 @@ class _DashboardScreenState extends State<DashboardScreen>
             icon: Icons.pets,
             color: blue,
           ),
-
           const SizedBox(width: 12),
-
           Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
               children: [
                 Text(
                   dogName,
@@ -1415,9 +1375,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-
                 const SizedBox(height: 3),
-
                 Text(
                   walkerName,
                   maxLines: 1,
@@ -1427,7 +1385,6 @@ class _DashboardScreenState extends State<DashboardScreen>
                     color: grey,
                   ),
                 ),
-
                 if (ownerName != null)
                   Text(
                     ownerName,
@@ -1438,7 +1395,6 @@ class _DashboardScreenState extends State<DashboardScreen>
                       color: grey,
                     ),
                   ),
-
                 if (date.isNotEmpty)
                   Text(
                     date,
@@ -1447,7 +1403,6 @@ class _DashboardScreenState extends State<DashboardScreen>
                       color: grey,
                     ),
                   ),
-
                 if (badge != null)
                   Text(
                     badge,
@@ -1460,11 +1415,10 @@ class _DashboardScreenState extends State<DashboardScreen>
               ],
             ),
           ),
-
           const SizedBox(width: 8),
-
           Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+            crossAxisAlignment:
+                CrossAxisAlignment.end,
             children: [
               if (distance != null)
                 Text(
@@ -1474,16 +1428,14 @@ class _DashboardScreenState extends State<DashboardScreen>
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-
               if (duration != null)
                 Text(
-                  '$duration min',
+                  '${duration.toStringAsFixed(0)} min',
                   style: const TextStyle(
                     fontSize: 10,
                     color: grey,
                   ),
                 ),
-
               if (rating != null)
                 Text(
                   '★ $rating',
@@ -1506,7 +1458,7 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   Widget _firebaseErrorContainer(String text) {
     return Container(
-      height: 300,
+      height: 330,
       width: double.infinity,
       decoration: BoxDecoration(
         color: const Color(0xFFEFF2F0),
@@ -1543,7 +1495,108 @@ class _DashboardScreenState extends State<DashboardScreen>
 }
 
 // ============================================================
-// FIREBASE HELPERS
+// LIVE MAP MODEL
+// ============================================================
+
+class _WalkMapPoint {
+  final String documentId;
+  final Map<String, dynamic> data;
+  final GeoPoint location;
+
+  const _WalkMapPoint({
+    required this.documentId,
+    required this.data,
+    required this.location,
+  });
+}
+
+// ============================================================
+// LIVE WALKER MARKER
+// ============================================================
+
+class _LiveWalkerMarker extends StatelessWidget {
+  final Map<String, dynamic> data;
+
+  const _LiveWalkerMarker({
+    required this.data,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final walkerName =
+        _readString(data, 'walkerName');
+
+    final walkerUid =
+        _readString(data, 'walkerUid');
+
+    final name = walkerName ??
+        (walkerUid != null
+            ? 'Walker ${_shortId(walkerUid)}'
+            : 'Walker');
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          constraints:
+              const BoxConstraints(maxWidth: 140),
+          padding: const EdgeInsets.symmetric(
+            horizontal: 9,
+            vertical: 6,
+          ),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: [
+              BoxShadow(
+                color:
+                    Colors.black.withValues(alpha: .15),
+                blurRadius: 8,
+              ),
+            ],
+          ),
+          child: Text(
+            name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: orange,
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: Colors.white,
+              width: 3,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color:
+                    Colors.black.withValues(alpha: .18),
+                blurRadius: 8,
+              ),
+            ],
+          ),
+          child: const Icon(
+            Icons.pets,
+            color: Colors.white,
+            size: 20,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ============================================================
+// FIRESTORE HELPERS
 // ============================================================
 
 String? _readString(
@@ -1581,7 +1634,8 @@ dynamic _firstExistingValue(
   List<String> keys,
 ) {
   for (final key in keys) {
-    if (data.containsKey(key) && data[key] != null) {
+    if (data.containsKey(key) &&
+        data[key] != null) {
       return data[key];
     }
   }
@@ -1679,6 +1733,19 @@ int? _firstInt(
   return null;
 }
 
+GeoPoint? _readGeoPoint(
+  Map<String, dynamic> data,
+  String key,
+) {
+  final value = data[key];
+
+  if (value is GeoPoint) {
+    return value;
+  }
+
+  return null;
+}
+
 // ============================================================
 // DATE
 // ============================================================
@@ -1699,14 +1766,12 @@ DateTime? _toDateTime(dynamic value) {
   if (value is int) {
     return DateTime.fromMillisecondsSinceEpoch(
       value,
-      isUtc: false,
     );
   }
 
   if (value is double) {
     return DateTime.fromMillisecondsSinceEpoch(
       value.toInt(),
-      isUtc: false,
     );
   }
 
@@ -1737,9 +1802,11 @@ bool _isToday(dynamic value) {
 
 List<QueryDocumentSnapshot<Map<String, dynamic>>>
     _sortedHistoryDocs(
-  List<QueryDocumentSnapshot<Map<String, dynamic>>>? docs,
+  List<QueryDocumentSnapshot<Map<String, dynamic>>>?
+      docs,
 ) {
-  final result = List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(
+  final result =
+      List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(
     docs ?? const [],
   );
 
@@ -1749,9 +1816,9 @@ List<QueryDocumentSnapshot<Map<String, dynamic>>>
         _firstExistingValue(
           a.data(),
           [
-            'createdAt',
             'completedAt',
-            'timestamp',
+            'startedAt',
+            'createdAt',
           ],
         ),
       );
@@ -1760,9 +1827,9 @@ List<QueryDocumentSnapshot<Map<String, dynamic>>>
         _firstExistingValue(
           b.data(),
           [
-            'createdAt',
             'completedAt',
-            'timestamp',
+            'startedAt',
+            'createdAt',
           ],
         ),
       );
@@ -1808,144 +1875,4 @@ String _money(double value) {
   }
 
   return value.toStringAsFixed(2);
-}
-
-// ============================================================
-// MAP MARKER
-// ============================================================
-
-class _MapMarker extends StatelessWidget {
-  final String title;
-
-  const _MapMarker({
-    required this.title,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          constraints: const BoxConstraints(
-            maxWidth: 130,
-          ),
-          padding: const EdgeInsets.symmetric(
-            horizontal: 8,
-            vertical: 5,
-          ),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(7),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(.10),
-                blurRadius: 8,
-              ),
-            ],
-          ),
-          child: Text(
-            title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ),
-
-        const SizedBox(height: 4),
-
-        Container(
-          width: 28,
-          height: 28,
-          decoration: const BoxDecoration(
-            color: orange,
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(
-            Icons.pets,
-            color: Colors.white,
-            size: 16,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ============================================================
-// MAP PAINTER
-// ============================================================
-
-class DashboardMapPainter extends CustomPainter {
-  @override
-  void paint(
-    Canvas canvas,
-    Size size,
-  ) {
-    final gridPaint = Paint()
-      ..color = const Color(0xFFDDE3DF)
-      ..strokeWidth = 1.5;
-
-    for (
-      double x = 0;
-      x < size.width;
-      x += 55
-    ) {
-      canvas.drawLine(
-        Offset(x, 0),
-        Offset(
-          x + 70,
-          size.height,
-        ),
-        gridPaint,
-      );
-    }
-
-    for (
-      double y = 20;
-      y < size.height;
-      y += 60
-    ) {
-      canvas.drawLine(
-        Offset(0, y),
-        Offset(
-          size.width,
-          y - 20,
-        ),
-        gridPaint,
-      );
-    }
-
-    final roadPaint = Paint()
-      ..color = Colors.white
-      ..strokeWidth = 12
-      ..style = PaintingStyle.stroke;
-
-    final road = Path()
-      ..moveTo(
-        0,
-        size.height * .72,
-      )
-      ..quadraticBezierTo(
-        size.width * .35,
-        size.height * .25,
-        size.width,
-        size.height * .55,
-      );
-
-    canvas.drawPath(
-      road,
-      roadPaint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(
-    covariant CustomPainter oldDelegate,
-  ) {
-    return false;
-  }
 }
