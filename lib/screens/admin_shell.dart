@@ -1,7 +1,9 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import 'dashboard_screen.dart';
 import 'live_walk_screen.dart';
+import 'walk_requests_screen.dart';
 import 'active_walks_screen.dart';
 import 'owners_screen.dart';
 import 'walkers_screen.dart';
@@ -19,6 +21,10 @@ import 'settings_screen.dart';
 
 import '../features/walk_history/screens/walk_history_screen.dart';
 
+// =============================================================
+// DOJO ADMIN COLORS
+// =============================================================
+
 const Color dojoOrange = Color(0xFFD35435);
 const Color dojoBlue = Color(0xFF3F6FA5);
 const Color dojoGreen = Color(0xFF3F8F68);
@@ -26,6 +32,10 @@ const Color dojoDark = Color(0xFF263238);
 const Color dojoGrey = Color(0xFF6B7280);
 const Color dojoBackground = Color(0xFFF7F8FA);
 const Color dojoBorder = Color(0xFFE7E9ED);
+
+// =============================================================
+// ADMIN MENU ITEM
+// =============================================================
 
 class AdminMenuItem {
   final String title;
@@ -37,76 +47,105 @@ class AdminMenuItem {
   });
 }
 
+// =============================================================
+// ADMIN MENU
+// =============================================================
+
 const List<AdminMenuItem> adminMenuItems = [
   AdminMenuItem(
     title: 'Dashboard',
     icon: Icons.dashboard_outlined,
   ),
+
   AdminMenuItem(
-    title: 'Live Map',
-    icon: Icons.map_outlined,
+    title: 'Live Walk Sessions',
+    icon: Icons.directions_walk_outlined,
   ),
+
+  AdminMenuItem(
+    title: 'Walk Requests',
+    icon: Icons.assignment_outlined,
+  ),
+
   AdminMenuItem(
     title: 'Active Walks',
     icon: Icons.directions_walk_outlined,
   ),
+
   AdminMenuItem(
     title: 'Walk History',
     icon: Icons.history_outlined,
   ),
+
   AdminMenuItem(
     title: 'Owners',
     icon: Icons.people_outline,
   ),
+
   AdminMenuItem(
     title: 'Walkers',
     icon: Icons.badge_outlined,
   ),
+
   AdminMenuItem(
     title: 'Pets',
     icon: Icons.pets_outlined,
   ),
+
   AdminMenuItem(
     title: 'Finance',
     icon: Icons.analytics_outlined,
   ),
+
   AdminMenuItem(
     title: 'Payments',
     icon: Icons.payments_outlined,
   ),
+
   AdminMenuItem(
     title: 'Payouts',
     icon: Icons.account_balance_wallet_outlined,
   ),
+
   AdminMenuItem(
     title: 'Reviews',
     icon: Icons.star_outline,
   ),
+
   AdminMenuItem(
     title: 'Complaints',
     icon: Icons.report_problem_outlined,
   ),
+
   AdminMenuItem(
     title: 'Support',
     icon: Icons.support_agent_outlined,
   ),
+
   AdminMenuItem(
     title: 'Notifications',
     icon: Icons.notifications_none_outlined,
   ),
+
   AdminMenuItem(
     title: 'Admins',
     icon: Icons.admin_panel_settings_outlined,
   ),
+
   AdminMenuItem(
     title: 'Activity Logs',
     icon: Icons.receipt_long_outlined,
   ),
+
   AdminMenuItem(
     title: 'Settings',
     icon: Icons.settings_outlined,
   ),
 ];
+
+// =============================================================
+// ADMIN SHELL
+// =============================================================
 
 class AdminShell extends StatefulWidget {
   const AdminShell({
@@ -123,9 +162,57 @@ class _AdminShellState extends State<AdminShell> {
   // Menu default CLOSED.
   bool menuOpen = false;
 
+  // ===========================================================
+  // CURRENT ADMIN
+  // ===========================================================
+
+  User? get currentAdmin {
+    return FirebaseAuth.instance.currentUser;
+  }
+
+  String get adminName {
+    final user = currentAdmin;
+
+    if (user == null) {
+      return 'Admin';
+    }
+
+    final name = user.displayName?.trim();
+
+    if (name != null && name.isNotEmpty) {
+      return name;
+    }
+
+    return 'Admin';
+  }
+
+  String get adminEmail {
+    final user = currentAdmin;
+
+    if (user == null) {
+      return 'No email';
+    }
+
+    final email = user.email?.trim();
+
+    if (email != null && email.isNotEmpty) {
+      return email;
+    }
+
+    return 'No email';
+  }
+
+  String get adminRole {
+    return 'Super Admin';
+  }
+
   String get pageTitle {
     return adminMenuItems[selectedIndex].title;
   }
+
+  // ===========================================================
+  // NAVIGATION
+  // ===========================================================
 
   void selectPage(int index) {
     if (index < 0 || index >= adminMenuItems.length) {
@@ -154,64 +241,140 @@ class _AdminShellState extends State<AdminShell> {
     });
   }
 
+  // ===========================================================
+  // CURRENT SCREEN
+  // ===========================================================
+
   Widget currentScreen() {
     switch (selectedIndex) {
+      // =======================================================
+      // 0 - DASHBOARD
+      // =======================================================
+
       case 0:
         return DashboardScreen(
           onNavigate: selectPage,
         );
 
-      // =========================================================
-      // LIVE WALK / LIVE MAP
-      // File: lib/screens/live_walk_screen.dart
-      // Class: LiveWalkScreen
-      // =========================================================
+      // =======================================================
+      // 1 - LIVE WALK SESSIONS
+      // File:
+      // lib/screens/live_walk_screen.dart
+      // =======================================================
+
       case 1:
         return const LiveWalkScreen();
 
+      // =======================================================
+      // 2 - WALK REQUESTS
+      // =======================================================
+
       case 2:
-        return const ActiveWalksScreen();
+        return const WalkRequestsScreen();
+
+      // =======================================================
+      // 3 - ACTIVE WALKS
+      // =======================================================
 
       case 3:
-        return const WalkHistoryScreen();
+        return const ActiveWalksScreen();
+
+      // =======================================================
+      // 4 - WALK HISTORY
+      // =======================================================
 
       case 4:
-        return const OwnersScreen();
+        return const WalkHistoryScreen();
+
+      // =======================================================
+      // 5 - OWNERS
+      // =======================================================
 
       case 5:
-        return const WalkersScreen();
+        return const OwnersScreen();
+
+      // =======================================================
+      // 6 - WALKERS
+      // =======================================================
 
       case 6:
-        return const PetsScreen();
+        return const WalkersScreen();
+
+      // =======================================================
+      // 7 - PETS
+      // =======================================================
 
       case 7:
-        return const FinanceScreen();
+        return const PetsScreen();
+
+      // =======================================================
+      // 8 - FINANCE
+      // =======================================================
 
       case 8:
-        return const PaymentsScreen();
+        return const FinanceScreen();
+
+      // =======================================================
+      // 9 - PAYMENTS
+      // =======================================================
 
       case 9:
-        return const PayoutsScreen();
+        return const PaymentsScreen();
+
+      // =======================================================
+      // 10 - PAYOUTS
+      // =======================================================
 
       case 10:
-        return const ReviewsScreen();
+        return const PayoutsScreen();
+
+      // =======================================================
+      // 11 - REVIEWS
+      // =======================================================
 
       case 11:
-        return const complaints.ComplaintsScreen();
+        return const ReviewsScreen();
+
+      // =======================================================
+      // 12 - COMPLAINTS
+      // =======================================================
 
       case 12:
-        return const SupportScreen();
+        return const complaints.ComplaintsScreen();
+
+      // =======================================================
+      // 13 - SUPPORT
+      // =======================================================
 
       case 13:
-        return const NotificationsScreen();
+        return const SupportScreen();
+
+      // =======================================================
+      // 14 - NOTIFICATIONS
+      // =======================================================
 
       case 14:
-        return const admins.AdminsScreen();
+        return const NotificationsScreen();
+
+      // =======================================================
+      // 15 - ADMINS
+      // =======================================================
 
       case 15:
-        return const ActivityLogsScreen();
+        return const admins.AdminsScreen();
+
+      // =======================================================
+      // 16 - ACTIVITY LOGS
+      // =======================================================
 
       case 16:
+        return const ActivityLogsScreen();
+
+      // =======================================================
+      // 17 - SETTINGS
+      // =======================================================
+
+      case 17:
         return const SettingsScreen();
 
       default:
@@ -220,6 +383,10 @@ class _AdminShellState extends State<AdminShell> {
         );
     }
   }
+
+  // =============================================================
+  // BUILD
+  // =============================================================
 
   @override
   Widget build(BuildContext context) {
@@ -249,6 +416,7 @@ class _AdminShellState extends State<AdminShell> {
           Column(
             children: [
               webTopBar(),
+
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(26),
@@ -258,15 +426,15 @@ class _AdminShellState extends State<AdminShell> {
             ],
           ),
 
-          // -------------------------------------------------------
-          // DESKTOP DRAWER
-          // Only visible when menuOpen == true.
-          // -------------------------------------------------------
           if (menuOpen) desktopDrawer(),
         ],
       ),
     );
   }
+
+  // =============================================================
+  // DESKTOP TOP BAR
+  // =============================================================
 
   Widget webTopBar() {
     return Container(
@@ -284,7 +452,7 @@ class _AdminShellState extends State<AdminShell> {
       ),
       child: Row(
         children: [
-          // MENU BUTTON
+          // MENU
           IconButton(
             tooltip: 'Menu',
             onPressed: toggleMenu,
@@ -313,7 +481,7 @@ class _AdminShellState extends State<AdminShell> {
           IconButton(
             tooltip: 'Notifications',
             onPressed: () {
-              selectPage(13);
+              selectPage(14);
             },
             icon: const Icon(
               Icons.notifications_none_outlined,
@@ -321,42 +489,11 @@ class _AdminShellState extends State<AdminShell> {
             ),
           ),
 
-          const SizedBox(width: 10),
+          const SizedBox(width: 4),
 
-          // ADMIN PROFILE
-          Container(
-            height: 40,
-            padding: const EdgeInsets.symmetric(
-              horizontal: 10,
-            ),
-            decoration: BoxDecoration(
-              color: dojoBackground,
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(
-                color: dojoBorder,
-              ),
-            ),
-            child: const Row(
-              children: [
-                CircleAvatar(
-                  radius: 15,
-                  backgroundColor: Color(0xFFFFEEE9),
-                  child: Icon(
-                    Icons.person_outline,
-                    color: dojoOrange,
-                    size: 18,
-                  ),
-                ),
-                SizedBox(width: 8),
-                Text(
-                  'Super Admin',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
+          // PROFILE
+          _profileMenu(
+            compact: true,
           ),
         ],
       ),
@@ -390,12 +527,10 @@ class _AdminShellState extends State<AdminShell> {
                   children: [
                     const SizedBox(height: 20),
 
-                    // BRAND
                     brand(),
 
                     const SizedBox(height: 22),
 
-                    // MENU
                     Expanded(
                       child: ListView.builder(
                         padding: const EdgeInsets.symmetric(
@@ -418,17 +553,13 @@ class _AdminShellState extends State<AdminShell> {
                       height: 1,
                     ),
 
-                    // ADMIN PROFILE
                     adminProfile(),
                   ],
                 ),
               ),
             ),
 
-            // -----------------------------------------------------
             // OUTSIDE AREA
-            // Tap here to close menu.
-            // -----------------------------------------------------
             Expanded(
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
@@ -569,22 +700,27 @@ class _AdminShellState extends State<AdminShell> {
 
           const SizedBox(width: 9),
 
-          const Expanded(
+          Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Super Admin',
-                  style: TextStyle(
+                  adminName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w800,
                     color: dojoDark,
                   ),
                 ),
-                SizedBox(height: 2),
+
+                const SizedBox(height: 2),
+
                 Text(
-                  'Administrator',
-                  style: TextStyle(
+                  adminRole,
+                  style: const TextStyle(
                     fontSize: 10,
                     color: dojoGrey,
                   ),
@@ -619,6 +755,7 @@ class _AdminShellState extends State<AdminShell> {
           ),
         ),
 
+        // TITLE
         title: Row(
           children: [
             Container(
@@ -651,17 +788,20 @@ class _AdminShellState extends State<AdminShell> {
           ],
         ),
 
+        // ONLY NOTIFICATION + PROFILE
         actions: [
           IconButton(
             tooltip: 'Notifications',
             onPressed: () {
-              selectPage(13);
+              selectPage(14);
             },
             icon: const Icon(
               Icons.notifications_none_outlined,
               color: dojoGrey,
             ),
           ),
+
+          _profileMenu(),
         ],
       ),
 
@@ -720,6 +860,10 @@ class _AdminShellState extends State<AdminShell> {
                       ),
                     ),
 
+                    const Divider(
+                      height: 1,
+                    ),
+
                     adminProfile(),
                   ],
                 ),
@@ -740,5 +884,323 @@ class _AdminShellState extends State<AdminShell> {
         ),
       ),
     );
+  }
+
+  // =============================================================
+  // PROFILE MENU
+  // =============================================================
+
+  Widget _profileMenu({
+    bool compact = false,
+  }) {
+    return PopupMenuButton<String>(
+      tooltip: 'Admin Profile',
+      offset: const Offset(
+        0,
+        48,
+      ),
+      elevation: 10,
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+      ),
+
+      onSelected: (value) {
+        if (value == 'login') {
+          _handleLogin();
+        }
+
+        if (value == 'logout') {
+          _handleLogout();
+        }
+      },
+
+      itemBuilder: (context) {
+        return [
+          PopupMenuItem<String>(
+            enabled: false,
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 10,
+            ),
+            child: SizedBox(
+              width: 245,
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 22,
+                    backgroundColor:
+                        const Color(0xFFFFEEE9),
+                    child: const Icon(
+                      Icons.person_outline,
+                      color: dojoOrange,
+                      size: 24,
+                    ),
+                  ),
+
+                  const SizedBox(width: 11),
+
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          adminName,
+                          maxLines: 1,
+                          overflow:
+                              TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight:
+                                FontWeight.w800,
+                            color: dojoDark,
+                          ),
+                        ),
+
+                        const SizedBox(height: 3),
+
+                        Text(
+                          adminRole,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight:
+                                FontWeight.w600,
+                            color: dojoOrange,
+                          ),
+                        ),
+
+                        const SizedBox(height: 3),
+
+                        Text(
+                          adminEmail,
+                          maxLines: 1,
+                          overflow:
+                              TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: dojoGrey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const PopupMenuDivider(),
+
+          PopupMenuItem<String>(
+            value: 'login',
+            child: Row(
+              children: [
+                Icon(
+                  Icons.login_outlined,
+                  size: 20,
+                  color: dojoBlue,
+                ),
+
+                const SizedBox(width: 11),
+
+                const Text(
+                  'Login',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          PopupMenuItem<String>(
+            value: 'logout',
+            child: Row(
+              children: [
+                Icon(
+                  Icons.logout_outlined,
+                  size: 20,
+                  color: dojoOrange,
+                ),
+
+                const SizedBox(width: 11),
+
+                const Text(
+                  'Sign Out',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ];
+      },
+
+      child: compact
+          ? Container(
+              height: 40,
+              padding:
+                  const EdgeInsets.symmetric(
+                horizontal: 10,
+              ),
+              decoration: BoxDecoration(
+                color: dojoBackground,
+                borderRadius:
+                    BorderRadius.circular(22),
+                border: Border.all(
+                  color: dojoBorder,
+                ),
+              ),
+              child: Row(
+                children: [
+                  const CircleAvatar(
+                    radius: 15,
+                    backgroundColor:
+                        Color(0xFFFFEEE9),
+                    child: Icon(
+                      Icons.person_outline,
+                      color: dojoOrange,
+                      size: 18,
+                    ),
+                  ),
+
+                  const SizedBox(width: 8),
+
+                  ConstrainedBox(
+                    constraints:
+                        const BoxConstraints(
+                      maxWidth: 110,
+                    ),
+                    child: Text(
+                      adminName,
+                      maxLines: 1,
+                      overflow:
+                          TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight:
+                            FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : const Padding(
+              padding: EdgeInsets.only(
+                left: 4,
+                right: 8,
+              ),
+              child: CircleAvatar(
+                radius: 18,
+                backgroundColor:
+                    Color(0xFFFFEEE9),
+                child: Icon(
+                  Icons.person_outline,
+                  color: dojoOrange,
+                  size: 21,
+                ),
+              ),
+            ),
+    );
+  }
+
+  // =============================================================
+  // LOGIN
+  // =============================================================
+
+  void _handleLogin() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Admin login is already active.',
+        ),
+      ),
+    );
+  }
+
+  // =============================================================
+  // LOGOUT
+  // =============================================================
+
+  Future<void> _handleLogout() async {
+    final shouldLogout =
+        await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text(
+            'Sign Out',
+          ),
+          content: const Text(
+            'Are you sure you want to sign out?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(
+                  context,
+                  false,
+                );
+              },
+              child: const Text(
+                'Cancel',
+              ),
+            ),
+
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: dojoOrange,
+              ),
+              onPressed: () {
+                Navigator.pop(
+                  context,
+                  true,
+                );
+              },
+              child: const Text(
+                'Sign Out',
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldLogout != true) {
+      return;
+    }
+
+    try {
+      await FirebaseAuth.instance.signOut();
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Signed out successfully.',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Sign out failed: $e',
+          ),
+        ),
+      );
+    }
   }
 }
