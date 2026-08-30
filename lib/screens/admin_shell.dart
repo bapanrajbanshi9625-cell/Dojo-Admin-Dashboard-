@@ -159,7 +159,6 @@ class AdminShell extends StatefulWidget {
 class _AdminShellState extends State<AdminShell> {
   int selectedIndex = 0;
 
-  // Menu default CLOSED.
   bool menuOpen = false;
 
   // ===========================================================
@@ -181,6 +180,12 @@ class _AdminShellState extends State<AdminShell> {
 
     if (name != null && name.isNotEmpty) {
       return name;
+    }
+
+    final email = user.email?.trim();
+
+    if (email != null && email.isNotEmpty) {
+      return email.split('@').first;
     }
 
     return 'Admin';
@@ -207,6 +212,11 @@ class _AdminShellState extends State<AdminShell> {
   }
 
   String get pageTitle {
+    if (selectedIndex < 0 ||
+        selectedIndex >= adminMenuItems.length) {
+      return 'Dashboard';
+    }
+
     return adminMenuItems[selectedIndex].title;
   }
 
@@ -215,7 +225,8 @@ class _AdminShellState extends State<AdminShell> {
   // ===========================================================
 
   void selectPage(int index) {
-    if (index < 0 || index >= adminMenuItems.length) {
+    if (index < 0 ||
+        index >= adminMenuItems.length) {
       return;
     }
 
@@ -258,8 +269,6 @@ class _AdminShellState extends State<AdminShell> {
 
       // =======================================================
       // 1 - LIVE WALK SESSIONS
-      // File:
-      // lib/screens/live_walk_screen.dart
       // =======================================================
 
       case 1:
@@ -418,7 +427,7 @@ class _AdminShellState extends State<AdminShell> {
               webTopBar(),
 
               Expanded(
-                child: SingleChildScrollView(
+                child: Padding(
                   padding: const EdgeInsets.all(26),
                   child: currentScreen(),
                 ),
@@ -426,7 +435,8 @@ class _AdminShellState extends State<AdminShell> {
             ],
           ),
 
-          if (menuOpen) desktopDrawer(),
+          if (menuOpen)
+            desktopDrawer(),
         ],
       ),
     );
@@ -452,7 +462,6 @@ class _AdminShellState extends State<AdminShell> {
       ),
       child: Row(
         children: [
-          // MENU
           IconButton(
             tooltip: 'Menu',
             onPressed: toggleMenu,
@@ -465,7 +474,6 @@ class _AdminShellState extends State<AdminShell> {
 
           const SizedBox(width: 8),
 
-          // PAGE TITLE
           Text(
             pageTitle,
             style: const TextStyle(
@@ -477,7 +485,10 @@ class _AdminShellState extends State<AdminShell> {
 
           const Spacer(),
 
+          // -----------------------------------------------------
           // NOTIFICATIONS
+          // -----------------------------------------------------
+
           IconButton(
             tooltip: 'Notifications',
             onPressed: () {
@@ -491,7 +502,10 @@ class _AdminShellState extends State<AdminShell> {
 
           const SizedBox(width: 4),
 
-          // PROFILE
+          // -----------------------------------------------------
+          // ADMIN PROFILE
+          // -----------------------------------------------------
+
           _profileMenu(
             compact: true,
           ),
@@ -559,7 +573,6 @@ class _AdminShellState extends State<AdminShell> {
               ),
             ),
 
-            // OUTSIDE AREA
             Expanded(
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
@@ -745,7 +758,10 @@ class _AdminShellState extends State<AdminShell> {
         surfaceTintColor: Colors.white,
         elevation: 0,
 
-        // MENU BUTTON
+        // -------------------------------------------------------
+        // MENU
+        // -------------------------------------------------------
+
         leading: IconButton(
           tooltip: 'Menu',
           onPressed: toggleMenu,
@@ -755,7 +771,10 @@ class _AdminShellState extends State<AdminShell> {
           ),
         ),
 
+        // -------------------------------------------------------
         // TITLE
+        // -------------------------------------------------------
+
         title: Row(
           children: [
             Container(
@@ -788,7 +807,11 @@ class _AdminShellState extends State<AdminShell> {
           ],
         ),
 
-        // ONLY NOTIFICATION + PROFILE
+        // -------------------------------------------------------
+        // RIGHT SIDE
+        // Notification + Profile
+        // -------------------------------------------------------
+
         actions: [
           IconButton(
             tooltip: 'Notifications',
@@ -805,14 +828,19 @@ class _AdminShellState extends State<AdminShell> {
         ],
       ),
 
+      // ---------------------------------------------------------
+      // BODY
+      // ---------------------------------------------------------
+
       body: Stack(
         children: [
-          SingleChildScrollView(
+          Padding(
             padding: const EdgeInsets.all(16),
             child: currentScreen(),
           ),
 
-          if (menuOpen) mobileDrawer(),
+          if (menuOpen)
+            mobileDrawer(),
         ],
       ),
     );
@@ -870,7 +898,6 @@ class _AdminShellState extends State<AdminShell> {
               ),
             ),
 
-            // OUTSIDE AREA
             Expanded(
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
@@ -887,7 +914,7 @@ class _AdminShellState extends State<AdminShell> {
   }
 
   // =============================================================
-  // PROFILE MENU
+  // PROFILE POPUP
   // =============================================================
 
   Widget _profileMenu({
@@ -895,43 +922,54 @@ class _AdminShellState extends State<AdminShell> {
   }) {
     return PopupMenuButton<String>(
       tooltip: 'Admin Profile',
+
       offset: const Offset(
         0,
         48,
       ),
+
       elevation: 10,
+
       color: Colors.white,
+
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
       ),
 
-      onSelected: (value) {
-        if (value == 'login') {
-          _handleLogin();
-        }
+      onSelected: (String value) {
+        switch (value) {
+          case 'login':
+            _handleLogin();
+            break;
 
-        if (value == 'logout') {
-          _handleLogout();
+          case 'logout':
+            _handleLogout();
+            break;
         }
       },
 
-      itemBuilder: (context) {
+      itemBuilder: (BuildContext context) {
         return [
+          // =====================================================
+          // ADMIN INFORMATION
+          // =====================================================
+
           PopupMenuItem<String>(
             enabled: false,
+
             padding: const EdgeInsets.symmetric(
               horizontal: 16,
               vertical: 10,
             ),
+
             child: SizedBox(
               width: 245,
               child: Row(
                 children: [
-                  CircleAvatar(
+                  const CircleAvatar(
                     radius: 22,
-                    backgroundColor:
-                        const Color(0xFFFFEEE9),
-                    child: const Icon(
+                    backgroundColor: Color(0xFFFFEEE9),
+                    child: Icon(
                       Icons.person_outline,
                       color: dojoOrange,
                       size: 24,
@@ -992,11 +1030,16 @@ class _AdminShellState extends State<AdminShell> {
 
           const PopupMenuDivider(),
 
+          // =====================================================
+          // LOGIN
+          // =====================================================
+
           PopupMenuItem<String>(
             value: 'login',
+
             child: Row(
               children: [
-                Icon(
+                const Icon(
                   Icons.login_outlined,
                   size: 20,
                   color: dojoBlue,
@@ -1015,11 +1058,16 @@ class _AdminShellState extends State<AdminShell> {
             ),
           ),
 
+          // =====================================================
+          // SIGN OUT
+          // =====================================================
+
           PopupMenuItem<String>(
             value: 'logout',
+
             child: Row(
               children: [
-                Icon(
+                const Icon(
                   Icons.logout_outlined,
                   size: 20,
                   color: dojoOrange,
@@ -1040,13 +1088,19 @@ class _AdminShellState extends State<AdminShell> {
         ];
       },
 
+      // =========================================================
+      // DESKTOP PROFILE
+      // =========================================================
+
       child: compact
           ? Container(
               height: 40,
+
               padding:
                   const EdgeInsets.symmetric(
                 horizontal: 10,
               ),
+
               decoration: BoxDecoration(
                 color: dojoBackground,
                 borderRadius:
@@ -1055,6 +1109,7 @@ class _AdminShellState extends State<AdminShell> {
                   color: dojoBorder,
                 ),
               ),
+
               child: Row(
                 children: [
                   const CircleAvatar(
@@ -1075,6 +1130,7 @@ class _AdminShellState extends State<AdminShell> {
                         const BoxConstraints(
                       maxWidth: 110,
                     ),
+
                     child: Text(
                       adminName,
                       maxLines: 1,
@@ -1084,17 +1140,24 @@ class _AdminShellState extends State<AdminShell> {
                         fontSize: 12,
                         fontWeight:
                             FontWeight.w700,
+                        color: dojoDark,
                       ),
                     ),
                   ),
                 ],
               ),
             )
+
+          // =======================================================
+          // MOBILE PROFILE ICON
+          // =======================================================
+
           : const Padding(
               padding: EdgeInsets.only(
                 left: 4,
                 right: 8,
               ),
+
               child: CircleAvatar(
                 radius: 18,
                 backgroundColor:
@@ -1114,10 +1177,24 @@ class _AdminShellState extends State<AdminShell> {
   // =============================================================
 
   void _handleLogin() {
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Admin is already logged in.',
+          ),
+        ),
+      );
+
+      return;
+    }
+
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text(
-          'Admin login is already active.',
+          'Please use the Admin Login screen.',
         ),
       ),
     );
@@ -1131,14 +1208,16 @@ class _AdminShellState extends State<AdminShell> {
     final shouldLogout =
         await showDialog<bool>(
       context: context,
-      builder: (context) {
+      builder: (BuildContext context) {
         return AlertDialog(
           title: const Text(
             'Sign Out',
           ),
-          content: const Text(
-            'Are you sure you want to sign out?',
+
+          content: Text(
+            'Sign out from $adminEmail?',
           ),
+
           actions: [
             TextButton(
               onPressed: () {
@@ -1156,12 +1235,14 @@ class _AdminShellState extends State<AdminShell> {
               style: FilledButton.styleFrom(
                 backgroundColor: dojoOrange,
               ),
+
               onPressed: () {
                 Navigator.pop(
                   context,
                   true,
                 );
               },
+
               child: const Text(
                 'Sign Out',
               ),
