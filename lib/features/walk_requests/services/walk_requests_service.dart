@@ -3,8 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class WalkRequestsService {
   WalkRequestsService({
     FirebaseFirestore? firestore,
-  }) : _firestore =
-            firestore ?? FirebaseFirestore.instance;
+  }) : _firestore = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _firestore;
 
@@ -12,20 +11,19 @@ class WalkRequestsService {
   // COLLECTIONS
   // ==========================================================
 
-  CollectionReference<Map<String, dynamic>>
-      get _walkRequests =>
-          _firestore.collection('walk_requests');
+  CollectionReference<Map<String, dynamic>> get _walkRequests {
+    return _firestore.collection('walk_request');
+  }
 
-  CollectionReference<Map<String, dynamic>>
-      get _walkers =>
-          _firestore.collection('walkers');
+  CollectionReference<Map<String, dynamic>> get _walkers {
+    return _firestore.collection('walkers');
+  }
 
   // ==========================================================
   // WATCH WALK REQUESTS
   // ==========================================================
 
-  Stream<QuerySnapshot<Map<String, dynamic>>>
-      watchWalkRequests() {
+  Stream<QuerySnapshot<Map<String, dynamic>>> watchWalkRequests() {
     return _walkRequests
         .orderBy(
           'createdAt',
@@ -38,13 +36,9 @@ class WalkRequestsService {
   // GET WALKERS
   // ==========================================================
 
-  Future<
-      List<
-          QueryDocumentSnapshot<
-              Map<String, dynamic>>>>
+  Future<List<QueryDocumentSnapshot<Map<String, dynamic>>>>
       getWalkers() async {
-    final snapshot =
-        await _walkers.get();
+    final snapshot = await _walkers.get();
 
     return snapshot.docs;
   }
@@ -56,21 +50,15 @@ class WalkRequestsService {
   Future<void> cancelRequest({
     required String requestId,
   }) async {
-    final cleanRequestId =
-        requestId.trim();
+    final cleanRequestId = requestId.trim();
 
     if (cleanRequestId.isEmpty) {
-      throw Exception(
-        'Request ID is empty.',
-      );
+      throw Exception('Request ID is empty.');
     }
 
-    await _walkRequests
-        .doc(cleanRequestId)
-        .update({
+    await _walkRequests.doc(cleanRequestId).update({
       'status': 'cancelled',
-      'updatedAt':
-          FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
     });
   }
 
@@ -84,64 +72,35 @@ class WalkRequestsService {
     required String walkerId,
     required String walkerName,
   }) async {
-    final cleanRequestId =
-        requestId.trim();
-
-    final cleanWalkerUid =
-        walkerUid.trim();
-
-    final cleanWalkerId =
-        walkerId.trim();
-
-    final cleanWalkerName =
-        walkerName.trim();
+    final cleanRequestId = requestId.trim();
+    final cleanWalkerUid = walkerUid.trim();
+    final cleanWalkerId = walkerId.trim();
+    final cleanWalkerName = walkerName.trim();
 
     if (cleanRequestId.isEmpty) {
-      throw Exception(
-        'Request ID is empty.',
-      );
+      throw Exception('Request ID is empty.');
     }
 
     if (cleanWalkerUid.isEmpty) {
-      throw Exception(
-        'Walker UID is empty.',
-      );
+      throw Exception('Walker UID is empty.');
     }
 
     if (cleanWalkerId.isEmpty) {
-      throw Exception(
-        'Walker ID is empty.',
-      );
+      throw Exception('Walker ID is empty.');
     }
 
     if (cleanWalkerName.isEmpty) {
-      throw Exception(
-        'Walker name is empty.',
-      );
+      throw Exception('Walker name is empty.');
     }
 
-    await _walkRequests
-        .doc(cleanRequestId)
-        .update({
+    await _walkRequests.doc(cleanRequestId).update({
       'status': 'accepted',
-
-      'walkerUid':
-          cleanWalkerUid,
-
-      'walkerId':
-          cleanWalkerId,
-
-      'walkerName':
-          cleanWalkerName,
-
-      'acceptedBy':
-          cleanWalkerUid,
-
-      'acceptedAt':
-          FieldValue.serverTimestamp(),
-
-      'updatedAt':
-          FieldValue.serverTimestamp(),
+      'walkerUid': cleanWalkerUid,
+      'walkerId': cleanWalkerId,
+      'walkerName': cleanWalkerName,
+      'acceptedBy': cleanWalkerUid,
+      'acceptedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
     });
   }
 
@@ -153,30 +112,20 @@ class WalkRequestsService {
     required String requestId,
     required String status,
   }) async {
-    final cleanRequestId =
-        requestId.trim();
-
-    final cleanStatus =
-        status.trim().toLowerCase();
+    final cleanRequestId = requestId.trim();
+    final cleanStatus = status.trim().toLowerCase();
 
     if (cleanRequestId.isEmpty) {
-      throw Exception(
-        'Request ID is empty.',
-      );
+      throw Exception('Request ID is empty.');
     }
 
     if (cleanStatus.isEmpty) {
-      throw Exception(
-        'Status is empty.',
-      );
+      throw Exception('Status is empty.');
     }
 
-    await _walkRequests
-        .doc(cleanRequestId)
-        .update({
+    await _walkRequests.doc(cleanRequestId).update({
       'status': cleanStatus,
-      'updatedAt':
-          FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
     });
   }
 
@@ -187,17 +136,12 @@ class WalkRequestsService {
   Future<void> deleteRequest({
     required String requestId,
   }) async {
-    final cleanRequestId =
-        requestId.trim();
+    final cleanRequestId = requestId.trim();
 
     if (cleanRequestId.isEmpty) {
-      throw Exception(
-        'Request ID is empty.',
-      );
+      throw Exception('Request ID is empty.');
     }
 
-    await _walkRequests
-        .doc(cleanRequestId)
-        .delete();
+    await _walkRequests.doc(cleanRequestId).delete();
   }
 }
