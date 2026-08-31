@@ -29,6 +29,8 @@ class AdminAuthGuard extends StatelessWidget {
 
         // ========================================================
         // CHECK ADMIN DOCUMENT
+        //
+        // Firestore:
         // admins/{Firebase Auth UID}
         // ========================================================
 
@@ -48,8 +50,11 @@ class AdminAuthGuard extends StatelessWidget {
             // ====================================================
 
             if (adminSnapshot.hasError) {
-              return const _AccessDeniedScreen(
-                message: 'Unable to verify your admin account.',
+              return _AccessDeniedScreen(
+                message:
+                    'Unable to verify your admin account.\n\n'
+                    'Firestore permission denied or connection error.',
+                error: adminSnapshot.error.toString(),
               );
             }
 
@@ -79,6 +84,19 @@ class AdminAuthGuard extends StatelessWidget {
             }
 
             // ====================================================
+            // VERIFY ADMIN UID
+            // ====================================================
+
+            final adminUid = data['adminUid'];
+
+            if (adminUid != user.uid) {
+              return const _AccessDeniedScreen(
+                message:
+                    'This admin account is not linked to the signed-in Firebase account.',
+              );
+            }
+
+            // ====================================================
             // ACTIVE CHECK
             //
             // Firestore:
@@ -90,6 +108,23 @@ class AdminAuthGuard extends StatelessWidget {
             if (!active) {
               return const _AccessDeniedScreen(
                 message: 'Your admin account is inactive.',
+              );
+            }
+
+            // ====================================================
+            // ROLE CHECK
+            //
+            // Firestore:
+            // role: "superAdmin"
+            // ====================================================
+
+            final role = data['role'];
+
+            if (role != 'superAdmin') {
+              return _AccessDeniedScreen(
+                message:
+                    'Your account does not have superAdmin access.\n\n'
+                    'Current role: ${role ?? 'not set'}',
               );
             }
 
@@ -131,9 +166,11 @@ class _LoadingScreen extends StatelessWidget {
 
 class _AccessDeniedScreen extends StatelessWidget {
   final String message;
+  final String? error;
 
   const _AccessDeniedScreen({
     this.message = 'You are not authorized to access DOJO Admin.',
+    this.error,
   });
 
   @override
@@ -141,70 +178,91 @@ class _AccessDeniedScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FA),
       body: Center(
-        child: Container(
-          constraints: const BoxConstraints(
-            maxWidth: 420,
-          ),
-          margin: const EdgeInsets.all(24),
-          padding: const EdgeInsets.all(28),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: const Color(0xFFE7E9ED),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Container(
+            constraints: const BoxConstraints(
+              maxWidth: 420,
             ),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFEEE9),
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: const Icon(
-                  Icons.lock_outline,
-                  color: Color(0xFFD35435),
-                  size: 30,
-                ),
+            padding: const EdgeInsets.all(28),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: const Color(0xFFE7E9ED),
               ),
-
-              const SizedBox(height: 18),
-
-              const Text(
-                'Access Denied',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFEEE9),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: const Icon(
+                    Icons.lock_outline,
+                    color: Color(0xFFD35435),
+                    size: 30,
+                  ),
                 ),
-              ),
 
-              const SizedBox(height: 8),
+                const SizedBox(height: 18),
 
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Colors.grey,
-                  height: 1.5,
+                const Text(
+                  'Access Denied',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
-              ),
 
-              const SizedBox(height: 22),
+                const SizedBox(height: 8),
 
-              FilledButton.icon(
-                onPressed: () async {
-                  await FirebaseAuth.instance.signOut();
-                },
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFFD35435),
+                Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.grey,
+                    height: 1.5,
+                  ),
                 ),
-                icon: const Icon(Icons.logout),
-                label: const Text('Sign Out'),
-              ),
-            ],
+
+                if (error != null) ...[
+                  const SizedBox(height: 14),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF4F1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      error!,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Colors.black54,
+                      ),
+                    ),
+                  ),
+                ],
+
+                const SizedBox(height: 22),
+
+                FilledButton.icon(
+                  onPressed: () async {
+                    await FirebaseAuth.instance.signOut();
+                  },
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFFD35435),
+                  ),
+                  icon: const Icon(Icons.logout),
+                  label: const Text('Sign Out'),
+                ),
+              ],
+            ),
           ),
         ),
       ),
