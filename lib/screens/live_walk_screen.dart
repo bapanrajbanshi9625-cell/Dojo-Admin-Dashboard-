@@ -35,13 +35,13 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
   String selectedFilter = 'All';
 
   // ==========================================================
-  // ACTIVE WALKS
+  // LIVE WALK SESSIONS
   // ==========================================================
 
   Stream<QuerySnapshot<Map<String, dynamic>>>
-      get _activeWalkStream {
+      get _liveWalkSessionStream {
     return _firestore
-        .collection('activeWalk')
+        .collection('liveWalkSessions')
         .snapshots();
   }
 
@@ -65,7 +65,7 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
       color: dojoBackground,
       child: StreamBuilder<
           QuerySnapshot<Map<String, dynamic>>>(
-        stream: _activeWalkStream,
+        stream: _liveWalkSessionStream,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return _errorState(
@@ -85,8 +85,7 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
             );
           }
 
-          final docs =
-              snapshot.data?.docs ?? [];
+          final docs = snapshot.data?.docs ?? [];
 
           return _buildContent(docs);
         },
@@ -103,7 +102,7 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
   ) {
     final walks = docs
         .map(
-          (doc) => ActiveWalkData.fromFirestore(
+          (doc) => LiveWalkSessionData.fromFirestore(
             doc.id,
             doc.data(),
           ),
@@ -170,7 +169,7 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
   // ==========================================================
 
   Widget _summaryCards(
-    List<ActiveWalkData> walks,
+    List<LiveWalkSessionData> walks,
   ) {
     final totalDistance =
         walks.fold<double>(
@@ -413,8 +412,8 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
   // FILTER LOGIC
   // ==========================================================
 
-  List<ActiveWalkData> _filterWalks(
-    List<ActiveWalkData> walks,
+  List<LiveWalkSessionData> _filterWalks(
+    List<LiveWalkSessionData> walks,
   ) {
     final query =
         searchController.text
@@ -424,6 +423,9 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
     return walks.where((walk) {
       final matchesSearch =
           query.isEmpty ||
+          walk.documentId
+              .toLowerCase()
+              .contains(query) ||
           walk.id
               .toLowerCase()
               .contains(query) ||
@@ -449,9 +451,9 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
       final matchesFilter =
           selectedFilter == 'All' ||
           (selectedFilter == 'With Route' &&
-              walk.routePointCount > 0) ||
+              walk.routeCoordinates.isNotEmpty) ||
           (selectedFilter == 'Events' &&
-              walk.eventCount > 0);
+              walk.events.isNotEmpty);
 
       return matchesSearch &&
           matchesFilter;
@@ -463,7 +465,7 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
   // ==========================================================
 
   Widget _liveList(
-    List<ActiveWalkData> walks,
+    List<LiveWalkSessionData> walks,
   ) {
     if (walks.isEmpty) {
       return _emptyState();
@@ -487,7 +489,7 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
   // ==========================================================
 
   Widget _liveCard(
-    ActiveWalkData walk,
+    LiveWalkSessionData walk,
   ) {
     return Container(
       padding:
@@ -520,7 +522,7 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
   // ==========================================================
 
   Widget _desktopCard(
-    ActiveWalkData walk,
+    LiveWalkSessionData walk,
   ) {
     return Row(
       children: [
@@ -565,7 +567,7 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
   // ==========================================================
 
   Widget _mobileCard(
-    ActiveWalkData walk,
+    LiveWalkSessionData walk,
   ) {
     return Column(
       crossAxisAlignment:
@@ -630,7 +632,7 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
               child: _miniStat(
                 Icons.alt_route,
                 'Route',
-                '${walk.routePointCount}',
+                '${walk.routeCoordinates.length}',
               ),
             ),
           ],
@@ -673,7 +675,7 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
   // ==========================================================
 
   Widget _mainInfo(
-    ActiveWalkData walk,
+    LiveWalkSessionData walk,
   ) {
     return Column(
       crossAxisAlignment:
@@ -683,7 +685,9 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
           children: [
             Flexible(
               child: Text(
-                walk.id,
+                walk.id.isEmpty
+                    ? walk.documentId
+                    : walk.id,
                 maxLines: 1,
                 overflow:
                     TextOverflow.ellipsis,
@@ -711,6 +715,18 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
             fontWeight: FontWeight.w800,
           ),
         ),
+
+        if (walk.dogBreed.isNotEmpty)
+          Text(
+            walk.dogBreed,
+            maxLines: 1,
+            overflow:
+                TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 10,
+              color: dojoGrey,
+            ),
+          ),
 
         const SizedBox(height: 3),
 
@@ -798,27 +814,32 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
           color: dojoBlue,
         ),
         const SizedBox(width: 7),
-        Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 10,
-                color: dojoGrey,
+        Flexible(
+          child: Column(
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 10,
+                  color: dojoGrey,
+                ),
               ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight:
-                    FontWeight.w800,
+              const SizedBox(height: 2),
+              Text(
+                value,
+                maxLines: 1,
+                overflow:
+                    TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight:
+                      FontWeight.w800,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ],
     );
@@ -871,7 +892,7 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
   // ==========================================================
 
   Widget _viewButton(
-    ActiveWalkData walk,
+    LiveWalkSessionData walk,
   ) {
     return OutlinedButton.icon(
       onPressed: () {
@@ -905,45 +926,10 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
   // OPEN LIVE DETAILS
   // ==========================================================
 
-  Future<void> _openLiveDetails(
-    ActiveWalkData active,
-  ) async {
-    try {
-      final query = await _firestore
-          .collection('liveWalkSessions')
-          .where(
-            'id',
-            isEqualTo: active.id,
-          )
-          .limit(1)
-          .get();
-
-      LiveWalkSessionData? session;
-
-      if (query.docs.isNotEmpty) {
-        final doc = query.docs.first;
-
-        session =
-            LiveWalkSessionData.fromFirestore(
-          doc.id,
-          doc.data(),
-        );
-      }
-
-      if (!mounted) return;
-
-      _showLiveDetails(
-        active,
-        session,
-      );
-    } catch (e) {
-      if (!mounted) return;
-
-      _showErrorDialog(
-        'Unable to load live session',
-        e.toString(),
-      );
-    }
+  void _openLiveDetails(
+    LiveWalkSessionData session,
+  ) {
+    _showLiveDetails(session);
   }
 
   // ==========================================================
@@ -951,15 +937,8 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
   // ==========================================================
 
   void _showLiveDetails(
-    ActiveWalkData active,
-    LiveWalkSessionData? session,
+    LiveWalkSessionData data,
   ) {
-    final data =
-        session ??
-        LiveWalkSessionData.fromActive(
-          active,
-        );
-
     showDialog(
       context: context,
       builder: (context) {
@@ -988,7 +967,7 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
               Expanded(
                 child: Text(
                   data.id.isEmpty
-                      ? active.id
+                      ? data.documentId
                       : data.id,
                   maxLines: 1,
                   overflow:
@@ -1013,6 +992,10 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
                     'Walk',
                     [
                       _detailRow(
+                        'Document ID',
+                        data.documentId,
+                      ),
+                      _detailRow(
                         'Walk ID',
                         data.id,
                       ),
@@ -1021,12 +1004,20 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
                         data.ownerId,
                       ),
                       _detailRow(
+                        'Owner Name',
+                        data.ownerName,
+                      ),
+                      _detailRow(
                         'Walker ID',
                         data.walkerId,
                       ),
                       _detailRow(
                         'Walker UID',
                         data.walkerUid,
+                      ),
+                      _detailRow(
+                        'Walker Name',
+                        data.walkerName,
                       ),
                     ],
                   ),
@@ -1066,6 +1057,14 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
                         'Poop',
                         '${data.poopCount}',
                       ),
+                      _detailRow(
+                        'Route Points',
+                        '${data.routeCoordinates.length}',
+                      ),
+                      _detailRow(
+                        'Events',
+                        '${data.events.length}',
+                      ),
                     ],
                   ),
 
@@ -1089,7 +1088,6 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
                                 .toStringAsFixed(
                                 7,
                               ),
-                      ),
                     ],
                   ),
 
@@ -1336,6 +1334,10 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
     );
   }
 
+  // ==========================================================
+  // EVENT TILE
+  // ==========================================================
+
   Widget _eventTile(
     Map<String, dynamic> event,
   ) {
@@ -1424,51 +1426,6 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  // ==========================================================
-  // ERROR DIALOG
-  // ==========================================================
-
-  void _showErrorDialog(
-    String title,
-    String message,
-  ) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Row(
-            children: [
-              const Icon(
-                Icons.error_outline,
-                color: dojoRed,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(title),
-              ),
-            ],
-          ),
-          content: Text(
-            message,
-            style:
-                const TextStyle(
-              fontSize: 12,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child:
-                  const Text('Close'),
-            ),
-          ],
-        );
-      },
     );
   }
 
@@ -1578,132 +1535,6 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
 }
 
 // ============================================================
-// ACTIVE WALK MODEL
-// ============================================================
-
-class ActiveWalkData {
-  final String documentId;
-  final String id;
-
-  final String ownerId;
-  final String ownerName;
-
-  final String walkerId;
-  final String walkerUid;
-  final String walkerName;
-
-  final String dogName;
-  final String dogBreed;
-
-  final double distanceKm;
-  final int elapsedSeconds;
-
-  final int peeCount;
-  final int poopCount;
-
-  final double? locationLat;
-  final double? locationLng;
-
-  final int routePointCount;
-  final int eventCount;
-
-  const ActiveWalkData({
-    required this.documentId,
-    required this.id,
-    required this.ownerId,
-    required this.ownerName,
-    required this.walkerId,
-    required this.walkerUid,
-    required this.walkerName,
-    required this.dogName,
-    required this.dogBreed,
-    required this.distanceKm,
-    required this.elapsedSeconds,
-    required this.peeCount,
-    required this.poopCount,
-    required this.locationLat,
-    required this.locationLng,
-    required this.routePointCount,
-    required this.eventCount,
-  });
-
-  factory ActiveWalkData.fromFirestore(
-    String documentId,
-    Map<String, dynamic> data,
-  ) {
-    final location =
-        _map(data['location']);
-
-    final route =
-        _list(data['routeCoordinates']);
-
-    final events =
-        _list(data['events']);
-
-    return ActiveWalkData(
-      documentId: documentId,
-
-      id:
-          _string(data, 'id') ??
-          documentId,
-
-      ownerId:
-          _string(data, 'ownerId') ?? '-',
-
-      ownerName:
-          _string(data, 'ownerName') ?? '',
-
-      walkerId:
-          _string(data, 'walkerId') ??
-          _string(data, 'walkerid') ??
-          '-',
-
-      walkerUid:
-          _string(data, 'walkeruid') ??
-          _string(data, 'walkerUid') ??
-          '-',
-
-      walkerName:
-          _string(data, 'walkerName') ?? '',
-
-      dogName:
-          _string(data, 'dogName') ?? 'Dog',
-
-      dogBreed:
-          _string(data, 'dogBreed') ?? '',
-
-      distanceKm:
-          _double(data['distanceKm']) ?? 0,
-
-      elapsedSeconds:
-          _int(data['elapsedSeconds']) ?? 0,
-
-      peeCount:
-          _int(data['peeCount']) ?? 0,
-
-      poopCount:
-          _int(data['poopCount']) ?? 0,
-
-      locationLat:
-          _double(
-            location?['lat'],
-          ),
-
-      locationLng:
-          _double(
-            location?['lng'],
-          ),
-
-      routePointCount:
-          route.length,
-
-      eventCount:
-          events.length,
-    );
-  }
-}
-
-// ============================================================
 // LIVE SESSION MODEL
 // ============================================================
 
@@ -1756,6 +1587,10 @@ class LiveWalkSessionData {
     required this.events,
   });
 
+  // ==========================================================
+  // FIRESTORE
+  // ==========================================================
+
   factory LiveWalkSessionData.fromFirestore(
     String documentId,
     Map<String, dynamic> data,
@@ -1782,8 +1617,8 @@ class LiveWalkSessionData {
           '-',
 
       walkerUid:
-          _string(data, 'walkeruid') ??
           _string(data, 'walkerUid') ??
+          _string(data, 'walkeruid') ??
           '-',
 
       walkerName:
@@ -1820,34 +1655,6 @@ class LiveWalkSessionData {
           _list(data['events']),
     );
   }
-
-  // ==========================================================
-  // FALLBACK FROM ACTIVE WALK
-  // ==========================================================
-
-  factory LiveWalkSessionData.fromActive(
-    ActiveWalkData active,
-  ) {
-    return LiveWalkSessionData(
-      documentId: active.documentId,
-      id: active.id,
-      ownerId: active.ownerId,
-      ownerName: active.ownerName,
-      walkerId: active.walkerId,
-      walkerUid: active.walkerUid,
-      walkerName: active.walkerName,
-      dogName: active.dogName,
-      dogBreed: active.dogBreed,
-      distanceKm: active.distanceKm,
-      elapsedSeconds: active.elapsedSeconds,
-      peeCount: active.peeCount,
-      poopCount: active.poopCount,
-      locationLat: active.locationLat,
-      locationLng: active.locationLng,
-      routeCoordinates: const [],
-      events: const [],
-    );
-  }
 }
 
 // ============================================================
@@ -1869,9 +1676,7 @@ class _SummaryCard
   });
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Container(
       padding:
           const EdgeInsets.all(17),
@@ -1890,7 +1695,7 @@ class _SummaryCard
             height: 47,
             decoration: BoxDecoration(
               color:
-                  color.withOpacity(.10),
+                  color.withValues(alpha: .10),
               borderRadius:
                   BorderRadius.circular(13),
             ),
