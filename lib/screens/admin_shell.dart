@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 
 import 'dashboard_screen.dart';
 import 'live_walk_screen.dart';
-import 'walk_requests_screen.dart';
 import 'active_walks_screen.dart';
 import 'owners_screen.dart';
 import 'walkers_screen.dart';
@@ -20,6 +19,7 @@ import 'activity_logs_screen.dart';
 import 'settings_screen.dart';
 
 import '../features/walk_history/screens/walk_history_screen.dart';
+import '../features/walk_requests/screens/walk_requests_screen.dart';
 
 // =============================================================
 // DOJO ADMIN COLORS
