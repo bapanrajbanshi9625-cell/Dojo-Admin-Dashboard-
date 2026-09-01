@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 
 import 'dashboard_screen.dart';
 import 'live_walk_screen.dart';
-import 'active_walks_screen.dart';
 import 'owners_screen.dart';
 import 'walkers_screen.dart';
 import 'pets_screen.dart';
@@ -56,87 +55,66 @@ const List<AdminMenuItem> adminMenuItems = [
     title: 'Dashboard',
     icon: Icons.dashboard_outlined,
   ),
-
   AdminMenuItem(
     title: 'Live Walk Sessions',
     icon: Icons.directions_walk_outlined,
   ),
-
   AdminMenuItem(
     title: 'Walk Requests',
     icon: Icons.assignment_outlined,
   ),
-
-  AdminMenuItem(
-    title: 'Active Walks',
-    icon: Icons.directions_walk_outlined,
-  ),
-
   AdminMenuItem(
     title: 'Walk History',
     icon: Icons.history_outlined,
   ),
-
   AdminMenuItem(
     title: 'Owners',
     icon: Icons.people_outline,
   ),
-
   AdminMenuItem(
     title: 'Walkers',
     icon: Icons.badge_outlined,
   ),
-
   AdminMenuItem(
     title: 'Pets',
     icon: Icons.pets_outlined,
   ),
-
   AdminMenuItem(
     title: 'Finance',
     icon: Icons.analytics_outlined,
   ),
-
   AdminMenuItem(
     title: 'Payments',
     icon: Icons.payments_outlined,
   ),
-
   AdminMenuItem(
     title: 'Payouts',
     icon: Icons.account_balance_wallet_outlined,
   ),
-
   AdminMenuItem(
     title: 'Reviews',
     icon: Icons.star_outline,
   ),
-
   AdminMenuItem(
     title: 'Complaints',
     icon: Icons.report_problem_outlined,
   ),
-
   AdminMenuItem(
     title: 'Support',
     icon: Icons.support_agent_outlined,
   ),
-
   AdminMenuItem(
     title: 'Notifications',
     icon: Icons.notifications_none_outlined,
   ),
-
   AdminMenuItem(
     title: 'Admins',
     icon: Icons.admin_panel_settings_outlined,
   ),
-
   AdminMenuItem(
     title: 'Activity Logs',
     icon: Icons.receipt_long_outlined,
   ),
-
   AdminMenuItem(
     title: 'Settings',
     icon: Icons.settings_outlined,
@@ -282,108 +260,101 @@ class _AdminShellState extends State<AdminShell> {
         return const WalkRequestsScreen();
 
       // =======================================================
-      // 3 - ACTIVE WALKS
+      // 3 - WALK HISTORY
       // =======================================================
 
       case 3:
-        return const ActiveWalksScreen();
-
-      // =======================================================
-      // 4 - WALK HISTORY
-      // =======================================================
-
-      case 4:
         return const WalkHistoryScreen();
 
       // =======================================================
-      // 5 - OWNERS
+      // 4 - OWNERS
       // =======================================================
 
-      case 5:
+      case 4:
         return const OwnersScreen();
 
       // =======================================================
-      // 6 - WALKERS
+      // 5 - WALKERS
       // =======================================================
 
-      case 6:
+      case 5:
         return const WalkersScreen();
 
       // =======================================================
-      // 7 - PETS
+      // 6 - PETS
       // =======================================================
 
-      case 7:
+      case 6:
         return const PetsScreen();
 
       // =======================================================
-      // 8 - FINANCE
+      // 7 - FINANCE
       // =======================================================
 
-      case 8:
+      case 7:
         return const FinanceScreen();
 
       // =======================================================
-      // 9 - PAYMENTS
+      // 8 - PAYMENTS
       // =======================================================
 
-      case 9:
+      case 8:
         return const PaymentsScreen();
 
       // =======================================================
-      // 10 - PAYOUTS
+      // 9 - PAYOUTS
       // =======================================================
 
-      case 10:
+      case 9:
         return const PayoutsScreen();
 
       // =======================================================
-      // 11 - REVIEWS
+      // 10 - REVIEWS
       // =======================================================
 
-      case 11:
+      case 10:
         return const ReviewsScreen();
 
       // =======================================================
-      // 12 - COMPLAINTS
+      // 11 - COMPLAINTS
       // =======================================================
 
-      case 12:
+      case 11:
         return const complaints.ComplaintsScreen();
 
       // =======================================================
-      // 13 - SUPPORT
+      // 12 - SUPPORT
       // =======================================================
 
-      case 13:
+      case 12:
         return const SupportScreen();
 
       // =======================================================
-      // 14 - NOTIFICATIONS
+      // 13 - NOTIFICATIONS
       // =======================================================
 
-      case 14:
+      case 13:
         return const NotificationsScreen();
 
       // =======================================================
-      // 15 - ADMINS
+      // 14 - ADMINS
       // =======================================================
 
-      case 15:
+      case 14:
         return const admins.AdminsScreen();
 
       // =======================================================
-      // 16 - ACTIVITY LOGS
+      // 15 - ACTIVITY LOGS
       // =======================================================
 
-      case 16:
+      case 15:
         return const ActivityLogsScreen();
 
       // =======================================================
-      // 17 - SETTINGS
+      // 16 - SETTINGS
       // =======================================================
 
-      case 17:
+      case 16:
         return const SettingsScreen();
 
       default:
@@ -425,7 +396,6 @@ class _AdminShellState extends State<AdminShell> {
           Column(
             children: [
               webTopBar(),
-
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.all(26),
@@ -434,9 +404,7 @@ class _AdminShellState extends State<AdminShell> {
               ),
             ],
           ),
-
-          if (menuOpen)
-            desktopDrawer(),
+          if (menuOpen) desktopDrawer(),
         ],
       ),
     );
@@ -471,9 +439,7 @@ class _AdminShellState extends State<AdminShell> {
               size: 25,
             ),
           ),
-
           const SizedBox(width: 8),
-
           Text(
             pageTitle,
             style: const TextStyle(
@@ -482,30 +448,18 @@ class _AdminShellState extends State<AdminShell> {
               color: dojoDark,
             ),
           ),
-
           const Spacer(),
-
-          // -----------------------------------------------------
-          // NOTIFICATIONS
-          // -----------------------------------------------------
-
           IconButton(
             tooltip: 'Notifications',
             onPressed: () {
-              selectPage(14);
+              selectPage(13);
             },
             icon: const Icon(
               Icons.notifications_none_outlined,
               color: dojoGrey,
             ),
           ),
-
           const SizedBox(width: 4),
-
-          // -----------------------------------------------------
-          // ADMIN PROFILE
-          // -----------------------------------------------------
-
           _profileMenu(
             compact: true,
           ),
@@ -540,11 +494,8 @@ class _AdminShellState extends State<AdminShell> {
                 child: Column(
                   children: [
                     const SizedBox(height: 20),
-
                     brand(),
-
                     const SizedBox(height: 22),
-
                     Expanded(
                       child: ListView.builder(
                         padding: const EdgeInsets.symmetric(
@@ -562,17 +513,14 @@ class _AdminShellState extends State<AdminShell> {
                         },
                       ),
                     ),
-
                     const Divider(
                       height: 1,
                     ),
-
                     adminProfile(),
                   ],
                 ),
               ),
             ),
-
             Expanded(
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
@@ -612,9 +560,7 @@ class _AdminShellState extends State<AdminShell> {
               size: 24,
             ),
           ),
-
           const SizedBox(width: 10),
-
           const Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -710,9 +656,7 @@ class _AdminShellState extends State<AdminShell> {
               size: 21,
             ),
           ),
-
           const SizedBox(width: 9),
-
           Expanded(
             child: Column(
               crossAxisAlignment:
@@ -728,9 +672,7 @@ class _AdminShellState extends State<AdminShell> {
                     color: dojoDark,
                   ),
                 ),
-
                 const SizedBox(height: 2),
-
                 Text(
                   adminRole,
                   style: const TextStyle(
@@ -757,11 +699,6 @@ class _AdminShellState extends State<AdminShell> {
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
         elevation: 0,
-
-        // -------------------------------------------------------
-        // MENU
-        // -------------------------------------------------------
-
         leading: IconButton(
           tooltip: 'Menu',
           onPressed: toggleMenu,
@@ -770,11 +707,6 @@ class _AdminShellState extends State<AdminShell> {
             color: dojoDark,
           ),
         ),
-
-        // -------------------------------------------------------
-        // TITLE
-        // -------------------------------------------------------
-
         title: Row(
           children: [
             Container(
@@ -790,9 +722,7 @@ class _AdminShellState extends State<AdminShell> {
                 size: 19,
               ),
             ),
-
             const SizedBox(width: 9),
-
             Flexible(
               child: Text(
                 pageTitle,
@@ -806,41 +736,27 @@ class _AdminShellState extends State<AdminShell> {
             ),
           ],
         ),
-
-        // -------------------------------------------------------
-        // RIGHT SIDE
-        // Notification + Profile
-        // -------------------------------------------------------
-
         actions: [
           IconButton(
             tooltip: 'Notifications',
             onPressed: () {
-              selectPage(14);
+              selectPage(13);
             },
             icon: const Icon(
               Icons.notifications_none_outlined,
               color: dojoGrey,
             ),
           ),
-
           _profileMenu(),
         ],
       ),
-
-      // ---------------------------------------------------------
-      // BODY
-      // ---------------------------------------------------------
-
       body: Stack(
         children: [
           Padding(
             padding: const EdgeInsets.all(16),
             child: currentScreen(),
           ),
-
-          if (menuOpen)
-            mobileDrawer(),
+          if (menuOpen) mobileDrawer(),
         ],
       ),
     );
@@ -865,11 +781,8 @@ class _AdminShellState extends State<AdminShell> {
                 child: Column(
                   children: [
                     const SizedBox(height: 18),
-
                     brand(),
-
                     const SizedBox(height: 18),
-
                     Expanded(
                       child: ListView.builder(
                         padding: const EdgeInsets.symmetric(
@@ -887,17 +800,14 @@ class _AdminShellState extends State<AdminShell> {
                         },
                       ),
                     ),
-
                     const Divider(
                       height: 1,
                     ),
-
                     adminProfile(),
                   ],
                 ),
               ),
             ),
-
             Expanded(
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
@@ -922,20 +832,15 @@ class _AdminShellState extends State<AdminShell> {
   }) {
     return PopupMenuButton<String>(
       tooltip: 'Admin Profile',
-
       offset: const Offset(
         0,
         48,
       ),
-
       elevation: 10,
-
       color: Colors.white,
-
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
       ),
-
       onSelected: (String value) {
         switch (value) {
           case 'login':
@@ -947,21 +852,14 @@ class _AdminShellState extends State<AdminShell> {
             break;
         }
       },
-
       itemBuilder: (BuildContext context) {
         return [
-          // =====================================================
-          // ADMIN INFORMATION
-          // =====================================================
-
           PopupMenuItem<String>(
             enabled: false,
-
             padding: const EdgeInsets.symmetric(
               horizontal: 16,
               vertical: 10,
             ),
-
             child: SizedBox(
               width: 245,
               child: Row(
@@ -975,9 +873,7 @@ class _AdminShellState extends State<AdminShell> {
                       size: 24,
                     ),
                   ),
-
                   const SizedBox(width: 11),
-
                   Expanded(
                     child: Column(
                       crossAxisAlignment:
@@ -995,9 +891,7 @@ class _AdminShellState extends State<AdminShell> {
                             color: dojoDark,
                           ),
                         ),
-
                         const SizedBox(height: 3),
-
                         Text(
                           adminRole,
                           style: const TextStyle(
@@ -1007,9 +901,7 @@ class _AdminShellState extends State<AdminShell> {
                             color: dojoOrange,
                           ),
                         ),
-
                         const SizedBox(height: 3),
-
                         Text(
                           adminEmail,
                           maxLines: 1,
@@ -1027,16 +919,9 @@ class _AdminShellState extends State<AdminShell> {
               ),
             ),
           ),
-
           const PopupMenuDivider(),
-
-          // =====================================================
-          // LOGIN
-          // =====================================================
-
           PopupMenuItem<String>(
             value: 'login',
-
             child: Row(
               children: [
                 const Icon(
@@ -1044,9 +929,7 @@ class _AdminShellState extends State<AdminShell> {
                   size: 20,
                   color: dojoBlue,
                 ),
-
                 const SizedBox(width: 11),
-
                 const Text(
                   'Login',
                   style: TextStyle(
@@ -1057,14 +940,8 @@ class _AdminShellState extends State<AdminShell> {
               ],
             ),
           ),
-
-          // =====================================================
-          // SIGN OUT
-          // =====================================================
-
           PopupMenuItem<String>(
             value: 'logout',
-
             child: Row(
               children: [
                 const Icon(
@@ -1072,9 +949,7 @@ class _AdminShellState extends State<AdminShell> {
                   size: 20,
                   color: dojoOrange,
                 ),
-
                 const SizedBox(width: 11),
-
                 const Text(
                   'Sign Out',
                   style: TextStyle(
@@ -1087,20 +962,12 @@ class _AdminShellState extends State<AdminShell> {
           ),
         ];
       },
-
-      // =========================================================
-      // DESKTOP PROFILE
-      // =========================================================
-
       child: compact
           ? Container(
               height: 40,
-
-              padding:
-                  const EdgeInsets.symmetric(
+              padding: const EdgeInsets.symmetric(
                 horizontal: 10,
               ),
-
               decoration: BoxDecoration(
                 color: dojoBackground,
                 borderRadius:
@@ -1109,7 +976,6 @@ class _AdminShellState extends State<AdminShell> {
                   color: dojoBorder,
                 ),
               ),
-
               child: Row(
                 children: [
                   const CircleAvatar(
@@ -1122,15 +988,12 @@ class _AdminShellState extends State<AdminShell> {
                       size: 18,
                     ),
                   ),
-
                   const SizedBox(width: 8),
-
                   ConstrainedBox(
                     constraints:
                         const BoxConstraints(
                       maxWidth: 110,
                     ),
-
                     child: Text(
                       adminName,
                       maxLines: 1,
@@ -1147,17 +1010,11 @@ class _AdminShellState extends State<AdminShell> {
                 ],
               ),
             )
-
-          // =======================================================
-          // MOBILE PROFILE ICON
-          // =======================================================
-
           : const Padding(
               padding: EdgeInsets.only(
                 left: 4,
                 right: 8,
               ),
-
               child: CircleAvatar(
                 radius: 18,
                 backgroundColor:
@@ -1213,11 +1070,9 @@ class _AdminShellState extends State<AdminShell> {
           title: const Text(
             'Sign Out',
           ),
-
           content: Text(
             'Sign out from $adminEmail?',
           ),
-
           actions: [
             TextButton(
               onPressed: () {
@@ -1230,19 +1085,16 @@ class _AdminShellState extends State<AdminShell> {
                 'Cancel',
               ),
             ),
-
             FilledButton(
               style: FilledButton.styleFrom(
                 backgroundColor: dojoOrange,
               ),
-
               onPressed: () {
                 Navigator.pop(
                   context,
                   true,
                 );
               },
-
               child: const Text(
                 'Sign Out',
               ),
