@@ -4,7 +4,6 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../widgets/dashboard/dashboard_components.dart';
-import '../widgets/dashboard/dashboard_header.dart';
 import '../widgets/dashboard/dashboard_tabs.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -26,7 +25,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // ============================================================
-  // ORIGINAL FIRESTORE COLLECTIONS
+  // FIRESTORE COLLECTIONS
   // ============================================================
 
   Stream<QuerySnapshot<Map<String, dynamic>>> get _ownersStream {
@@ -76,14 +75,6 @@ class _DashboardScreenState extends State<DashboardScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          DashboardHeader(
-            onLogout: () {
-              if (mounted) {
-                setState(() {});
-              }
-            },
-          ),
-          const SizedBox(height: 20),
           DashboardTabs(
             controller: _tabController,
           ),
@@ -154,8 +145,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                 return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                   stream: _activeWalksStream,
                   builder: (context, activeSnapshot) {
-                    final activeCount =
-                        _activeWalkCount(activeSnapshot.data?.docs);
+                    final activeCount = _activeWalkCount(
+                      activeSnapshot.data?.docs,
+                    );
 
                     return StreamBuilder<
                         QuerySnapshot<Map<String, dynamic>>>(
@@ -219,7 +211,10 @@ class _DashboardScreenState extends State<DashboardScreen>
     final list = docs ?? const [];
 
     return list.where((doc) {
-      final status = _readString(doc.data(), 'status')?.toLowerCase();
+      final status = _readString(
+        doc.data(),
+        'status',
+      )?.toLowerCase();
 
       return status == 'active' ||
           status == 'on_the_way' ||
@@ -229,7 +224,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   // ============================================================
-  // REAL OPENSTREETMAP
+  // LIVE MAP
   // ============================================================
 
   Widget _liveMapContainer() {
@@ -302,7 +297,6 @@ class _DashboardScreenState extends State<DashboardScreen>
                       userAgentPackageName:
                           'com.doojowalker.app',
                     ),
-
                     MarkerLayer(
                       markers: validLocations
                           .map(
@@ -320,7 +314,6 @@ class _DashboardScreenState extends State<DashboardScreen>
                           )
                           .toList(),
                     ),
-
                     RichAttributionWidget(
                       attributions: [
                         TextSourceAttribution(
@@ -589,55 +582,34 @@ class _DashboardScreenState extends State<DashboardScreen>
   ) {
     final walkerUid = _firstString(
       data,
-      [
-        'walkerUid',
-        'walkerId',
-      ],
+      ['walkerUid', 'walkerId'],
     );
 
     final ownerUid = _firstString(
       data,
-      [
-        'ownerId',
-      ],
+      ['ownerId'],
     );
 
     final walkerName = _firstString(
       data,
-      [
-        'walkerName',
-      ],
+      ['walkerName'],
     );
 
     final ownerName = _firstString(
       data,
-      [
-        'ownerName',
-      ],
+      ['ownerName'],
     );
 
     final dogName = _firstString(
       data,
-      [
-        'dogName',
-      ],
+      ['dogName'],
     );
 
-    final distance = _firstValue(
-          data,
-          [
-            'distanceKm',
-          ],
-        ) ??
-        '0';
+    final distance =
+        _firstValue(data, ['distanceKm']) ?? '0';
 
-    final duration = _firstValue(
-          data,
-          [
-            'durationMinutes',
-          ],
-        ) ??
-        '0';
+    final duration =
+        _firstValue(data, ['durationMinutes']) ?? '0';
 
     return Row(
       children: [
@@ -781,17 +753,11 @@ class _DashboardScreenState extends State<DashboardScreen>
     final walkerName =
         _readString(data, 'walkerName') ?? 'Walker';
 
-    final distance = _firstValue(
-          data,
-          ['distanceKm'],
-        ) ??
-        '0';
+    final distance =
+        _firstValue(data, ['distanceKm']) ?? '0';
 
-    final duration = _firstValue(
-          data,
-          ['durationMinutes'],
-        ) ??
-        '0';
+    final duration =
+        _firstValue(data, ['durationMinutes']) ?? '0';
 
     final rating = _readInt(
       data,
@@ -901,7 +867,8 @@ class _DashboardScreenState extends State<DashboardScreen>
         for (final doc in docs) {
           final data = doc.data();
 
-          final payout = _firstDouble(
+          final payout =
+              _firstDouble(
                 data,
                 [
                   'payoutAmount',
@@ -951,7 +918,8 @@ class _DashboardScreenState extends State<DashboardScreen>
               const SizedBox(height: 14),
               _financePanel(
                 title: 'Pending Payouts',
-                icon: Icons.account_balance_wallet_outlined,
+                icon:
+                    Icons.account_balance_wallet_outlined,
                 color: orange,
                 text:
                     'Pending payout data is not available yet.',
@@ -998,7 +966,8 @@ class _DashboardScreenState extends State<DashboardScreen>
             StatCard(
               title: 'Pending Payouts',
               value: '₹${_money(pendingPayouts)}',
-              icon: Icons.account_balance_wallet_outlined,
+              icon:
+                  Icons.account_balance_wallet_outlined,
               iconColor: orange,
             ),
           ],
@@ -1088,7 +1057,8 @@ class _DashboardScreenState extends State<DashboardScreen>
               const SizedBox(height: 18),
               DataPanel(
                 title: 'Active Walks',
-                icon: Icons.directions_walk_outlined,
+                icon:
+                    Icons.directions_walk_outlined,
                 color: orange,
                 child: docs.isEmpty
                     ? const EmptyMessage(
@@ -1102,7 +1072,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                         itemCount: docs.length,
                         separatorBuilder: (_, __) =>
                             const Divider(),
-                        itemBuilder: (context, index) {
+                        itemBuilder:
+                            (context, index) {
                           return _liveWalkDetailedRow(
                             docs[index].data(),
                           );
@@ -1143,17 +1114,11 @@ class _DashboardScreenState extends State<DashboardScreen>
     final duration =
         _firstValue(data, ['durationMinutes']) ?? '-';
 
-    final pee = _firstInt(
-          data,
-          ['peeCount'],
-        ) ??
-        0;
+    final pee =
+        _firstInt(data, ['peeCount']) ?? 0;
 
-    final poop = _firstInt(
-          data,
-          ['poopCount'],
-        ) ??
-        0;
+    final poop =
+        _firstInt(data, ['poopCount']) ?? 0;
 
     return Padding(
       padding: const EdgeInsets.symmetric(
@@ -1295,7 +1260,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                         itemCount: docs.length,
                         separatorBuilder: (_, __) =>
                             const Divider(),
-                        itemBuilder: (context, index) {
+                        itemBuilder:
+                            (context, index) {
                           return _historyDetailedRow(
                             docs[index].data(),
                           );
@@ -1389,7 +1355,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                   Text(
                     ownerName,
                     maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    overflow:
+                        TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontSize: 10,
                       color: grey,
