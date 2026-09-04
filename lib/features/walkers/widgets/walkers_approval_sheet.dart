@@ -59,7 +59,7 @@ Future<void> showWalkersApprovalSheet({
     builder: (sheetContext) {
       return StatefulBuilder(
         builder: (
-          context,
+          modalContext,
           setModalState,
         ) {
           final canApprove =
@@ -233,14 +233,24 @@ Future<void> showWalkersApprovalSheet({
                     child: ElevatedButton.icon(
                       onPressed: canApprove
                           ? () async {
-                              Navigator.of(
-                                sheetContext,
-                              ).pop();
-
                               try {
                                 await approveWalkers(
                                   doc: doc,
+                                  selfieVerified:
+                                      selfieVerified,
+                                  aadhaarFrontVerified:
+                                      aadhaarFrontVerified,
+                                  aadhaarBackVerified:
+                                      aadhaarBackVerified,
+                                  panVerified:
+                                      panVerified,
                                 );
+
+                                if (sheetContext.mounted) {
+                                  Navigator.of(
+                                    sheetContext,
+                                  ).pop();
+                                }
 
                                 if (context.mounted) {
                                   ScaffoldMessenger.of(
@@ -254,9 +264,9 @@ Future<void> showWalkersApprovalSheet({
                                   );
                                 }
                               } catch (e) {
-                                if (context.mounted) {
+                                if (modalContext.mounted) {
                                   ScaffoldMessenger.of(
-                                    context,
+                                    modalContext,
                                   ).showSnackBar(
                                     SnackBar(
                                       content: Text(
@@ -304,45 +314,15 @@ Future<void> showWalkersApprovalSheet({
 
 /// Approves a walker in Firestore.
 ///
-/// Approval is hard-blocked unless all four verification
-/// flags are already true in Firestore.
+/// The four verification selections from the approval
+/// sheet are validated and saved together with approval.
 Future<void> approveWalkers({
   required DocumentSnapshot<Map<String, dynamic>> doc,
+  required bool selfieVerified,
+  required bool aadhaarFrontVerified,
+  required bool aadhaarBackVerified,
+  required bool panVerified,
 }) async {
-  final data = doc.data() ?? {};
-
-  final selfieVerified = _readBool(
-    data,
-    const [
-      'selfieVerified',
-      'selfie_verified',
-    ],
-  );
-
-  final aadhaarFrontVerified = _readBool(
-    data,
-    const [
-      'aadhaarFrontVerified',
-      'aadhaar_front_verified',
-    ],
-  );
-
-  final aadhaarBackVerified = _readBool(
-    data,
-    const [
-      'aadhaarBackVerified',
-      'aadhaar_back_verified',
-    ],
-  );
-
-  final panVerified = _readBool(
-    data,
-    const [
-      'panVerified',
-      'pan_verified',
-    ],
-  );
-
   if (!selfieVerified ||
       !aadhaarFrontVerified ||
       !aadhaarBackVerified ||
@@ -365,28 +345,36 @@ Future<void> approveWalkers({
       'isApproved': true,
       'adminApproved': true,
 
+      // Profile Selfie
       'selfieVerified': true,
       'selfie_verified': true,
 
+      // Aadhaar Front
       'aadhaarFrontVerified': true,
       'aadhaar_front_verified': true,
 
+      // Aadhaar Back
       'aadhaarBackVerified': true,
       'aadhaar_back_verified': true,
 
+      // Overall Aadhaar compatibility flags
       'aadhaarVerified': true,
       'aadharVerified': true,
       'aadhaar_verified': true,
 
+      // PAN
       'panVerified': true,
       'pan_verified': true,
 
+      // Profile
       'profileCompleted': true,
       'isProfileCompleted': true,
 
+      // Walker becomes active after approval
       'isActive': true,
       'active': true,
 
+      // Clear rejection state
       'adminRejected': false,
       'rejected': false,
       'isRejected': false,
@@ -395,6 +383,7 @@ Future<void> approveWalkers({
       'rejectionReason': FieldValue.delete(),
       'rejectedAt': FieldValue.delete(),
 
+      // Admin audit
       'approvedBy': adminUid,
       'approvedAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
