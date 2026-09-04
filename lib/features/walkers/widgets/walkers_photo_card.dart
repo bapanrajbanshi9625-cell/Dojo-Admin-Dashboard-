@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import 'walkers_helpers.dart';
 import 'walkers_image_viewer.dart';
-import 'walkers_upload_button.dart';
 
 class WalkersPhotoCard extends StatelessWidget {
   const WalkersPhotoCard({
@@ -10,17 +9,11 @@ class WalkersPhotoCard extends StatelessWidget {
     required this.title,
     required this.imageUrl,
     required this.icon,
-    required this.uploadField,
-    required this.uploading,
-    required this.onUpload,
   });
 
   final String title;
   final String imageUrl;
   final IconData icon;
-  final String uploadField;
-  final bool uploading;
-  final VoidCallback onUpload;
 
   @override
   Widget build(BuildContext context) {
@@ -38,10 +31,6 @@ class WalkersPhotoCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          // ======================================================
-          // IMAGE
-          // ======================================================
-
           InkWell(
             borderRadius: BorderRadius.circular(9),
             onTap: hasImage
@@ -89,10 +78,6 @@ class WalkersPhotoCard extends StatelessWidget {
 
           const SizedBox(height: 8),
 
-          // ======================================================
-          // TITLE
-          // ======================================================
-
           Text(
             title,
             maxLines: 1,
@@ -105,10 +90,6 @@ class WalkersPhotoCard extends StatelessWidget {
           ),
 
           const SizedBox(height: 5),
-
-          // ======================================================
-          // VIEW / UPLOAD
-          // ======================================================
 
           if (hasImage)
             InkWell(
@@ -129,11 +110,13 @@ class WalkersPhotoCard extends StatelessWidget {
               ),
             )
           else
-            WalkersUploadButton(
-              fieldName: uploadField,
-              title: title,
-              uploading: uploading,
-              onPressed: onUpload,
+            const Text(
+              'Not available',
+              style: TextStyle(
+                fontSize: 9,
+                color: walkerDetailsTextGrey,
+                fontWeight: FontWeight.w600,
+              ),
             ),
         ],
       ),
