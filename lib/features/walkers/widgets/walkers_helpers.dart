@@ -1,22 +1,7 @@
 import 'package:flutter/material.dart';
 
 /// ============================================================
-/// DOJO WALKER DETAILS / WALKERS HELPERS
-/// ============================================================
-///
-/// IMPORTANT:
-/// This file is the single compatibility helper used by
-/// Walker list + Walker details widgets.
-///
-/// Do NOT create walkers_details_helpers.dart.
-///
-/// Existing Walker Details widgets should import:
-/// walkers_helpers.dart
-///
-/// ============================================================
-
-/// ============================================================
-/// COLORS
+/// DOJO WALKER - COMMON WALKER HELPERS
 /// ============================================================
 
 const Color walkerDetailsOrange = Color(0xFFFF6600);
@@ -29,18 +14,8 @@ const Color walkerDetailsTextDark = Color(0xFF1F2937);
 const Color walkerDetailsTextGrey = Color(0xFF6B7280);
 const Color walkerDetailsBorder = Color(0xFFE5E7EB);
 
-
-/// ============================================================
-/// WALKERS HELPERS
-/// Compatibility layer for walkers_screen.dart
-/// ============================================================
-
 class WalkersHelpers {
   const WalkersHelpers._();
-
-  /// ----------------------------------------------------------
-  /// ONLINE STATUS
-  /// ----------------------------------------------------------
 
   static bool isOnline(
     Map<String, dynamic> data,
@@ -66,56 +41,46 @@ class WalkersHelpers {
     return status == 'online';
   }
 
-  /// ----------------------------------------------------------
-  /// VERIFICATION STATUS
-  /// Returns:
-  /// pending / approved / rejected
-  /// ----------------------------------------------------------
-
   static String verificationStatus(
     Map<String, dynamic> data,
   ) {
-    final rawStatus = walkerDetailsStatus(data);
-    final status = walkerDetailsNormalize(rawStatus);
+    final status = walkerDetailsNormalize(
+      walkerDetailsStatus(data),
+    );
 
-    /// Rejected
     if (status.contains('reject') ||
         status.contains('blocked') ||
         status.contains('suspend')) {
       return 'rejected';
     }
 
-    /// Approved
     if (status.contains('approve') ||
         status.contains('verified') ||
         status.contains('accepted')) {
       return 'approved';
     }
 
-    /// Pending
     if (status.contains('pending') ||
         status.contains('review') ||
         status.contains('waiting')) {
       return 'pending';
     }
 
-    /// Firestore boolean fallback
-    if (walkerDetailsBool(data, 'approved')) {
+    if (walkerDetailsBool(data, 'approved') ||
+        walkerDetailsBool(data, 'isApproved') ||
+        walkerDetailsBool(data, 'adminApproved')) {
       return 'approved';
     }
 
-    if (walkerDetailsBool(data, 'rejected')) {
+    if (walkerDetailsBool(data, 'rejected') ||
+        walkerDetailsBool(data, 'isRejected') ||
+        walkerDetailsBool(data, 'adminRejected')) {
       return 'rejected';
     }
 
     return 'pending';
   }
 }
-
-
-/// ============================================================
-/// SAFE STRING VALUE
-/// ============================================================
 
 String walkerDetailsValue(
   Map<String, dynamic> data,
@@ -137,11 +102,6 @@ String walkerDetailsValue(
   return text;
 }
 
-
-/// ============================================================
-/// IMAGE URL
-/// ============================================================
-
 String walkerDetailsImageUrl(
   Map<String, dynamic> data,
   String key,
@@ -161,11 +121,6 @@ String walkerDetailsImageUrl(
   return url;
 }
 
-
-/// ============================================================
-/// BOOLEAN VALUE
-/// ============================================================
-
 bool walkerDetailsBool(
   Map<String, dynamic> data,
   String key, {
@@ -175,6 +130,10 @@ bool walkerDetailsBool(
 
   if (value is bool) {
     return value;
+  }
+
+  if (value is num) {
+    return value != 0;
   }
 
   if (value is String) {
@@ -193,17 +152,8 @@ bool walkerDetailsBool(
     }
   }
 
-  if (value is num) {
-    return value != 0;
-  }
-
   return fallback;
 }
-
-
-/// ============================================================
-/// WALKER STATUS
-/// ============================================================
 
 String walkerDetailsStatus(
   Map<String, dynamic> data,
@@ -220,50 +170,36 @@ String walkerDetailsStatus(
   for (final key in candidates) {
     final value = data[key];
 
-    if (value != null) {
-      final text = value.toString().trim();
+    if (value == null) {
+      continue;
+    }
 
-      if (text.isNotEmpty &&
-          text.toLowerCase() != 'null') {
-        return text;
-      }
+    final text = value.toString().trim();
+
+    if (text.isNotEmpty && text.toLowerCase() != 'null') {
+      return text;
     }
   }
 
-  final rejected = walkerDetailsBool(
-    data,
-    'rejected',
-  );
-
-  final approved = walkerDetailsBool(
-    data,
-    'approved',
-  );
-
-  final active = walkerDetailsBool(
-    data,
-    'active',
-  );
-
-  if (rejected) {
+  if (walkerDetailsBool(data, 'rejected') ||
+      walkerDetailsBool(data, 'isRejected') ||
+      walkerDetailsBool(data, 'adminRejected')) {
     return 'Rejected';
   }
 
-  if (approved) {
+  if (walkerDetailsBool(data, 'approved') ||
+      walkerDetailsBool(data, 'isApproved') ||
+      walkerDetailsBool(data, 'adminApproved')) {
     return 'Approved';
   }
 
-  if (active) {
+  if (walkerDetailsBool(data, 'active') ||
+      walkerDetailsBool(data, 'isActive')) {
     return 'Active';
   }
 
   return 'Pending';
 }
-
-
-/// ============================================================
-/// STATUS COLOR
-/// ============================================================
 
 Color walkerDetailsStatusColor(
   String status,
@@ -294,25 +230,11 @@ Color walkerDetailsStatusColor(
   return walkerDetailsBlue;
 }
 
-
-/// ============================================================
-/// NORMALIZE TEXT
-/// ============================================================
-
 String walkerDetailsNormalize(
   String? value,
 ) {
-  if (value == null) {
-    return '';
-  }
-
-  return value.trim().toLowerCase();
+  return value?.trim().toLowerCase() ?? '';
 }
-
-
-/// ============================================================
-/// SAFE RAW MAP VALUE
-/// ============================================================
 
 dynamic walkerDetailsRawValue(
   Map<String, dynamic> data,
@@ -320,11 +242,6 @@ dynamic walkerDetailsRawValue(
 ) {
   return data[key];
 }
-
-
-/// ============================================================
-/// MULTI-KEY VALUE
-/// ============================================================
 
 String walkerDetailsFirstValue(
   Map<String, dynamic> data,
@@ -348,11 +265,6 @@ String walkerDetailsFirstValue(
 
   return fallback;
 }
-
-
-/// ============================================================
-/// MULTI-KEY IMAGE
-/// ============================================================
 
 String walkerDetailsFirstImage(
   Map<String, dynamic> data,
@@ -378,27 +290,13 @@ String walkerDetailsFirstImage(
   return '';
 }
 
-
-/// ============================================================
-/// STATUS LABEL
-/// ============================================================
-
 String walkerDetailsStatusLabel(
   Map<String, dynamic> data,
 ) {
   final status = walkerDetailsStatus(data);
 
-  if (status.isEmpty) {
-    return 'Pending';
-  }
-
-  return status;
+  return status.isEmpty ? 'Pending' : status;
 }
-
-
-/// ============================================================
-/// DOCUMENT STATUS COLOR
-/// ============================================================
 
 Color walkerDetailsDocumentStatusColor(
   bool uploaded,
@@ -407,11 +305,6 @@ Color walkerDetailsDocumentStatusColor(
       ? walkerDetailsGreen
       : walkerDetailsRed;
 }
-
-
-/// ============================================================
-/// DOCUMENT STATUS TEXT
-/// ============================================================
 
 String walkerDetailsDocumentStatus(
   bool uploaded,
