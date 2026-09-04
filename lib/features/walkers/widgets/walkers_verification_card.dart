@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 
-const Color dojoGreen = Color(0xFF3F8F68);
-const Color dojoGrey = Color(0xFF6B7280);
-const Color dojoDark = Color(0xFF263238);
-const Color dojoBorder = Color(0xFFE7E9ED);
+import 'walkers_helpers.dart';
 
 class WalkersVerificationCard extends StatelessWidget {
   final Map<String, dynamic> data;
@@ -26,7 +23,8 @@ class WalkersVerificationCard extends StatelessWidget {
       }
 
       if (value is String) {
-        final normalized = value.trim().toLowerCase();
+        final normalized =
+            value.trim().toLowerCase();
 
         if (normalized == 'true' ||
             normalized == 'yes' ||
@@ -49,28 +47,7 @@ class WalkersVerificationCard extends StatelessWidget {
     return _readBool([
       'profileCompleted',
       'profile_completed',
-    ]);
-  }
-
-  bool get aadhaarFrontUploaded {
-    return _readBool([
-      'aadhaar_front_uploaded',
-      'aadhaarFrontUploaded',
-    ]);
-  }
-
-  bool get aadhaarBackUploaded {
-    return _readBool([
-      'aadhaar_back_uploaded',
-      'aadhaarBackUploaded',
-    ]);
-  }
-
-  bool get aadhaarVerified {
-    return _readBool([
-      'aadhaarVerified',
-      'aadharVerified',
-      'aadhaar_verified',
+      'isProfileCompleted',
     ]);
   }
 
@@ -81,86 +58,270 @@ class WalkersVerificationCard extends StatelessWidget {
     ]);
   }
 
+  bool get aadhaarFrontVerified {
+    return _readBool([
+      'aadhaarFrontVerified',
+      'aadhaar_front_verified',
+    ]);
+  }
+
+  bool get aadhaarBackVerified {
+    return _readBool([
+      'aadhaarBackVerified',
+      'aadhaar_back_verified',
+    ]);
+  }
+
+  bool get panVerified {
+    return _readBool([
+      'panVerified',
+      'pan_verified',
+    ]);
+  }
+
+  bool get allDocumentsVerified {
+    return selfieVerified &&
+        aadhaarFrontVerified &&
+        aadhaarBackVerified &&
+        panVerified;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(13),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: dojoBorder,
+          color: walkerDetailsBorder,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(
+              alpha: 0.03,
+            ),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
-          _row(
+          Row(
+            children: [
+              Container(
+                height: 38,
+                width: 38,
+                decoration: BoxDecoration(
+                  color: walkerDetailsOrange
+                      .withValues(alpha: 0.10),
+                  borderRadius:
+                      BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.verified_user_rounded,
+                  color: walkerDetailsOrange,
+                  size: 21,
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  'Verification Checklist',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: walkerDetailsTextDark,
+                  ),
+                ),
+              ),
+              _overallBadge(),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
+          _verificationRow(
             title: 'Profile Completed',
             value: profileCompleted,
+            icon: Icons.person_rounded,
           ),
-          _row(
-            title: 'Aadhaar Front Uploaded',
-            value: aadhaarFrontUploaded,
-          ),
-          _row(
-            title: 'Aadhaar Back Uploaded',
-            value: aadhaarBackUploaded,
-          ),
-          _row(
-            title: 'Aadhaar Verified',
-            value: aadhaarVerified,
-          ),
-          _row(
+
+          _verificationRow(
             title: 'Selfie Verified',
             value: selfieVerified,
+            icon: Icons.face_rounded,
+          ),
+
+          _verificationRow(
+            title: 'Aadhaar Front Verified',
+            value: aadhaarFrontVerified,
+            icon: Icons.credit_card_rounded,
+          ),
+
+          _verificationRow(
+            title: 'Aadhaar Back Verified',
+            value: aadhaarBackVerified,
+            icon: Icons.credit_card_rounded,
+          ),
+
+          _verificationRow(
+            title: 'PAN Verified',
+            value: panVerified,
+            icon: Icons.badge_rounded,
+          ),
+
+          const SizedBox(height: 5),
+
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(11),
+            decoration: BoxDecoration(
+              color: allDocumentsVerified
+                  ? walkerDetailsGreen
+                      .withValues(alpha: 0.08)
+                  : walkerDetailsOrange
+                      .withValues(alpha: 0.07),
+              borderRadius:
+                  BorderRadius.circular(10),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  allDocumentsVerified
+                      ? Icons.check_circle_rounded
+                      : Icons.info_outline_rounded,
+                  size: 18,
+                  color: allDocumentsVerified
+                      ? walkerDetailsGreen
+                      : walkerDetailsOrange,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    allDocumentsVerified
+                        ? 'All 4 verification checks are complete.'
+                        : 'All 4 checks must be verified before approval.',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: allDocumentsVerified
+                          ? walkerDetailsGreen
+                          : walkerDetailsTextDark,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _row({
+  Widget _overallBadge() {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 9,
+        vertical: 5,
+      ),
+      decoration: BoxDecoration(
+        color: allDocumentsVerified
+            ? walkerDetailsGreen
+                .withValues(alpha: 0.10)
+            : Colors.grey.withValues(alpha: 0.10),
+        borderRadius:
+            BorderRadius.circular(20),
+      ),
+      child: Text(
+        allDocumentsVerified
+            ? 'READY'
+            : 'PENDING',
+        style: TextStyle(
+          fontSize: 9,
+          fontWeight: FontWeight.w900,
+          color: allDocumentsVerified
+              ? walkerDetailsGreen
+              : walkerDetailsTextGrey,
+        ),
+      ),
+    );
+  }
+
+  Widget _verificationRow({
     required String title,
     required bool value,
+    required IconData icon,
   }) {
     return Padding(
       padding: const EdgeInsets.only(
-        bottom: 9,
+        bottom: 10,
       ),
-      child: Row(
-        children: [
-          Icon(
-            value
-                ? Icons.check_circle_rounded
-                : Icons.cancel_outlined,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 11,
+          vertical: 10,
+        ),
+        decoration: BoxDecoration(
+          color: value
+              ? walkerDetailsGreen
+                  .withValues(alpha: 0.045)
+              : const Color(0xFFF9FAFB),
+          borderRadius:
+              BorderRadius.circular(10),
+          border: Border.all(
             color: value
-                ? dojoGreen
-                : dojoGrey,
-            size: 19,
+                ? walkerDetailsGreen
+                    .withValues(alpha: 0.18)
+                : walkerDetailsBorder,
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              title,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: dojoDark,
+        ),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              size: 18,
+              color: value
+                  ? walkerDetailsGreen
+                  : walkerDetailsTextGrey,
+            ),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: walkerDetailsTextDark,
+                ),
               ),
             ),
-          ),
-          Text(
-            value ? 'Yes' : 'No',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
+            Icon(
+              value
+                  ? Icons.check_circle_rounded
+                  : Icons.radio_button_unchecked_rounded,
+              size: 19,
               color: value
-                  ? dojoGreen
-                  : dojoGrey,
+                  ? walkerDetailsGreen
+                  : walkerDetailsTextGrey,
             ),
-          ),
-        ],
+            const SizedBox(width: 5),
+            Text(
+              value ? 'Verified' : 'Pending',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                color: value
+                    ? walkerDetailsGreen
+                    : walkerDetailsTextGrey,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
