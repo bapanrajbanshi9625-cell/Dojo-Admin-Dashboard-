@@ -6,33 +6,49 @@ const Color dojoGreen = Color(0xFF3F8F68);
 const Color dojoDark = Color(0xFF263238);
 const Color dojoGrey = Color(0xFF6B7280);
 const Color dojoBorder = Color(0xFFE7E9ED);
-const Color rejectedColor = Color(0xFFC62828);
 
-/// Shows the walker approval bottom sheet.
+/// Walker approval bottom sheet.
 ///
-/// Approval is allowed only after both:
-/// - Aadhaar verification
-/// - Selfie verification
+/// Approval is allowed only when all four documents are verified:
+/// - Profile Selfie
+/// - Aadhaar Front
+/// - Aadhaar Back
+/// - PAN Card
 Future<void> showWalkersApprovalSheet({
   required BuildContext context,
   required DocumentSnapshot<Map<String, dynamic>> doc,
 }) async {
   final data = doc.data() ?? {};
 
-  bool aadhaarVerified = _readBool(
-    data,
-    const [
-      'aadhaarVerified',
-      'aadharVerified',
-      'aadhaar_verified',
-    ],
-  );
-
   bool selfieVerified = _readBool(
     data,
     const [
       'selfieVerified',
       'selfie_verified',
+    ],
+  );
+
+  bool aadhaarFrontVerified = _readBool(
+    data,
+    const [
+      'aadhaarFrontVerified',
+      'aadhaar_front_verified',
+    ],
+  );
+
+  bool aadhaarBackVerified = _readBool(
+    data,
+    const [
+      'aadhaarBackVerified',
+      'aadhaar_back_verified',
+    ],
+  );
+
+  bool panVerified = _readBool(
+    data,
+    const [
+      'panVerified',
+      'pan_verified',
     ],
   );
 
@@ -47,7 +63,10 @@ Future<void> showWalkersApprovalSheet({
           setModalState,
         ) {
           final canApprove =
-              aadhaarVerified && selfieVerified;
+              selfieVerified &&
+              aadhaarFrontVerified &&
+              aadhaarBackVerified &&
+              panVerified;
 
           final walkerName = _readString(
             data,
@@ -115,49 +134,98 @@ Future<void> showWalkersApprovalSheet({
 
                   const SizedBox(height: 18),
 
-                  CheckboxListTile(
-                    value: aadhaarVerified,
-                    activeColor: dojoGreen,
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text(
-                      'Aadhaar Verified',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    subtitle: const Text(
-                      'Confirm Aadhaar documents have been checked.',
-                    ),
+                  _verificationTile(
+                    title: 'Profile Selfie',
+                    subtitle:
+                        'Confirm the walker selfie has been checked.',
+                    value: selfieVerified,
                     onChanged: (value) {
                       setModalState(() {
-                        aadhaarVerified =
-                            value ?? false;
+                        selfieVerified = value;
                       });
                     },
                   ),
 
-                  CheckboxListTile(
-                    value: selfieVerified,
-                    activeColor: dojoGreen,
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text(
-                      'Selfie Verified',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    subtitle: const Text(
-                      'Confirm profile selfie has been checked.',
-                    ),
+                  _verificationTile(
+                    title: 'Aadhaar Front',
+                    subtitle:
+                        'Confirm the Aadhaar front side has been checked.',
+                    value: aadhaarFrontVerified,
                     onChanged: (value) {
                       setModalState(() {
-                        selfieVerified =
-                            value ?? false;
+                        aadhaarFrontVerified = value;
+                      });
+                    },
+                  ),
+
+                  _verificationTile(
+                    title: 'Aadhaar Back',
+                    subtitle:
+                        'Confirm the Aadhaar back side has been checked.',
+                    value: aadhaarBackVerified,
+                    onChanged: (value) {
+                      setModalState(() {
+                        aadhaarBackVerified = value;
+                      });
+                    },
+                  ),
+
+                  _verificationTile(
+                    title: 'PAN Card',
+                    subtitle:
+                        'Confirm the PAN card has been checked.',
+                    value: panVerified,
+                    onChanged: (value) {
+                      setModalState(() {
+                        panVerified = value;
                       });
                     },
                   ),
 
                   const SizedBox(height: 12),
+
+                  if (!canApprove)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      margin: const EdgeInsets.only(
+                        bottom: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withValues(
+                          alpha: 0.08,
+                        ),
+                        borderRadius:
+                            BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.orange.withValues(
+                            alpha: 0.20,
+                          ),
+                        ),
+                      ),
+                      child: const Row(
+                        crossAxisAlignment:
+                            CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            color: Colors.orange,
+                            size: 20,
+                          ),
+                          SizedBox(width: 9),
+                          Expanded(
+                            child: Text(
+                              'All four verification checks are required before approval.',
+                              style: TextStyle(
+                                color: dojoDark,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
 
                   SizedBox(
                     width: double.infinity,
@@ -169,13 +237,35 @@ Future<void> showWalkersApprovalSheet({
                                 sheetContext,
                               ).pop();
 
-                              await approveWalkers(
-                                doc: doc,
-                                aadhaarVerified:
-                                    aadhaarVerified,
-                                selfieVerified:
-                                    selfieVerified,
-                              );
+                              try {
+                                await approveWalkers(
+                                  doc: doc,
+                                );
+
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(
+                                    context,
+                                  ).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Walker approved successfully.',
+                                      ),
+                                    ),
+                                  );
+                                }
+                              } catch (e) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(
+                                    context,
+                                  ).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Approval failed: $e',
+                                      ),
+                                    ),
+                                  );
+                                }
+                              }
                             }
                           : null,
                       icon: const Icon(
@@ -214,13 +304,54 @@ Future<void> showWalkersApprovalSheet({
 
 /// Approves a walker in Firestore.
 ///
-/// Existing fields are preserved because [SetOptions]
-/// with merge is used.
+/// Approval is hard-blocked unless all four verification
+/// flags are already true in Firestore.
 Future<void> approveWalkers({
   required DocumentSnapshot<Map<String, dynamic>> doc,
-  required bool aadhaarVerified,
-  required bool selfieVerified,
 }) async {
+  final data = doc.data() ?? {};
+
+  final selfieVerified = _readBool(
+    data,
+    const [
+      'selfieVerified',
+      'selfie_verified',
+    ],
+  );
+
+  final aadhaarFrontVerified = _readBool(
+    data,
+    const [
+      'aadhaarFrontVerified',
+      'aadhaar_front_verified',
+    ],
+  );
+
+  final aadhaarBackVerified = _readBool(
+    data,
+    const [
+      'aadhaarBackVerified',
+      'aadhaar_back_verified',
+    ],
+  );
+
+  final panVerified = _readBool(
+    data,
+    const [
+      'panVerified',
+      'pan_verified',
+    ],
+  );
+
+  if (!selfieVerified ||
+      !aadhaarFrontVerified ||
+      !aadhaarBackVerified ||
+      !panVerified) {
+    throw StateError(
+      'All four documents must be verified before approval.',
+    );
+  }
+
   final adminUid =
       FirebaseAuth.instance.currentUser?.uid ?? '';
 
@@ -232,22 +363,68 @@ Future<void> approveWalkers({
 
       'approved': true,
       'isApproved': true,
+      'adminApproved': true,
 
-      'aadhaarVerified': aadhaarVerified,
-      'aadharVerified': aadhaarVerified,
-      'aadhaar_verified': aadhaarVerified,
+      'selfieVerified': true,
+      'selfie_verified': true,
 
-      'selfieVerified': selfieVerified,
-      'selfie_verified': selfieVerified,
+      'aadhaarFrontVerified': true,
+      'aadhaar_front_verified': true,
+
+      'aadhaarBackVerified': true,
+      'aadhaar_back_verified': true,
+
+      'aadhaarVerified': true,
+      'aadharVerified': true,
+      'aadhaar_verified': true,
+
+      'panVerified': true,
+      'pan_verified': true,
 
       'profileCompleted': true,
+      'isProfileCompleted': true,
+
       'isActive': true,
+      'active': true,
+
+      'adminRejected': false,
+      'rejected': false,
+      'isRejected': false,
+
+      'rejectionReasons': FieldValue.delete(),
+      'rejectionReason': FieldValue.delete(),
+      'rejectedAt': FieldValue.delete(),
 
       'approvedBy': adminUid,
       'approvedAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     },
     SetOptions(merge: true),
+  );
+}
+
+Widget _verificationTile({
+  required String title,
+  required String subtitle,
+  required bool value,
+  required ValueChanged<bool> onChanged,
+}) {
+  return CheckboxListTile(
+    value: value,
+    activeColor: dojoGreen,
+    contentPadding: EdgeInsets.zero,
+    controlAffinity: ListTileControlAffinity.leading,
+    title: Text(
+      title,
+      style: const TextStyle(
+        fontWeight: FontWeight.w800,
+        color: dojoDark,
+      ),
+    ),
+    subtitle: Text(subtitle),
+    onChanged: (newValue) {
+      onChanged(newValue ?? false);
+    },
   );
 }
 
@@ -263,7 +440,20 @@ bool _readBool(
     }
 
     if (value is String) {
-      return value.trim().toLowerCase() == 'true';
+      final normalized =
+          value.trim().toLowerCase();
+
+      if (normalized == 'true') {
+        return true;
+      }
+
+      if (normalized == 'false') {
+        return false;
+      }
+    }
+
+    if (value is num) {
+      return value != 0;
     }
   }
 
