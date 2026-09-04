@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
+import 'walkers_helpers.dart';
+
 class WalkersCard extends StatelessWidget {
   final DocumentSnapshot<Map<String, dynamic>> doc;
   final VoidCallback? onView;
@@ -19,16 +21,11 @@ class WalkersCard extends StatelessWidget {
     List<String> keys, [
     String fallback = '',
   ]) {
-    for (final key in keys) {
-      final value = _data[key];
-
-      if (value != null &&
-          value.toString().trim().isNotEmpty) {
-        return value.toString().trim();
-      }
-    }
-
-    return fallback;
+    return walkerDetailsFirstValue(
+      _data,
+      keys,
+      fallback: fallback,
+    );
   }
 
   @override
@@ -53,98 +50,95 @@ class WalkersCard extends StatelessWidget {
       ],
     );
 
-    final status = _readValue(
-      const [
-        'status',
-        'verificationStatus',
-        'approvalStatus',
-        'walkerStatus',
-      ],
-      'Pending',
+    final status = WalkersHelpers.verificationStatus(
+      _data,
     );
 
-    final selfie = _readValue(
+    final selfie = walkerDetailsFirstImage(
+      _data,
       const [
         'Profile Selfie',
         'profileSelfie',
+        'selfie',
+        'selfieUrl',
         'profileImage',
-        'photoUrl',
+        'profileImageUrl',
       ],
     );
 
     final initials = _initials(name);
 
-    return InkWell(
-      onTap: onView,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: const Color(0xFFE5E7EB),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onView,
+        borderRadius: BorderRadius.circular(18),
+        child: Ink(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: walkerDetailsBorder,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(
+                  alpha: 0.04,
+                ),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 10,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            _avatar(
-              initials: initials,
-              imageUrl: selfie,
-            ),
-
-            const SizedBox(width: 14),
-
-            Expanded(
-              child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF111827),
-                    ),
-                  ),
-
-                  if (mobile.isNotEmpty) ...[
-                    const SizedBox(height: 5),
+          child: Row(
+            children: [
+              _Avatar(
+                initials: initials,
+                imageUrl: selfie,
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
                     Text(
-                      mobile,
+                      name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 13,
-                        color: Color(0xFF6B7280),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF111827),
                       ),
                     ),
+                    if (mobile.isNotEmpty) ...[
+                      const SizedBox(height: 5),
+                      Text(
+                        mobile,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: walkerDetailsTextGrey,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 8),
+                    _StatusBadge(
+                      status: status,
+                    ),
                   ],
-
-                  const SizedBox(height: 8),
-
-                  _statusBadge(status),
-                ],
+                ),
               ),
-            ),
-
-            const SizedBox(width: 8),
-
-            const Icon(
-              Icons.chevron_right_rounded,
-              color: Color(0xFF9CA3AF),
-            ),
-          ],
+              const SizedBox(width: 8),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: Color(0xFF9CA3AF),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -173,28 +167,30 @@ class WalkersCard extends StatelessWidget {
             '${parts.last.substring(0, 1)}'
         .toUpperCase();
   }
+}
 
-  Widget _avatar({
-    required String initials,
-    required String imageUrl,
-  }) {
+class _Avatar extends StatelessWidget {
+  final String initials;
+  final String imageUrl;
+
+  const _Avatar({
+    required this.initials,
+    required this.imageUrl,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     if (imageUrl.isNotEmpty) {
       return CircleAvatar(
         radius: 28,
-        backgroundColor:
-            const Color(0xFFFFF1E8),
-        backgroundImage:
-            NetworkImage(imageUrl),
-        onBackgroundImageError:
-            (_, __) {},
-        child: const SizedBox.shrink(),
+        backgroundColor: const Color(0xFFFFF1E8),
+        backgroundImage: NetworkImage(imageUrl),
       );
     }
 
     return CircleAvatar(
       radius: 28,
-      backgroundColor:
-          const Color(0xFFFFF1E8),
+      backgroundColor: const Color(0xFFFFF1E8),
       child: Text(
         initials,
         style: const TextStyle(
@@ -205,55 +201,36 @@ class WalkersCard extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget _statusBadge(String status) {
-    final displayStatus =
-        status.trim().isEmpty
-            ? 'Pending'
-            : status.trim();
+class _StatusBadge extends StatelessWidget {
+  final String status;
 
-    final normalized =
-        displayStatus.toLowerCase();
+  const _StatusBadge({
+    required this.status,
+  });
 
-    final Color color;
+  @override
+  Widget build(BuildContext context) {
+    final label = walkerDetailsStatusLabel({
+      'status': status,
+    });
 
-    switch (normalized) {
-      case 'approved':
-      case 'active':
-        color = const Color(0xFF16A34A);
-        break;
-
-      case 'online':
-        color = const Color(0xFF059669);
-        break;
-
-      case 'rejected':
-      case 'blocked':
-      case 'suspended':
-        color = const Color(0xFFDC2626);
-        break;
-
-      case 'pending':
-      case 'pending approval':
-        color = const Color(0xFFF59E0B);
-        break;
-
-      default:
-        color = const Color(0xFFF59E0B);
-    }
+    final color = walkerDetailsStatusColor(
+      status,
+    );
 
     return Container(
       padding: const EdgeInsets.symmetric(
-        horizontal: 9,
-        vertical: 4,
+        horizontal: 10,
+        vertical: 5,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.10),
-        borderRadius:
-            BorderRadius.circular(20),
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
-        displayStatus,
+        label,
         style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w700,
