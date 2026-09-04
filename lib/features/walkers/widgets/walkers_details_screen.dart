@@ -6,7 +6,6 @@ import 'walkers_details_documents.dart';
 import 'walkers_details_image_viewer.dart';
 import 'walkers_details_row.dart';
 import 'walkers_details_section.dart';
-import 'walkers_details_upload_service.dart';
 import 'walkers_helpers.dart';
 
 class WalkerDetailsScreen extends StatefulWidget {
@@ -33,30 +32,14 @@ class WalkerDetailsScreen extends StatefulWidget {
       _WalkerDetailsScreenState();
 }
 
-class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
-  // ============================================================
-  // SERVICES
-  // ============================================================
-
-  final WalkerDetailsUploadService _uploadService =
-      WalkerDetailsUploadService();
-
-  // ============================================================
-  // UPLOAD STATE
-  // ============================================================
-
-  final Set<String> _uploadingFields = <String>{};
-
-  // ============================================================
-  // GETTERS
-  // ============================================================
-
+class _WalkerDetailsScreenState
+    extends State<WalkerDetailsScreen> {
   Map<String, dynamic> get data => widget.data;
 
   DocumentSnapshot<Map<String, dynamic>> get doc => widget.doc;
 
   // ============================================================
-  // SAFE BOOLEAN - MULTIPLE POSSIBLE FIRESTORE FIELD NAMES
+  // SAFE BOOLEAN
   // ============================================================
 
   bool _boolAny(
@@ -142,6 +125,8 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
         'Profile Selfie',
         'profileSelfie',
         'profileSelfieUrl',
+        'profileImageUrl',
+        'profileImage',
         'profile_selfie',
         'profile_selfie_url',
         'selfie',
@@ -154,10 +139,10 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
     return walkerDetailsFirstImage(
       data,
       const [
-        'Aadhar Front',
         'Aadhaar Front',
-        'Aadhar Front URL',
+        'Aadhar Front',
         'Aadhaar Front URL',
+        'Aadhar Front URL',
         'aadhaarFront',
         'aadhaarFrontUrl',
         'aadhaar_front',
@@ -170,14 +155,28 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
     return walkerDetailsFirstImage(
       data,
       const [
-        'Aadhar Back',
         'Aadhaar Back',
-        'Aadhar Back URL',
+        'Aadhar Back',
         'Aadhaar Back URL',
+        'Aadhar Back URL',
         'aadhaarBack',
         'aadhaarBackUrl',
         'aadhaar_back',
         'aadhaar_back_url',
+      ],
+    );
+  }
+
+  String get panCard {
+    return walkerDetailsFirstImage(
+      data,
+      const [
+        'PAN Card URL',
+        'PAN Card',
+        'panCardUrl',
+        'panCard',
+        'pan_card_url',
+        'pan_card',
       ],
     );
   }
@@ -208,6 +207,7 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
       const [
         'profileCompleted',
         'profile_completed',
+        'isProfileCompleted',
       ],
     );
   }
@@ -215,21 +215,69 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
   bool get aadhaarFrontUploaded {
     return _boolAny(
       const [
-        'aadhaar_front_uploaded',
-        'aadhar_front_uploaded',
         'aadhaarFrontUploaded',
         'aadharFrontUploaded',
+        'aadhaar_front_uploaded',
+        'aadhar_front_uploaded',
       ],
+      fallback: aadhaarFront.trim().isNotEmpty,
     );
   }
 
   bool get aadhaarBackUploaded {
     return _boolAny(
       const [
-        'aadhaar_back_uploaded',
-        'aadhar_back_uploaded',
         'aadhaarBackUploaded',
         'aadharBackUploaded',
+        'aadhaar_back_uploaded',
+        'aadhar_back_uploaded',
+      ],
+      fallback: aadhaarBack.trim().isNotEmpty,
+    );
+  }
+
+  bool get panCardUploaded {
+    return _boolAny(
+      const [
+        'panCardUploaded',
+        'pan_card_uploaded',
+      ],
+      fallback: panCard.trim().isNotEmpty,
+    );
+  }
+
+  bool get selfieVerified {
+    return _boolAny(
+      const [
+        'selfieVerified',
+        'selfie_verified',
+      ],
+    );
+  }
+
+  bool get aadhaarFrontVerified {
+    return _boolAny(
+      const [
+        'aadhaarFrontVerified',
+        'aadhaar_front_verified',
+      ],
+    );
+  }
+
+  bool get aadhaarBackVerified {
+    return _boolAny(
+      const [
+        'aadhaarBackVerified',
+        'aadhaar_back_verified',
+      ],
+    );
+  }
+
+  bool get panVerified {
+    return _boolAny(
+      const [
+        'panVerified',
+        'pan_verified',
       ],
     );
   }
@@ -246,74 +294,6 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
       context,
       title: title,
       imageUrl: imageUrl,
-    );
-  }
-
-  // ============================================================
-  // UPLOAD
-  // ============================================================
-
-  Future<void> _uploadPhoto({
-    required String fieldName,
-    required String title,
-  }) async {
-    if (_uploadingFields.contains(fieldName)) {
-      return;
-    }
-
-    setState(() {
-      _uploadingFields.add(fieldName);
-    });
-
-    try {
-      await _uploadService.pickAndUpload(
-        context: context,
-        doc: doc,
-        data: data,
-        fieldName: fieldName,
-        title: title,
-      );
-    } finally {
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _uploadingFields.remove(fieldName);
-      });
-    }
-  }
-
-  // ============================================================
-  // PROFILE SELFIE
-  // ============================================================
-
-  Future<void> _uploadSelfie() async {
-    await _uploadPhoto(
-      fieldName: 'Profile Selfie',
-      title: 'Profile Selfie',
-    );
-  }
-
-  // ============================================================
-  // AADHAAR FRONT
-  // ============================================================
-
-  Future<void> _uploadAadhaarFront() async {
-    await _uploadPhoto(
-      fieldName: 'Aadhar Front',
-      title: 'Aadhaar Front',
-    );
-  }
-
-  // ============================================================
-  // AADHAAR BACK
-  // ============================================================
-
-  Future<void> _uploadAadhaarBack() async {
-    await _uploadPhoto(
-      fieldName: 'Aadhar Back',
-      title: 'Aadhaar Back',
     );
   }
 
@@ -365,7 +345,8 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
             30,
           ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
             children: [
               // ==================================================
               // HEADER
@@ -397,22 +378,28 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
                               Text(
                                 name,
                                 maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                                overflow:
+                                    TextOverflow.ellipsis,
                                 style: const TextStyle(
                                   fontSize: 18,
-                                  fontWeight: FontWeight.w800,
-                                  color: walkerDetailsTextDark,
+                                  fontWeight:
+                                      FontWeight.w800,
+                                  color:
+                                      walkerDetailsTextDark,
                                 ),
                               ),
                               const SizedBox(height: 4),
                               Text(
                                 walkerId,
                                 maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                                overflow:
+                                    TextOverflow.ellipsis,
                                 style: const TextStyle(
                                   fontSize: 11,
-                                  color: walkerDetailsTextGrey,
-                                  fontWeight: FontWeight.w600,
+                                  color:
+                                      walkerDetailsTextGrey,
+                                  fontWeight:
+                                      FontWeight.w600,
                                 ),
                               ),
                             ],
@@ -425,21 +412,6 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
                       ],
                     ),
 
-                    // =================================================
-                    // PROFILE SELFIE UPLOAD
-                    // =================================================
-
-                    if (selfie.isEmpty) ...[
-                      const SizedBox(height: 12),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: _smallUploadButton(
-                          fieldName: 'Profile Selfie',
-                          title: 'Profile Selfie',
-                        ),
-                      ),
-                    ],
-
                     const SizedBox(height: 14),
 
                     const Divider(
@@ -450,7 +422,7 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
                     const SizedBox(height: 14),
 
                     // =================================================
-                    // ACTIONS
+                    // ADMIN ACTIONS
                     // =================================================
 
                     WalkerDetailsActions(
@@ -459,7 +431,8 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
                       onApprove: widget.onApprove,
                       onReject: widget.onReject,
                       onActivate: widget.onActivate,
-                      onDeactivate: widget.onDeactivate,
+                      onDeactivate:
+                          widget.onDeactivate,
                     ),
                   ],
                 ),
@@ -502,7 +475,10 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
                     label: 'Role',
                     value: walkerDetailsFirstValue(
                       data,
-                      const ['role', 'Role'],
+                      const [
+                        'role',
+                        'Role',
+                      ],
                     ),
                   ),
 
@@ -524,6 +500,7 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
                       const [
                         'Date Of Birth',
                         'dateOfBirth',
+                        'dateofbirth',
                         'dob',
                       ],
                     ),
@@ -554,6 +531,19 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
                   ),
 
                   WalkerDetailsRow(
+                    label: 'PAN Number',
+                    value: walkerDetailsFirstValue(
+                      data,
+                      const [
+                        'PAN Number',
+                        'panNumber',
+                        'pan_card_number',
+                      ],
+                    ),
+                    selectable: true,
+                  ),
+
+                  WalkerDetailsRow(
                     label: 'Verification',
                     value: status,
                   ),
@@ -565,34 +555,70 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
 
                   WalkerDetailsRow(
                     label: 'Profile Completed',
-                    value: profileCompleted ? 'Yes' : 'No',
+                    value:
+                        profileCompleted ? 'Yes' : 'No',
                   ),
 
                   WalkerDetailsRow(
                     label: 'Aadhaar Front Uploaded',
-                    value:
-                        aadhaarFrontUploaded ? 'Yes' : 'No',
+                    value: aadhaarFrontUploaded
+                        ? 'Yes'
+                        : 'No',
                   ),
 
                   WalkerDetailsRow(
                     label: 'Aadhaar Back Uploaded',
-                    value:
-                        aadhaarBackUploaded ? 'Yes' : 'No',
+                    value: aadhaarBackUploaded
+                        ? 'Yes'
+                        : 'No',
                   ),
 
-                  const SizedBox(height: 8),
+                  WalkerDetailsRow(
+                    label: 'PAN Card Uploaded',
+                    value: panCardUploaded
+                        ? 'Yes'
+                        : 'No',
+                  ),
+
+                  WalkerDetailsRow(
+                    label: 'Selfie Verified',
+                    value: selfieVerified
+                        ? 'Yes'
+                        : 'No',
+                  ),
+
+                  WalkerDetailsRow(
+                    label: 'Aadhaar Front Verified',
+                    value: aadhaarFrontVerified
+                        ? 'Yes'
+                        : 'No',
+                  ),
+
+                  WalkerDetailsRow(
+                    label: 'Aadhaar Back Verified',
+                    value: aadhaarBackVerified
+                        ? 'Yes'
+                        : 'No',
+                  ),
+
+                  WalkerDetailsRow(
+                    label: 'PAN Verified',
+                    value: panVerified
+                        ? 'Yes'
+                        : 'No',
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  // =================================================
+                  // READ-ONLY DOCUMENTS
+                  // =================================================
 
                   WalkerDetailsDocuments(
                     selfie: selfie,
                     aadhaarFront: aadhaarFront,
                     aadhaarBack: aadhaarBack,
-                    uploadingFields: _uploadingFields,
-                    onOpenImage: _openImage,
-                    onUploadSelfie: _uploadSelfie,
-                    onUploadAadhaarFront:
-                        _uploadAadhaarFront,
-                    onUploadAadhaarBack:
-                        _uploadAadhaarBack,
+                    panCard: panCard,
                   ),
                 ],
               ),
@@ -692,6 +718,7 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
                       const [
                         'Emergency Name',
                         'emergencyName',
+                        'emergencyContactName',
                       ],
                     ),
                   ),
@@ -704,6 +731,7 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
                         'Emergency Mobile',
                         'emergencyMobile',
                         'emergencyPhone',
+                        'emergencyContactMobile',
                       ],
                     ),
                     selectable: true,
@@ -760,6 +788,18 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
                     )
                         ? 'Online'
                         : 'Offline',
+                  ),
+
+                  WalkerDetailsRow(
+                    label: 'Available',
+                    value: _boolAny(
+                      const [
+                        'isAvailable',
+                        'available',
+                      ],
+                    )
+                        ? 'Available'
+                        : 'Unavailable',
                   ),
                 ],
               ),
@@ -822,7 +862,8 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
   // ============================================================
 
   Widget _statusBadge() {
-    final color = walkerDetailsStatusColor(status);
+    final color =
+        walkerDetailsStatusColor(status);
 
     return Container(
       padding: const EdgeInsets.symmetric(
@@ -851,9 +892,7 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
               shape: BoxShape.circle,
             ),
           ),
-
           const SizedBox(width: 7),
-
           Text(
             status,
             style: TextStyle(
@@ -863,66 +902,6 @@ class _WalkerDetailsScreenState extends State<WalkerDetailsScreen> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  // ============================================================
-  // SMALL UPLOAD BUTTON
-  // ============================================================
-
-  Widget _smallUploadButton({
-    required String fieldName,
-    required String title,
-  }) {
-    final uploading =
-        _uploadingFields.contains(fieldName);
-
-    return SizedBox(
-      height: 34,
-      child: OutlinedButton.icon(
-        onPressed: uploading
-            ? null
-            : () {
-                _uploadPhoto(
-                  fieldName: fieldName,
-                  title: title,
-                );
-              },
-        icon: uploading
-            ? const SizedBox(
-                height: 14,
-                width: 14,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: walkerDetailsOrange,
-                ),
-              )
-            : const Icon(
-                Icons.upload_rounded,
-                size: 16,
-              ),
-        label: Text(
-          uploading ? 'Uploading...' : 'Upload',
-          style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: walkerDetailsOrange,
-          side: BorderSide(
-            color: walkerDetailsOrange.withValues(
-              alpha: 0.55,
-            ),
-          ),
-          padding: const EdgeInsets.symmetric(
-            horizontal: 10,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-        ),
       ),
     );
   }
