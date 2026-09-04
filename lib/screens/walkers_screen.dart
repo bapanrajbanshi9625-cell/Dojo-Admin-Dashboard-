@@ -6,12 +6,17 @@ import '../features/walkers/widgets/walkers_helpers.dart';
 import '../features/walkers/widgets/walkers_summary_cards.dart';
 import '../features/walkers/widgets/walkers_toolbar.dart';
 import '../features/walkers/widgets/walkers_details_screen.dart';
+import '../features/walkers/widgets/walkers_approval_sheet.dart';
+import '../features/walkers/widgets/walkers_rejection_sheet.dart';
 
 class WalkersScreen extends StatefulWidget {
-  const WalkersScreen({super.key});
+  const WalkersScreen({
+    super.key,
+  });
 
   @override
-  State<WalkersScreen> createState() => _WalkersScreenState();
+  State<WalkersScreen> createState() =>
+      _WalkersScreenState();
 }
 
 class _WalkersScreenState extends State<WalkersScreen> {
@@ -23,33 +28,46 @@ class _WalkersScreenState extends State<WalkersScreen> {
 
   String selectedFilter = 'All';
 
-  CollectionReference<Map<String, dynamic>> get _walkers =>
-      _firestore.collection('walkers');
+  CollectionReference<Map<String, dynamic>>
+      get _walkers =>
+          _firestore.collection('walkers');
 
-  Stream<QuerySnapshot<Map<String, dynamic>>> get _walkerStream =>
-      _walkers.snapshots();
+  Stream<QuerySnapshot<Map<String, dynamic>>>
+      get _walkerStream =>
+          _walkers.snapshots();
 
   @override
   void initState() {
     super.initState();
-    searchController.addListener(_onSearchChanged);
+
+    searchController.addListener(
+      _onSearchChanged,
+    );
   }
 
   @override
   void dispose() {
-    searchController.removeListener(_onSearchChanged);
+    searchController.removeListener(
+      _onSearchChanged,
+    );
+
     searchController.dispose();
+
     super.dispose();
   }
 
   void _onSearchChanged() {
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
+
     setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+    return StreamBuilder<
+        QuerySnapshot<Map<String, dynamic>>>(
       stream: _walkerStream,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
@@ -58,7 +76,8 @@ class _WalkersScreenState extends State<WalkersScreen> {
           );
         }
 
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        if (snapshot.connectionState ==
+            ConnectionState.waiting) {
           return const Center(
             child: Padding(
               padding: EdgeInsets.all(60),
@@ -69,9 +88,11 @@ class _WalkersScreenState extends State<WalkersScreen> {
 
         final allDocs =
             snapshot.data?.docs ??
-            <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+                <QueryDocumentSnapshot<
+                    Map<String, dynamic>>>[];
 
-        final filteredDocs = allDocs.where((doc) {
+        final filteredDocs =
+            allDocs.where((doc) {
           return _matchesSearch(
                 doc,
                 searchController.text.trim(),
@@ -110,7 +131,8 @@ class _WalkersScreenState extends State<WalkersScreen> {
         }).length;
 
         return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment:
+              CrossAxisAlignment.start,
           children: [
             WalkersSummaryCards(
               total: allDocs.length,
@@ -123,8 +145,10 @@ class _WalkersScreenState extends State<WalkersScreen> {
             const SizedBox(height: 20),
 
             WalkersToolbar(
-              searchController: searchController,
-              selectedFilter: selectedFilter,
+              searchController:
+                  searchController,
+              selectedFilter:
+                  selectedFilter,
               onFilterChanged: (value) {
                 setState(() {
                   selectedFilter = value;
@@ -143,13 +167,16 @@ class _WalkersScreenState extends State<WalkersScreen> {
               ...filteredDocs.map(
                 (doc) {
                   return Padding(
-                    padding: const EdgeInsets.only(
+                    padding:
+                        const EdgeInsets.only(
                       bottom: 12,
                     ),
                     child: WalkersCard(
                       doc: doc,
                       onView: () {
-                        _openWalkerDetails(doc);
+                        _openWalkerDetails(
+                          doc,
+                        );
                       },
                     ),
                   );
@@ -166,7 +193,8 @@ class _WalkersScreenState extends State<WalkersScreen> {
   // ============================================================
 
   bool _matchesSearch(
-    DocumentSnapshot<Map<String, dynamic>> doc,
+    DocumentSnapshot<Map<String, dynamic>>
+        doc,
     String query,
   ) {
     if (query.isEmpty) {
@@ -175,7 +203,7 @@ class _WalkersScreenState extends State<WalkersScreen> {
 
     final data =
         doc.data() ??
-        <String, dynamic>{};
+            <String, dynamic>{};
 
     final values = <dynamic>[
       doc.id,
@@ -209,6 +237,11 @@ class _WalkersScreenState extends State<WalkersScreen> {
       data['aadhaarNumber'],
       data['aadharNumber'],
 
+      // PAN
+      data['PAN Number'],
+      data['panNumber'],
+      data['pan_card_number'],
+
       // Address
       data['Adress'],
       data['Address'],
@@ -222,7 +255,9 @@ class _WalkersScreenState extends State<WalkersScreen> {
     ];
 
     final searchText = values
-        .where((value) => value != null)
+        .where(
+          (value) => value != null,
+        )
         .map(
           (value) => value
               .toString()
@@ -240,7 +275,8 @@ class _WalkersScreenState extends State<WalkersScreen> {
   // ============================================================
 
   bool _matchesFilter(
-    DocumentSnapshot<Map<String, dynamic>> doc,
+    DocumentSnapshot<Map<String, dynamic>>
+        doc,
     String filter,
   ) {
     if (filter == 'All') {
@@ -249,14 +285,18 @@ class _WalkersScreenState extends State<WalkersScreen> {
 
     final data =
         doc.data() ??
-        <String, dynamic>{};
+            <String, dynamic>{};
 
     if (filter == 'Online') {
-      return WalkersHelpers.isOnline(data);
+      return WalkersHelpers.isOnline(
+        data,
+      );
     }
 
     final status =
-        WalkersHelpers.verificationStatus(data);
+        WalkersHelpers.verificationStatus(
+      data,
+    );
 
     switch (filter) {
       case 'Pending':
@@ -278,11 +318,12 @@ class _WalkersScreenState extends State<WalkersScreen> {
   // ============================================================
 
   Future<void> _openWalkerDetails(
-    DocumentSnapshot<Map<String, dynamic>> doc,
+    DocumentSnapshot<Map<String, dynamic>>
+        doc,
   ) async {
     final data =
         doc.data() ??
-        <String, dynamic>{};
+            <String, dynamic>{};
 
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -296,7 +337,7 @@ class _WalkersScreenState extends State<WalkersScreen> {
             // --------------------------------------------------
 
             onApprove: () {
-              _showApproveDialog(doc);
+              _showApproveSheet(doc);
             },
 
             // --------------------------------------------------
@@ -304,7 +345,7 @@ class _WalkersScreenState extends State<WalkersScreen> {
             // --------------------------------------------------
 
             onReject: () {
-              _showRejectDialog(doc);
+              _showRejectSheet(doc);
             },
 
             // --------------------------------------------------
@@ -329,250 +370,30 @@ class _WalkersScreenState extends State<WalkersScreen> {
   }
 
   // ============================================================
-  // APPROVE DIALOG
+  // APPROVAL SHEET
   // ============================================================
 
-  Future<void> _showApproveDialog(
-    DocumentSnapshot<Map<String, dynamic>> doc,
+  Future<void> _showApproveSheet(
+    DocumentSnapshot<Map<String, dynamic>>
+        doc,
   ) async {
-    bool selfieVerified = false;
-    bool aadhaarFrontVerified = false;
-    bool aadhaarBackVerified = false;
-
-    final result = await showDialog<bool>(
+    await showWalkersApprovalSheet(
       context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (
-            context,
-            setDialogState,
-          ) {
-            final canApprove =
-                selfieVerified &&
-                aadhaarFrontVerified &&
-                aadhaarBackVerified;
-
-            return AlertDialog(
-              title: const Row(
-                children: [
-                  Icon(
-                    Icons.verified_user_rounded,
-                    color: Color(0xFF16A34A),
-                  ),
-                  SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Approve Walker',
-                    ),
-                  ),
-                ],
-              ),
-
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Please verify all documents before approving this walker.',
-                    style: TextStyle(
-                      color: Color(0xFF6B7280),
-                      fontSize: 13,
-                    ),
-                  ),
-
-                  const SizedBox(height: 14),
-
-                  CheckboxListTile(
-                    value: selfieVerified,
-                    onChanged: (value) {
-                      setDialogState(() {
-                        selfieVerified =
-                            value ?? false;
-                      });
-                    },
-                    contentPadding:
-                        EdgeInsets.zero,
-                    controlAffinity:
-                        ListTileControlAffinity.leading,
-                    title: const Text(
-                      'Selfie Verified',
-                      style: TextStyle(
-                        fontWeight:
-                            FontWeight.w700,
-                      ),
-                    ),
-                    secondary: const Icon(
-                      Icons.person_rounded,
-                      color: Color(0xFF2563EB),
-                    ),
-                  ),
-
-                  CheckboxListTile(
-                    value:
-                        aadhaarFrontVerified,
-                    onChanged: (value) {
-                      setDialogState(() {
-                        aadhaarFrontVerified =
-                            value ?? false;
-                      });
-                    },
-                    contentPadding:
-                        EdgeInsets.zero,
-                    controlAffinity:
-                        ListTileControlAffinity.leading,
-                    title: const Text(
-                      'Aadhaar Front Verified',
-                      style: TextStyle(
-                        fontWeight:
-                            FontWeight.w700,
-                      ),
-                    ),
-                    secondary: const Icon(
-                      Icons.credit_card_rounded,
-                      color: Color(0xFF2563EB),
-                    ),
-                  ),
-
-                  CheckboxListTile(
-                    value:
-                        aadhaarBackVerified,
-                    onChanged: (value) {
-                      setDialogState(() {
-                        aadhaarBackVerified =
-                            value ?? false;
-                      });
-                    },
-                    contentPadding:
-                        EdgeInsets.zero,
-                    controlAffinity:
-                        ListTileControlAffinity.leading,
-                    title: const Text(
-                      'Aadhaar Back Verified',
-                      style: TextStyle(
-                        fontWeight:
-                            FontWeight.w700,
-                      ),
-                    ),
-                    secondary: const Icon(
-                      Icons.credit_card_rounded,
-                      color: Color(0xFF2563EB),
-                    ),
-                  ),
-
-                  if (!canApprove) ...[
-                    const SizedBox(height: 6),
-                    const Text(
-                      'All three verifications are required before approval.',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Color(0xFFDC2626),
-                        fontWeight:
-                            FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context)
-                        .pop(false);
-                  },
-                  child: const Text(
-                    'Cancel',
-                  ),
-                ),
-
-                FilledButton.icon(
-                  onPressed: canApprove
-                      ? () {
-                          Navigator.of(context)
-                              .pop(true);
-                        }
-                      : null,
-                  icon: const Icon(
-                    Icons.check_rounded,
-                  ),
-                  style:
-                      FilledButton.styleFrom(
-                    backgroundColor:
-                        const Color(0xFF16A34A),
-                  ),
-                  label: const Text(
-                    'Approve',
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-
-    if (result != true) {
-      return;
-    }
-
-    await _updateWalkerStatus(
-      doc,
-      'approved',
+      doc: doc,
     );
   }
 
   // ============================================================
-  // REJECT DIALOG
+  // REJECTION SHEET
   // ============================================================
 
-  Future<void> _showRejectDialog(
-    DocumentSnapshot<Map<String, dynamic>> doc,
+  Future<void> _showRejectSheet(
+    DocumentSnapshot<Map<String, dynamic>>
+        doc,
   ) async {
-    final result = await showDialog<bool>(
+    await showWalkersRejectionSheet(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text(
-            'Reject Walker',
-          ),
-          content: const Text(
-            'Are you sure you want to reject this walker?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop(false);
-              },
-              child: const Text(
-                'Cancel',
-              ),
-            ),
-
-            FilledButton(
-              onPressed: () {
-                Navigator.of(context).pop(true);
-              },
-              style: FilledButton.styleFrom(
-                backgroundColor:
-                    const Color(0xFFDC2626),
-              ),
-              child: const Text(
-                'Reject',
-              ),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (result != true) {
-      return;
-    }
-
-    await _updateWalkerStatus(
-      doc,
-      'rejected',
+      doc: doc,
     );
   }
 
@@ -581,14 +402,26 @@ class _WalkersScreenState extends State<WalkersScreen> {
   // ============================================================
 
   Future<void> _showActivateDialog(
-    DocumentSnapshot<Map<String, dynamic>> doc,
+    DocumentSnapshot<Map<String, dynamic>>
+        doc,
   ) async {
     final result = await showDialog<bool>(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
-          title: const Text(
-            'Activate Walker ID',
+          title: const Row(
+            children: [
+              Icon(
+                Icons.toggle_on_rounded,
+                color: Color(0xFF2563EB),
+              ),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Activate Walker ID',
+                ),
+              ),
+            ],
           ),
           content: const Text(
             'Are you sure you want to activate this walker ID?',
@@ -596,18 +429,22 @@ class _WalkersScreenState extends State<WalkersScreen> {
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop(false);
+                Navigator.of(
+                  dialogContext,
+                ).pop(false);
               },
               child: const Text(
                 'Cancel',
               ),
             ),
-
             FilledButton(
               onPressed: () {
-                Navigator.of(context).pop(true);
+                Navigator.of(
+                  dialogContext,
+                ).pop(true);
               },
-              style: FilledButton.styleFrom(
+              style:
+                  FilledButton.styleFrom(
                 backgroundColor:
                     const Color(0xFF2563EB),
               ),
@@ -635,14 +472,26 @@ class _WalkersScreenState extends State<WalkersScreen> {
   // ============================================================
 
   Future<void> _showDeactivateDialog(
-    DocumentSnapshot<Map<String, dynamic>> doc,
+    DocumentSnapshot<Map<String, dynamic>>
+        doc,
   ) async {
     final result = await showDialog<bool>(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
-          title: const Text(
-            'Deactivate Walker ID',
+          title: const Row(
+            children: [
+              Icon(
+                Icons.toggle_off_rounded,
+                color: Color(0xFFDC2626),
+              ),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Deactivate Walker ID',
+                ),
+              ),
+            ],
           ),
           content: const Text(
             'Are you sure you want to deactivate this walker ID?',
@@ -650,18 +499,22 @@ class _WalkersScreenState extends State<WalkersScreen> {
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop(false);
+                Navigator.of(
+                  dialogContext,
+                ).pop(false);
               },
               child: const Text(
                 'Cancel',
               ),
             ),
-
             FilledButton(
               onPressed: () {
-                Navigator.of(context).pop(true);
+                Navigator.of(
+                  dialogContext,
+                ).pop(true);
               },
-              style: FilledButton.styleFrom(
+              style:
+                  FilledButton.styleFrom(
                 backgroundColor:
                     const Color(0xFFDC2626),
               ),
@@ -685,11 +538,12 @@ class _WalkersScreenState extends State<WalkersScreen> {
   }
 
   // ============================================================
-  // SET ACTIVE / INACTIVE
+  // SET WALKER ACTIVE / INACTIVE
   // ============================================================
 
   Future<void> _setWalkerActive(
-    DocumentSnapshot<Map<String, dynamic>> doc,
+    DocumentSnapshot<Map<String, dynamic>>
+        doc,
     bool active,
   ) async {
     try {
@@ -703,9 +557,6 @@ class _WalkersScreenState extends State<WalkersScreen> {
 
       if (active) {
         updateData.addAll({
-          'deactivatedAt':
-              FieldValue.delete(),
-
           'approved': true,
           'isApproved': true,
           'adminApproved': true,
@@ -713,6 +564,9 @@ class _WalkersScreenState extends State<WalkersScreen> {
           'rejected': false,
           'isRejected': false,
           'adminRejected': false,
+
+          'deactivatedAt':
+              FieldValue.delete(),
         });
       } else {
         updateData.addAll({
@@ -726,9 +580,12 @@ class _WalkersScreenState extends State<WalkersScreen> {
         SetOptions(merge: true),
       );
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         SnackBar(
           content: Text(
             active
@@ -740,12 +597,13 @@ class _WalkersScreenState extends State<WalkersScreen> {
               : const Color(0xFFDC2626),
         ),
       );
-
-      setState(() {});
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         SnackBar(
           content: Text(
             'Failed to update Walker ID: $e',
@@ -758,130 +616,18 @@ class _WalkersScreenState extends State<WalkersScreen> {
   }
 
   // ============================================================
-  // APPROVE / REJECT STATUS
-  // ============================================================
-
-  Future<void> _updateWalkerStatus(
-    DocumentSnapshot<Map<String, dynamic>> doc,
-    String status,
-  ) async {
-    try {
-      final updateData =
-          <String, dynamic>{
-        'status': status,
-        'verificationStatus': status,
-        'approvalStatus': status,
-        'updatedAt':
-            FieldValue.serverTimestamp(),
-      };
-
-      // --------------------------------------------------------
-      // APPROVED
-      // --------------------------------------------------------
-
-      if (status == 'approved') {
-        updateData.addAll({
-          'approved': true,
-          'isApproved': true,
-          'adminApproved': true,
-
-          'isActive': true,
-          'active': true,
-
-          'rejected': false,
-          'isRejected': false,
-          'adminRejected': false,
-
-          'approvedAt':
-              FieldValue.serverTimestamp(),
-
-          'rejectedAt':
-              FieldValue.delete(),
-
-          'deactivatedAt':
-              FieldValue.delete(),
-
-          'selfieVerified': true,
-          'aadhaarFrontVerified': true,
-          'aadhaarBackVerified': true,
-
-          'verifiedAt':
-              FieldValue.serverTimestamp(),
-        });
-      }
-
-      // --------------------------------------------------------
-      // REJECTED
-      // --------------------------------------------------------
-
-      if (status == 'rejected') {
-        updateData.addAll({
-          'approved': false,
-          'isApproved': false,
-          'adminApproved': false,
-
-          'isActive': false,
-          'active': false,
-
-          'rejected': true,
-          'isRejected': true,
-          'adminRejected': true,
-
-          'rejectedAt':
-              FieldValue.serverTimestamp(),
-
-          'deactivatedAt':
-              FieldValue.delete(),
-        });
-      }
-
-      await doc.reference.set(
-        updateData,
-        SetOptions(merge: true),
-      );
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            status == 'approved'
-                ? 'Walker approved successfully.'
-                : 'Walker rejected successfully.',
-          ),
-          backgroundColor:
-              status == 'approved'
-                  ? const Color(0xFF16A34A)
-                  : const Color(0xFFDC2626),
-        ),
-      );
-
-      setState(() {});
-    } catch (e) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Failed to update walker: $e',
-          ),
-          backgroundColor:
-              const Color(0xFFDC2626),
-        ),
-      );
-    }
-  }
-
-  // ============================================================
   // ERROR STATE
   // ============================================================
 
-  Widget _errorState(String message) {
+  Widget _errorState(
+    String message,
+  ) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(30),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize:
+              MainAxisSize.min,
           children: [
             const Icon(
               Icons.error_outline,
@@ -921,7 +667,8 @@ class _WalkersScreenState extends State<WalkersScreen> {
   Widget _emptyState() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(
+      padding:
+          const EdgeInsets.symmetric(
         horizontal: 24,
         vertical: 50,
       ),
