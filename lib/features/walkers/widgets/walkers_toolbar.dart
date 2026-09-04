@@ -25,7 +25,8 @@ class WalkersToolbar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
       children: [
         ValueListenableBuilder<TextEditingValue>(
           valueListenable: searchController,
@@ -36,25 +37,27 @@ class WalkersToolbar extends StatelessWidget {
           ) {
             return TextField(
               controller: searchController,
-              textInputAction: TextInputAction.search,
+              textInputAction:
+                  TextInputAction.search,
               decoration: InputDecoration(
                 hintText: 'Search walkers...',
                 prefixIcon: const Icon(
-                  Icons.search,
+                  Icons.search_rounded,
                   color: Color(0xFF6B7280),
                 ),
-                suffixIcon: value.text.isNotEmpty
-                    ? IconButton(
-                        tooltip: 'Clear search',
-                        onPressed: () {
-                          searchController.clear();
-                          onClearSearch?.call();
-                        },
-                        icon: const Icon(
-                          Icons.clear_rounded,
-                        ),
-                      )
-                    : null,
+                suffixIcon:
+                    value.text.isNotEmpty
+                        ? IconButton(
+                            tooltip: 'Clear search',
+                            onPressed: () {
+                              searchController.clear();
+                              onClearSearch?.call();
+                            },
+                            icon: const Icon(
+                              Icons.clear_rounded,
+                            ),
+                          )
+                        : null,
                 filled: true,
                 fillColor: Colors.white,
                 contentPadding:
@@ -64,21 +67,23 @@ class WalkersToolbar extends StatelessWidget {
                 ),
                 border: OutlineInputBorder(
                   borderRadius:
-                      BorderRadius.circular(12),
+                      BorderRadius.circular(13),
                   borderSide: const BorderSide(
                     color: Color(0xFFE5E7EB),
                   ),
                 ),
-                enabledBorder: OutlineInputBorder(
+                enabledBorder:
+                    OutlineInputBorder(
                   borderRadius:
-                      BorderRadius.circular(12),
+                      BorderRadius.circular(13),
                   borderSide: const BorderSide(
                     color: Color(0xFFE5E7EB),
                   ),
                 ),
-                focusedBorder: OutlineInputBorder(
+                focusedBorder:
+                    OutlineInputBorder(
                   borderRadius:
-                      BorderRadius.circular(12),
+                      BorderRadius.circular(13),
                   borderSide: const BorderSide(
                     color: Color(0xFFFF6600),
                     width: 1.5,
@@ -88,9 +93,7 @@ class WalkersToolbar extends StatelessWidget {
             );
           },
         ),
-
         const SizedBox(height: 12),
-
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
@@ -99,7 +102,8 @@ class WalkersToolbar extends StatelessWidget {
                   selectedFilter == filter;
 
               return Padding(
-                padding: const EdgeInsets.only(
+                padding:
+                    const EdgeInsets.only(
                   right: 8,
                 ),
                 child: ChoiceChip(
@@ -113,16 +117,24 @@ class WalkersToolbar extends StatelessWidget {
                   backgroundColor: Colors.white,
                   side: BorderSide(
                     color: selected
-                        ? const Color(0xFFFF6600)
-                        : const Color(0xFFE5E7EB),
+                        ? const Color(
+                            0xFFFF6600,
+                          )
+                        : const Color(
+                            0xFFE5E7EB,
+                          ),
                   ),
                   labelStyle: TextStyle(
                     color: selected
                         ? Colors.white
-                        : const Color(0xFF374151),
+                        : const Color(
+                            0xFF374151,
+                          ),
                     fontWeight: FontWeight.w700,
+                    fontSize: 13,
                   ),
-                  shape: RoundedRectangleBorder(
+                  shape:
+                      RoundedRectangleBorder(
                     borderRadius:
                         BorderRadius.circular(20),
                   ),
