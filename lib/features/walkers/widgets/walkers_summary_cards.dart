@@ -18,7 +18,7 @@ class WalkersSummaryCards extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cards = <_SummaryItem>[
+    final items = <_SummaryItem>[
       const _SummaryItem(
         title: 'Total',
         icon: Icons.people_alt_rounded,
@@ -70,19 +70,21 @@ class WalkersSummaryCards extends StatelessWidget {
 
         return GridView.builder(
           shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: cards.length,
+          physics:
+              const NeverScrollableScrollPhysics(),
+          itemCount: items.length,
           gridDelegate:
               SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: columns,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
-            childAspectRatio: width < 600 ? 1.55 : 2.0,
+            childAspectRatio:
+                width < 600 ? 1.55 : 2.0,
           ),
           itemBuilder: (context, index) {
-            final item = cards[index];
+            final item = items[index];
 
-            return _WalkersSummaryCard(
+            return _SummaryCard(
               title: item.title,
               value: values[index],
               icon: item.icon,
@@ -107,13 +109,13 @@ class _SummaryItem {
   });
 }
 
-class _WalkersSummaryCard extends StatelessWidget {
+class _SummaryCard extends StatelessWidget {
   final String title;
   final int value;
   final IconData icon;
   final Color color;
 
-  const _WalkersSummaryCard({
+  const _SummaryCard({
     required this.title,
     required this.value,
     required this.icon,
@@ -132,7 +134,9 @@ class _WalkersSummaryCard extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(
+              alpha: 0.04,
+            ),
             blurRadius: 10,
             offset: const Offset(0, 3),
           ),
@@ -144,8 +148,11 @@ class _WalkersSummaryCard extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.10),
-              borderRadius: BorderRadius.circular(12),
+              color: color.withValues(
+                alpha: 0.10,
+              ),
+              borderRadius:
+                  BorderRadius.circular(12),
             ),
             child: Icon(
               icon,
@@ -156,17 +163,20 @@ class _WalkersSummaryCard extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment:
+                  MainAxisAlignment.center,
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
                   maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
+                  overflow:
+                      TextOverflow.ellipsis,
+                  style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade600,
+                    color: Color(0xFF6B7280),
                   ),
                 ),
                 const SizedBox(height: 4),
