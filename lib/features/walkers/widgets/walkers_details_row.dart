@@ -16,16 +16,18 @@ class WalkerDetailsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final displayValue = value.trim().isEmpty
-        ? 'Not available'
-        : value;
+    final displayValue =
+        value.trim().isEmpty
+            ? 'Not available'
+            : value.trim();
 
     return Padding(
       padding: const EdgeInsets.only(
-        bottom: 14,
+        bottom: 15,
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
           Text(
             label,
@@ -35,9 +37,7 @@ class WalkerDetailsRow extends StatelessWidget {
               fontWeight: FontWeight.w600,
             ),
           ),
-
-          const SizedBox(height: 4),
-
+          const SizedBox(height: 5),
           if (selectable)
             SelectableText(
               displayValue,
