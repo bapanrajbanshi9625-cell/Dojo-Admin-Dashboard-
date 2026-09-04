@@ -8,30 +8,47 @@ class WalkerData {
   final String name;
   final String phone;
   final String email;
+
   final String dob;
+  final String gender;
+
   final String address;
+  final String village;
+  final String city;
+  final String district;
+  final String state;
   final String pincode;
+
+  final String emergencyContactName;
+  final String emergencyContactMobile;
+
   final String aadhaarNumber;
+  final String panNumber;
 
   final String profileSelfie;
   final String aadhaarFront;
   final String aadhaarBack;
+  final String panCard;
 
+  final bool profileCompleted;
   final bool aadhaarFrontUploaded;
   final bool aadhaarBackUploaded;
-  final bool profileCompleted;
+  final bool panCardUploaded;
 
-  final bool aadhaarVerified;
   final bool selfieVerified;
+  final bool aadhaarFrontVerified;
+  final bool aadhaarBackVerified;
+  final bool aadhaarVerified;
+  final bool panVerified;
 
   final String verificationStatus;
 
   final bool isOnline;
+  final bool isAvailable;
   final bool isActive;
 
   final int totalWalks;
   final int activeWalks;
-
   final double rating;
 
   const WalkerData({
@@ -42,19 +59,33 @@ class WalkerData {
     required this.phone,
     required this.email,
     required this.dob,
+    required this.gender,
     required this.address,
+    required this.village,
+    required this.city,
+    required this.district,
+    required this.state,
     required this.pincode,
+    required this.emergencyContactName,
+    required this.emergencyContactMobile,
     required this.aadhaarNumber,
+    required this.panNumber,
     required this.profileSelfie,
     required this.aadhaarFront,
     required this.aadhaarBack,
+    required this.panCard,
+    required this.profileCompleted,
     required this.aadhaarFrontUploaded,
     required this.aadhaarBackUploaded,
-    required this.profileCompleted,
-    required this.aadhaarVerified,
+    required this.panCardUploaded,
     required this.selfieVerified,
+    required this.aadhaarFrontVerified,
+    required this.aadhaarBackVerified,
+    required this.aadhaarVerified,
+    required this.panVerified,
     required this.verificationStatus,
     required this.isOnline,
+    required this.isAvailable,
     required this.isActive,
     required this.totalWalks,
     required this.activeWalks,
@@ -64,15 +95,24 @@ class WalkerData {
   factory WalkerData.fromDocument(
     DocumentSnapshot<Map<String, dynamic>> document,
   ) {
-    final data = document.data() ?? {};
+    final data = document.data() ?? <String, dynamic>{};
 
     String stringValue(List<String> keys) {
       for (final key in keys) {
         final value = data[key];
 
-        if (value != null &&
-            value.toString().trim().isNotEmpty) {
-          return value.toString().trim();
+        if (value == null) {
+          continue;
+        }
+
+        if (value is Timestamp) {
+          return value.toDate().toIso8601String();
+        }
+
+        final text = value.toString().trim();
+
+        if (text.isNotEmpty) {
+          return text;
         }
       }
 
@@ -87,8 +127,20 @@ class WalkerData {
           return value;
         }
 
+        if (value is num) {
+          return value != 0;
+        }
+
         if (value is String) {
-          return value.toLowerCase() == 'true';
+          final text = value.trim().toLowerCase();
+
+          if (text == 'true' || text == 'yes' || text == '1') {
+            return true;
+          }
+
+          if (text == 'false' || text == 'no' || text == '0') {
+            return false;
+          }
         }
       }
 
@@ -135,21 +187,13 @@ class WalkerData {
       return 0;
     }
 
-    final uidValue = stringValue([
-      'Walker Uid',
-      'walkerUid',
-      'walkerUID',
-      'uid',
-      'authUid',
-      'authUID',
-    ]);
-
-    String verificationStatus() {
+    String statusValue() {
       final status = stringValue([
         'verificationStatus',
         'verification_status',
         'approvalStatus',
         'approval_status',
+        'status',
       ]).toLowerCase();
 
       if (status == 'approved' ||
@@ -161,6 +205,7 @@ class WalkerData {
       if (boolValue([
         'approved',
         'isApproved',
+        'adminApproved',
       ])) {
         return 'approved';
       }
@@ -168,6 +213,7 @@ class WalkerData {
       if (boolValue([
         'rejected',
         'isRejected',
+        'adminRejected',
       ])) {
         return 'rejected';
       }
@@ -179,14 +225,28 @@ class WalkerData {
       document: document,
 
       walkerId: stringValue([
-        'walkerId',
         'Walker ID',
+        'walkerId',
         'walker_id',
         'id',
       ]),
 
-      uid: uidValue.isNotEmpty
-          ? uidValue
+      uid: stringValue([
+        'Walker Uid',
+        'walkerUid',
+        'walkerUID',
+        'uid',
+        'authUid',
+        'authUID',
+      ]).isNotEmpty
+          ? stringValue([
+              'Walker Uid',
+              'walkerUid',
+              'walkerUID',
+              'uid',
+              'authUid',
+              'authUID',
+            ])
           : document.id,
 
       name: stringValue([
@@ -198,6 +258,7 @@ class WalkerData {
 
       phone: stringValue([
         'Mobile number',
+        'mobileNumber',
         'mobile',
         'phone',
         'phoneNumber',
@@ -211,13 +272,39 @@ class WalkerData {
       dob: stringValue([
         'Date Of Birth',
         'dateOfBirth',
+        'dateofbirth',
         'dob',
       ]),
 
+      gender: stringValue([
+        'Gender',
+        'gender',
+      ]),
+
       address: stringValue([
-        'Adress',
         'Address',
+        'Adress',
         'address',
+      ]),
+
+      village: stringValue([
+        'Village',
+        'village',
+      ]),
+
+      city: stringValue([
+        'City',
+        'city',
+      ]),
+
+      district: stringValue([
+        'District',
+        'district',
+      ]),
+
+      state: stringValue([
+        'State',
+        'state',
       ]),
 
       pincode: stringValue([
@@ -226,54 +313,98 @@ class WalkerData {
         'pinCode',
       ]),
 
+      emergencyContactName: stringValue([
+        'emergencyContactName',
+        'Emergency Contact Name',
+      ]),
+
+      emergencyContactMobile: stringValue([
+        'emergencyContactMobile',
+        'Emergency Contact Mobile',
+      ]),
+
       aadhaarNumber: stringValue([
-        'Aadhar Number',
         'Aadhaar Number',
+        'Aadhar Number',
         'aadhaarNumber',
         'aadharNumber',
+      ]),
+
+      panNumber: stringValue([
+        'panNumber',
+        'PAN Number',
+        'Pan Number',
       ]),
 
       profileSelfie: stringValue([
         'Profile Selfie',
         'profileSelfie',
-        'profileImage',
-        'profileImageUrl',
+        'selfie',
         'selfieUrl',
+        'profileImageUrl',
+        'profileImage',
       ]),
 
       aadhaarFront: stringValue([
-        'aadhaar_front_url',
-        'aadhaarFrontUrl',
-        'aadhaar_front',
-        'aadhaarFront',
-        'Aadhar Front',
         'Aadhaar Front',
-        'aadhaarFrontImage',
+        'Aadhar Front',
+        'aadhaarFrontUrl',
+        'aadhaarFront',
+        'aadhaarfront',
+        'aadhaar_front',
       ]),
 
       aadhaarBack: stringValue([
-        'aadhaar_back_url',
-        'aadhaarBackUrl',
-        'aadhaar_back',
-        'aadhaarBack',
-        'Aadhar Back',
         'Aadhaar Back',
-        'aadhaarBackImage',
+        'Aadhar Back',
+        'aadhaarBackUrl',
+        'aadhaarBack',
+        'aadhaarback',
+        'aadhaar_back',
       ]),
 
-      aadhaarFrontUploaded: boolValue([
-        'aadhaar_front_uploaded',
-        'aadhaarFrontUploaded',
-      ]),
-
-      aadhaarBackUploaded: boolValue([
-        'aadhaar_back_uploaded',
-        'aadhaarBackUploaded',
+      panCard: stringValue([
+        'PAN Card URL',
+        'panCardUrl',
+        'panCard',
+        'pan_card_url',
+        'pan_card',
       ]),
 
       profileCompleted: boolValue([
         'profileCompleted',
         'profile_completed',
+        'isProfileCompleted',
+      ]),
+
+      aadhaarFrontUploaded: boolValue([
+        'aadhaarFrontUploaded',
+        'aadhaar_front_uploaded',
+      ]),
+
+      aadhaarBackUploaded: boolValue([
+        'aadhaarBackUploaded',
+        'aadhaar_back_uploaded',
+      ]),
+
+      panCardUploaded: boolValue([
+        'panCardUploaded',
+        'pan_card_uploaded',
+      ]),
+
+      selfieVerified: boolValue([
+        'selfieVerified',
+        'selfie_verified',
+      ]),
+
+      aadhaarFrontVerified: boolValue([
+        'aadhaarFrontVerified',
+        'aadhaar_front_verified',
+      ]),
+
+      aadhaarBackVerified: boolValue([
+        'aadhaarBackVerified',
+        'aadhaar_back_verified',
       ]),
 
       aadhaarVerified: boolValue([
@@ -282,16 +413,21 @@ class WalkerData {
         'aadhaar_verified',
       ]),
 
-      selfieVerified: boolValue([
-        'selfieVerified',
-        'selfie_verified',
+      panVerified: boolValue([
+        'panVerified',
+        'pan_verified',
       ]),
 
-      verificationStatus: verificationStatus(),
+      verificationStatus: statusValue(),
 
       isOnline: boolValue([
         'isOnline',
         'online',
+      ]),
+
+      isAvailable: boolValue([
+        'isAvailable',
+        'available',
       ]),
 
       isActive: boolValue([
@@ -317,12 +453,9 @@ class WalkerData {
     );
   }
 
-  bool get isApproved =>
-      verificationStatus == 'approved';
+  bool get isApproved => verificationStatus == 'approved';
 
-  bool get isRejected =>
-      verificationStatus == 'rejected';
+  bool get isRejected => verificationStatus == 'rejected';
 
-  bool get isPending =>
-      verificationStatus == 'pending';
+  bool get isPending => verificationStatus == 'pending';
 }
