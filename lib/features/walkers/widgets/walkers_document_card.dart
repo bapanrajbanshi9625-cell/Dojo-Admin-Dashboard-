@@ -14,6 +14,24 @@ class WalkersDocumentCard extends StatelessWidget {
     this.roleColor = const Color(0xFFFF6600),
   });
 
+  void _openFullScreen(BuildContext context) {
+    final documentUrl = url.trim();
+
+    if (documentUrl.isEmpty) {
+      return;
+    }
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _DocumentViewerScreen(
+          title: title,
+          imageUrl: documentUrl,
+          roleColor: roleColor,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final documentUrl = url.trim();
@@ -66,53 +84,95 @@ class WalkersDocumentCard extends StatelessWidget {
           ),
 
           if (uploaded)
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                bottom: Radius.circular(16),
-              ),
-              child: AspectRatio(
-                aspectRatio: 1.55,
-                child: Image.network(
-                  documentUrl,
-                  fit: BoxFit.contain,
-                  loadingBuilder:
-                      (context, child, progress) {
-                    if (progress == null) {
-                      return child;
-                    }
+            GestureDetector(
+              onTap: () => _openFullScreen(context),
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(16),
+                ),
+                child: Stack(
+                  children: [
+                    AspectRatio(
+                      aspectRatio: 1.55,
+                      child: Image.network(
+                        documentUrl,
+                        width: double.infinity,
+                        fit: BoxFit.contain,
+                        loadingBuilder:
+                            (context, child, progress) {
+                          if (progress == null) {
+                            return child;
+                          }
 
-                    return Center(
-                      child: CircularProgressIndicator(
-                        color: roleColor,
+                          return Center(
+                            child: CircularProgressIndicator(
+                              color: roleColor,
+                            ),
+                          );
+                        },
+                        errorBuilder:
+                            (context, error, stackTrace) {
+                          return const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(24),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.broken_image_outlined,
+                                    size: 40,
+                                    color: Color(0xFF9CA3AF),
+                                  ),
+                                  SizedBox(height: 8),
+                                  Text(
+                                    'Unable to load document',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Color(0xFF6B7280),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
                       ),
-                    );
-                  },
-                  errorBuilder:
-                      (context, error, stackTrace) {
-                    return const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(24),
-                        child: Column(
+                    ),
+
+                    Positioned(
+                      right: 10,
+                      bottom: 10,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 7,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.65),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
-                              Icons.broken_image_outlined,
-                              size: 40,
-                              color: Color(0xFF9CA3AF),
+                              Icons.zoom_in,
+                              size: 16,
+                              color: Colors.white,
                             ),
-                            SizedBox(height: 8),
+                            SizedBox(width: 5),
                             Text(
-                              'Unable to load document',
+                              'View',
                               style: TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF6B7280),
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
                           ],
                         ),
                       ),
-                    );
-                  },
+                    ),
+                  ],
                 ),
               ),
             )
@@ -133,6 +193,77 @@ class WalkersDocumentCard extends StatelessWidget {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+class _DocumentViewerScreen extends StatelessWidget {
+  final String title;
+  final String imageUrl;
+  final Color roleColor;
+
+  const _DocumentViewerScreen({
+    required this.title,
+    required this.imageUrl,
+    required this.roleColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        title: Text(
+          title,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+      body: Center(
+        child: InteractiveViewer(
+          minScale: 0.8,
+          maxScale: 5.0,
+          child: Image.network(
+            imageUrl,
+            fit: BoxFit.contain,
+            loadingBuilder:
+                (context, child, progress) {
+              if (progress == null) {
+                return child;
+              }
+
+              return CircularProgressIndicator(
+                color: roleColor,
+              );
+            },
+            errorBuilder:
+                (context, error, stackTrace) {
+              return const Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.broken_image_outlined,
+                    size: 52,
+                    color: Colors.white54,
+                  ),
+                  SizedBox(height: 12),
+                  Text(
+                    'Unable to load document',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
       ),
     );
   }
