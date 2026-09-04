@@ -1,31 +1,33 @@
 import 'package:flutter/material.dart';
 
+import 'walkers_details_image_viewer.dart';
 import 'walkers_details_photo_card.dart';
-import 'walkers_details_upload_button.dart';
-import 'walkers_helpers.dart';
 
 class WalkerDetailsDocuments extends StatelessWidget {
   final String selfie;
   final String aadhaarFront;
   final String aadhaarBack;
-
-  final Set<String> uploadingFields;
-  final void Function(String title, String imageUrl) onOpenImage;
-  final VoidCallback onUploadSelfie;
-  final VoidCallback onUploadAadhaarFront;
-  final VoidCallback onUploadAadhaarBack;
+  final String panCard;
 
   const WalkerDetailsDocuments({
     super.key,
     required this.selfie,
     required this.aadhaarFront,
     required this.aadhaarBack,
-    required this.uploadingFields,
-    required this.onOpenImage,
-    required this.onUploadSelfie,
-    required this.onUploadAadhaarFront,
-    required this.onUploadAadhaarBack,
+    required this.panCard,
   });
+
+  void _openImage(
+    BuildContext context,
+    String title,
+    String imageUrl,
+  ) {
+    WalkerDetailsImageViewer.open(
+      context,
+      title: title,
+      imageUrl: imageUrl,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,6 +35,10 @@ class WalkerDetailsDocuments extends StatelessWidget {
       spacing: 10,
       runSpacing: 10,
       children: [
+        // ======================================================
+        // PROFILE SELFIE
+        // ======================================================
+
         WalkerDetailsPhotoCard(
           title: 'Profile Selfie',
           imageUrl: selfie,
@@ -40,63 +46,69 @@ class WalkerDetailsDocuments extends StatelessWidget {
           onTap: selfie.trim().isEmpty
               ? null
               : () {
-                  onOpenImage(
+                  _openImage(
+                    context,
                     'Profile Selfie',
                     selfie,
                   );
                 },
-          uploadButton: WalkerDetailsUploadButton(
-            fieldName: 'Profile Selfie',
-            title: 'Profile Selfie',
-            uploading: uploadingFields.contains(
-              'Profile Selfie',
-            ),
-            onPressed: onUploadSelfie,
-          ),
         ),
+
+        // ======================================================
+        // AADHAAR FRONT
+        // ======================================================
 
         WalkerDetailsPhotoCard(
           title: 'Aadhaar Front',
           imageUrl: aadhaarFront,
-          icon: Icons.credit_card,
+          icon: Icons.credit_card_rounded,
           onTap: aadhaarFront.trim().isEmpty
               ? null
               : () {
-                  onOpenImage(
+                  _openImage(
+                    context,
                     'Aadhaar Front',
                     aadhaarFront,
                   );
                 },
-          uploadButton: WalkerDetailsUploadButton(
-            fieldName: 'Aadhar Front',
-            title: 'Aadhaar Front',
-            uploading: uploadingFields.contains(
-              'Aadhar Front',
-            ),
-            onPressed: onUploadAadhaarFront,
-          ),
         ),
+
+        // ======================================================
+        // AADHAAR BACK
+        // ======================================================
 
         WalkerDetailsPhotoCard(
           title: 'Aadhaar Back',
           imageUrl: aadhaarBack,
-          icon: Icons.credit_card,
+          icon: Icons.credit_card_rounded,
           onTap: aadhaarBack.trim().isEmpty
               ? null
               : () {
-                  onOpenImage(
+                  _openImage(
+                    context,
                     'Aadhaar Back',
                     aadhaarBack,
                   );
                 },
-          uploadButton: WalkerDetailsUploadButton(
-            fieldName: 'Aadhar Back',
-            title: 'Aadhaar Back',
-            uploading: uploadingFields.contains(
-              'Aadhar Back',
-            ),
-            onPressed: onUploadAadhaarBack,
-          ),
+        ),
+
+        // ======================================================
+        // PAN CARD
+        // ======================================================
+
+        WalkerDetailsPhotoCard(
+          title: 'PAN Card',
+          imageUrl: panCard,
+          icon: Icons.badge_rounded,
+          onTap: panCard.trim().isEmpty
+              ? null
+              : () {
+                  _openImage(
+                    context,
+                    'PAN Card',
+                    panCard,
+                  );
+                },
         ),
       ],
     );
