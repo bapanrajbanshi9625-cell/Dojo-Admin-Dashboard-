@@ -7,7 +7,6 @@ class WalkerDetailsPhotoCard extends StatelessWidget {
   final String imageUrl;
   final IconData icon;
   final VoidCallback? onTap;
-  final Widget uploadButton;
 
   const WalkerDetailsPhotoCard({
     super.key,
@@ -15,7 +14,6 @@ class WalkerDetailsPhotoCard extends StatelessWidget {
     required this.imageUrl,
     required this.icon,
     required this.onTap,
-    required this.uploadButton,
   });
 
   @override
@@ -99,7 +97,14 @@ class WalkerDetailsPhotoCard extends StatelessWidget {
               ),
             )
           else
-            uploadButton,
+            const Text(
+              'Not available',
+              style: TextStyle(
+                fontSize: 9,
+                color: walkerDetailsTextGrey,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
         ],
       ),
     );
