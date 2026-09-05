@@ -293,18 +293,13 @@ class _WalkRequestsScreenState extends State<WalkRequestsScreen> {
                       const SizedBox(height: 18),
 
                       DropdownButtonFormField<String>(
-                        initialValue: selectedReason,
-                        decoration:
-                            InputDecoration(
-                          labelText: 'Cancellation reason',
-                          border:
-                              OutlineInputBorder(
-                            borderRadius:
-                                BorderRadius.circular(
-                              12,
-                            ),
-                          ),
-                        ),
+                       value: selectedReason,
+                       decoration: InputDecoration(
+                        labelText: 'Cancellation reason',
+                        border: OutlineInputBorder(
+                         borderRadius: BorderRadius.circular(12),
+                       ),
+                      ),
                         items: reasons.map(
                           (reason) {
                             return DropdownMenuItem<
