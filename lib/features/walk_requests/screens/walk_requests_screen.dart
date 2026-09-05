@@ -17,40 +17,31 @@ class WalkRequestsScreen extends StatefulWidget {
       _WalkRequestsScreenState();
 }
 
-class _WalkRequestsScreenState
-    extends State<WalkRequestsScreen> {
-  // ==========================================================
-  // SERVICE
-  // ==========================================================
-
+class _WalkRequestsScreenState extends State<WalkRequestsScreen> {
   late final WalkRequestsService _service;
-
-  // ==========================================================
-  // CONTROLLER
-  // ==========================================================
 
   final TextEditingController _searchController =
       TextEditingController();
 
-  // ==========================================================
-  // FILTER
-  // ==========================================================
-
   String _filter = 'All';
 
-  // ==========================================================
-  // INIT
-  // ==========================================================
+  static const List<String> _filters = [
+    'All',
+    'Pending',
+    'Accepted',
+    'Active',
+    'Completed',
+    'Cancelled',
+  ];
 
   @override
   void initState() {
     super.initState();
-
     _service = WalkRequestsService();
   }
 
   // ==========================================================
-  // STRING HELPER
+  // HELPERS
   // ==========================================================
 
   String _string(
@@ -66,10 +57,6 @@ class _WalkRequestsScreenState
     return value.toString();
   }
 
-  // ==========================================================
-  // STATUS
-  // ==========================================================
-
   String _status(
     Map<String, dynamic> data,
   ) {
@@ -79,8 +66,26 @@ class _WalkRequestsScreenState
     ).trim().toLowerCase();
   }
 
+  bool _isPending(
+    Map<String, dynamic> data,
+  ) {
+    final status = _status(data);
+
+    return status == 'searching' ||
+        status == 'pending';
+  }
+
+  bool _isAssigned(
+    Map<String, dynamic> data,
+  ) {
+    final status = _status(data);
+
+    return status == 'accepted' ||
+        status == 'active';
+  }
+
   // ==========================================================
-  // FILTER MATCH
+  // FILTER
   // ==========================================================
 
   bool _matchesFilter(
@@ -115,7 +120,7 @@ class _WalkRequestsScreenState
   }
 
   // ==========================================================
-  // SEARCH MATCH
+  // SEARCH
   // ==========================================================
 
   bool _matchesSearch(
@@ -139,6 +144,8 @@ class _WalkRequestsScreenState
       _string(data, 'walkerUid'),
       _string(data, 'address'),
       _string(data, 'searchType'),
+      _string(data, 'dogName'),
+      _string(data, 'dogBreed'),
     ];
 
     return values.any(
@@ -147,7 +154,7 @@ class _WalkRequestsScreenState
   }
 
   // ==========================================================
-  // OPEN GOOGLE MAPS
+  // MAPS
   // ==========================================================
 
   Future<void> _openMaps(
@@ -165,12 +172,8 @@ class _WalkRequestsScreenState
       );
 
       if (!launched && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Unable to open Google Maps.',
-            ),
-          ),
+        _showMessage(
+          'Unable to open Google Maps.',
         );
       }
     } catch (e) {
@@ -178,14 +181,27 @@ class _WalkRequestsScreenState
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Unable to open Maps: $e',
-          ),
-        ),
+      _showMessage(
+        'Unable to open Maps: $e',
       );
     }
+  }
+
+  // ==========================================================
+  // MESSAGE
+  // ==========================================================
+
+  void _showMessage(
+    String message,
+  ) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
   }
 
   // ==========================================================
@@ -195,81 +211,207 @@ class _WalkRequestsScreenState
   Future<void> _cancelRequest(
     String requestId,
   ) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text(
-            'Cancel Walk Request?',
-          ),
-          content: const Text(
-            'This request will be marked as cancelled.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(
-                  context,
-                  false,
-                );
-              },
-              child: const Text(
-                'Keep',
-              ),
-            ),
-            FilledButton(
-              onPressed: () {
-                Navigator.pop(
-                  context,
-                  true,
-                );
-              },
-              child: const Text(
-                'Cancel Request',
-              ),
-            ),
-          ],
-        );
-      },
-    );
+    final reason = await _showCancellationDialog();
 
-    if (confirmed != true) {
+    if (reason == null || reason.trim().isEmpty) {
       return;
     }
 
     try {
       await _service.cancelRequest(
         requestId: requestId,
+        reason: reason.trim(),
       );
 
       if (!mounted) {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Walk request cancelled.',
-          ),
-        ),
+      _showMessage(
+        'Walk request cancelled.',
       );
     } catch (e) {
       if (!mounted) {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Unable to cancel request: $e',
-          ),
-        ),
+      _showMessage(
+        'Unable to cancel request: $e',
       );
     }
   }
 
   // ==========================================================
-  // ASSIGN WALKER
+  // CANCELLATION DIALOG
+  // ==========================================================
+
+  Future<String?> _showCancellationDialog() async {
+    const reasons = [
+      'No walker available',
+      'Owner cancelled',
+      'Walker unavailable',
+      'Duplicate request',
+      'Location issue',
+      'Other',
+    ];
+
+    String selectedReason = reasons.first;
+    final otherController = TextEditingController();
+
+    final result = await showDialog<String?>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (
+            context,
+            setDialogState,
+          ) {
+            final isOther =
+                selectedReason == 'Other';
+
+            return AlertDialog(
+              title: const Text(
+                'Cancel Walk Request',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              content: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: 480,
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Please select a reason for cancelling this request.',
+                      ),
+                      const SizedBox(height: 18),
+
+                      DropdownButtonFormField<String>(
+                        initialValue: selectedReason,
+                        decoration:
+                            InputDecoration(
+                          labelText: 'Cancellation reason',
+                          border:
+                              OutlineInputBorder(
+                            borderRadius:
+                                BorderRadius.circular(
+                              12,
+                            ),
+                          ),
+                        ),
+                        items: reasons.map(
+                          (reason) {
+                            return DropdownMenuItem<
+                                String>(
+                              value: reason,
+                              child: Text(reason),
+                            );
+                          },
+                        ).toList(),
+                        onChanged: (value) {
+                          if (value == null) {
+                            return;
+                          }
+
+                          setDialogState(() {
+                            selectedReason = value;
+                          });
+                        },
+                      ),
+
+                      if (isOther) ...[
+                        const SizedBox(height: 14),
+                        TextField(
+                          controller:
+                              otherController,
+                          maxLines: 3,
+                          maxLength: 300,
+                          decoration:
+                              InputDecoration(
+                            labelText:
+                                'Enter cancellation reason',
+                            hintText:
+                                'Please provide a reason...',
+                            border:
+                                OutlineInputBorder(
+                              borderRadius:
+                                  BorderRadius.circular(
+                                12,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(
+                      dialogContext,
+                    );
+                  },
+                  child: const Text('Keep Request'),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    if (selectedReason == 'Other') {
+                      final custom =
+                          otherController.text
+                              .trim();
+
+                      if (custom.isEmpty) {
+                        ScaffoldMessenger.of(
+                          context,
+                        ).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Please enter a cancellation reason.',
+                            ),
+                          ),
+                        );
+                        return;
+                      }
+
+                      Navigator.pop(
+                        dialogContext,
+                        custom,
+                      );
+
+                      return;
+                    }
+
+                    Navigator.pop(
+                      dialogContext,
+                      selectedReason,
+                    );
+                  },
+                  child: const Text(
+                    'Cancel Request',
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    otherController.dispose();
+
+    return result;
+  }
+
+  // ==========================================================
+  // ASSIGN / CHANGE WALKER
   // ==========================================================
 
   Future<void> _assignWalker(
@@ -299,62 +441,91 @@ class _WalkRequestsScreenState
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Unable to load walkers: $e',
-          ),
-        ),
+      _showMessage(
+        'Unable to load walkers: $e',
       );
     }
   }
 
   // ==========================================================
-  // SHOW DETAILS
+  // DETAILS
   // ==========================================================
 
   void _showDetails(
     String requestId,
     Map<String, dynamic> data,
   ) {
+    final width = MediaQuery.sizeOf(context).width;
+
+    if (width >= 700) {
+      showDialog<void>(
+        context: context,
+        barrierDismissible: true,
+        builder: (dialogContext) {
+          return Dialog(
+            insetPadding: const EdgeInsets.all(24),
+            clipBehavior: Clip.antiAlias,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxWidth: 1050,
+                maxHeight: 760,
+              ),
+              child: WalkRequestDetailsSheet(
+                requestId: requestId,
+                data: data,
+                onAssign: () {
+                  Navigator.pop(dialogContext);
+
+                  _assignWalker(
+                    requestId,
+                    data,
+                  );
+                },
+                onCancel: () {
+                  Navigator.pop(dialogContext);
+
+                  _cancelRequest(
+                    requestId,
+                  );
+                },
+                onOpenMaps: _openMaps,
+              ),
+            ),
+          );
+        },
+      );
+
+      return;
+    }
+
+    // ========================================================
+    // MOBILE
+    // ========================================================
+
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) {
+      useSafeArea: true,
+      builder: (sheetContext) {
         return WalkRequestDetailsSheet(
           requestId: requestId,
           data: data,
-
-          // ==================================================
-          // ASSIGN
-          // ==================================================
-
           onAssign: () {
-            Navigator.pop(context);
+            Navigator.pop(sheetContext);
 
             _assignWalker(
               requestId,
               data,
             );
           },
-
-          // ==================================================
-          // CANCEL
-          // ==================================================
-
           onCancel: () {
-            Navigator.pop(context);
+            Navigator.pop(sheetContext);
 
             _cancelRequest(
               requestId,
             );
           },
-
-          // ==================================================
-          // OPEN MAPS
-          // ==================================================
-
           onOpenMaps: _openMaps,
         );
       },
@@ -379,17 +550,12 @@ class _WalkRequestsScreenState
         ),
       ),
       body: StreamBuilder<
-          QuerySnapshot<
-              Map<String, dynamic>>>(
+          QuerySnapshot<Map<String, dynamic>>>(
         stream: _service.watchWalkRequests(),
         builder: (
           context,
           snapshot,
         ) {
-          // ==================================================
-          // LOADING
-          // ==================================================
-
           if (snapshot.connectionState ==
               ConnectionState.waiting) {
             return const Center(
@@ -397,63 +563,22 @@ class _WalkRequestsScreenState
             );
           }
 
-          // ==================================================
-          // ERROR
-          // ==================================================
-
           if (snapshot.hasError) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.error_outline,
-                      size: 56,
-                    ),
-                    const SizedBox(
-                      height: 12,
-                    ),
-                    const Text(
-                      'Unable to load walk requests.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(
-                      height: 8,
-                    ),
-                    Text(
-                      '${snapshot.error}',
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              ),
+            return _buildError(
+              snapshot.error,
             );
           }
 
-          // ==================================================
-          // DOCUMENTS
-          // ==================================================
+          final docs =
+              snapshot.data?.docs ?? [];
 
-          final docs = snapshot.data?.docs ?? [];
+          final filteredDocs =
+              docs.where((doc) {
+            final data = doc.data();
 
-          final filteredDocs = docs.where(
-            (doc) {
-              final data = doc.data();
-
-              return _matchesFilter(data) &&
-                  _matchesSearch(data);
-            },
-          ).toList();
-
-          // ==================================================
-          // CONTENT
-          // ==================================================
+            return _matchesFilter(data) &&
+                _matchesSearch(data);
+          }).toList();
 
           return Column(
             children: [
@@ -462,49 +587,127 @@ class _WalkRequestsScreenState
               Expanded(
                 child: filteredDocs.isEmpty
                     ? _buildEmptyState()
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(20),
-                        itemCount: filteredDocs.length,
-                        itemBuilder: (
-                          context,
-                          index,
-                        ) {
-                          final doc =
-                              filteredDocs[index];
-
-                          final data = doc.data();
-
-                          return WalkRequestCard(
-                            requestId: doc.id,
-                            data: data,
-
-                            onTap: () {
-                              _showDetails(
-                                doc.id,
-                                data,
-                              );
-                            },
-
-                            onAssign: () {
-                              _assignWalker(
-                                doc.id,
-                                data,
-                              );
-                            },
-
-                            onCancel: () {
-                              _cancelRequest(
-                                doc.id,
-                              );
-                            },
-                          );
-                        },
+                    : _buildRequestList(
+                        filteredDocs,
                       ),
               ),
             ],
           );
         },
       ),
+    );
+  }
+
+  // ==========================================================
+  // ERROR
+  // ==========================================================
+
+  Widget _buildError(
+    Object? error,
+  ) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            maxWidth: 500,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.error_outline,
+                size: 56,
+                color: Theme.of(context)
+                    .colorScheme
+                    .error,
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'Unable to load walk requests.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '$error',
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ==========================================================
+  // REQUEST LIST
+  // ==========================================================
+
+  Widget _buildRequestList(
+    List<
+            QueryDocumentSnapshot<
+                Map<String, dynamic>>>
+        docs,
+  ) {
+    return LayoutBuilder(
+      builder: (
+        context,
+        constraints,
+      ) {
+        final isWide =
+            constraints.maxWidth >= 900;
+
+        return ListView.separated(
+          padding: EdgeInsets.symmetric(
+            horizontal: isWide ? 32 : 16,
+            vertical: 18,
+          ),
+          itemCount: docs.length,
+          separatorBuilder: (_, __) =>
+              const SizedBox(height: 12),
+          itemBuilder: (
+            context,
+            index,
+          ) {
+            final doc = docs[index];
+            final data = doc.data();
+
+            return Center(
+              child: ConstrainedBox(
+                constraints:
+                    const BoxConstraints(
+                  maxWidth: 1100,
+                ),
+                child: WalkRequestCard(
+                  requestId: doc.id,
+                  data: data,
+                  onTap: () {
+                    _showDetails(
+                      doc.id,
+                      data,
+                    );
+                  },
+                  onAssign: () {
+                    _assignWalker(
+                      doc.id,
+                      data,
+                    );
+                  },
+                  onCancel: () {
+                    _cancelRequest(
+                      doc.id,
+                    );
+                  },
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -530,175 +733,256 @@ class _WalkRequestsScreenState
       if (status == 'searching' ||
           status == 'pending') {
         pending++;
-      }
-
-      if (status == 'accepted') {
+      } else if (status == 'accepted') {
         accepted++;
-      }
-
-      if (status == 'cancelled' ||
+      } else if (status == 'cancelled' ||
           status == 'canceled') {
         cancelled++;
       }
     }
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(
-        20,
-        20,
-        20,
-        10,
-      ),
-      child: Column(
-        children: [
-          // ==================================================
-          // STATS
-          // ==================================================
+    return LayoutBuilder(
+      builder: (
+        context,
+        constraints,
+      ) {
+        final isWide =
+            constraints.maxWidth >= 700;
 
-          Row(
-            children: [
-              Expanded(
-                child: _StatBox(
-                  title: 'Pending',
-                  value: pending.toString(),
-                  icon: Icons.pending_actions,
-                ),
+        return Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              maxWidth: 1160,
+            ),
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                isWide ? 32 : 16,
+                20,
+                isWide ? 32 : 16,
+                8,
               ),
+              child: Column(
+                children: [
+                  // ==================================================
+                  // STATS
+                  // ==================================================
 
-              const SizedBox(width: 12),
-
-              Expanded(
-                child: _StatBox(
-                  title: 'Accepted',
-                  value: accepted.toString(),
-                  icon: Icons.check_circle_outline,
-                ),
-              ),
-
-              const SizedBox(width: 12),
-
-              Expanded(
-                child: _StatBox(
-                  title: 'Cancelled',
-                  value: cancelled.toString(),
-                  icon: Icons.cancel_outlined,
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 16),
-
-          // ==================================================
-          // SEARCH
-          // ==================================================
-
-          TextField(
-            controller: _searchController,
-            onChanged: (_) {
-              setState(() {});
-            },
-            decoration: InputDecoration(
-              hintText:
-                  'Search owner, request ID, walker...',
-              prefixIcon: const Icon(
-                Icons.search,
-              ),
-              suffixIcon:
-                  _searchController.text.isEmpty
-                      ? null
-                      : IconButton(
-                          onPressed: () {
-                            _searchController.clear();
-
-                            setState(() {});
-                          },
-                          icon: const Icon(
-                            Icons.clear,
+                  if (isWide)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _StatBox(
+                            title: 'Pending',
+                            value:
+                                pending.toString(),
+                            icon:
+                                Icons.pending_actions,
                           ),
                         ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(
-                  14,
-                ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _StatBox(
+                            title: 'Accepted',
+                            value:
+                                accepted.toString(),
+                            icon: Icons
+                                .check_circle_outline,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _StatBox(
+                            title: 'Cancelled',
+                            value:
+                                cancelled.toString(),
+                            icon:
+                                Icons.cancel_outlined,
+                          ),
+                        ),
+                      ],
+                    )
+                  else
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _StatBox(
+                            title: 'Pending',
+                            value:
+                                pending.toString(),
+                            icon:
+                                Icons.pending_actions,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _StatBox(
+                            title: 'Accepted',
+                            value:
+                                accepted.toString(),
+                            icon: Icons
+                                .check_circle_outline,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _StatBox(
+                            title: 'Cancelled',
+                            value:
+                                cancelled.toString(),
+                            icon:
+                                Icons.cancel_outlined,
+                          ),
+                        ),
+                      ],
+                    ),
+
+                  const SizedBox(height: 16),
+
+                  // ==================================================
+                  // SEARCH
+                  // ==================================================
+
+                  TextField(
+                    controller:
+                        _searchController,
+                    onChanged: (_) {
+                      setState(() {});
+                    },
+                    textInputAction:
+                        TextInputAction.search,
+                    decoration:
+                        InputDecoration(
+                      hintText:
+                          'Search owner, request ID, walker, dog...',
+                      prefixIcon:
+                          const Icon(
+                        Icons.search,
+                      ),
+                      suffixIcon:
+                          _searchController
+                                  .text
+                                  .isEmpty
+                              ? null
+                              : IconButton(
+                                  onPressed: () {
+                                    _searchController
+                                        .clear();
+
+                                    setState(() {});
+                                  },
+                                  icon:
+                                      const Icon(
+                                    Icons.clear,
+                                  ),
+                                ),
+                      filled: true,
+                      border:
+                          OutlineInputBorder(
+                        borderRadius:
+                            BorderRadius.circular(
+                          14,
+                        ),
+                        borderSide:
+                            BorderSide.none,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // ==================================================
+                  // FILTERS
+                  // ==================================================
+
+                  Align(
+                    alignment:
+                        Alignment.centerLeft,
+                    child:
+                        SingleChildScrollView(
+                      scrollDirection:
+                          Axis.horizontal,
+                      child: Row(
+                        children:
+                            _filters.map(
+                          (filter) {
+                            final selected =
+                                _filter ==
+                                    filter;
+
+                            return Padding(
+                              padding:
+                                  const EdgeInsets
+                                      .only(
+                                right: 8,
+                              ),
+                              child:
+                                  ChoiceChip(
+                                label:
+                                    Text(filter),
+                                selected:
+                                    selected,
+                                onSelected: (_) {
+                                  setState(() {
+                                    _filter =
+                                        filter;
+                                  });
+                                },
+                              ),
+                            );
+                          },
+                        ).toList(),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
-
-          const SizedBox(height: 14),
-
-          // ==================================================
-          // FILTERS
-          // ==================================================
-
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                'All',
-                'Pending',
-                'Accepted',
-                'Active',
-                'Completed',
-                'Cancelled',
-              ].map(
-                (filter) {
-                  final selected =
-                      _filter == filter;
-
-                  return Padding(
-                    padding: const EdgeInsets.only(
-                      right: 8,
-                    ),
-                    child: ChoiceChip(
-                      label: Text(filter),
-                      selected: selected,
-                      onSelected: (_) {
-                        setState(() {
-                          _filter = filter;
-                        });
-                      },
-                    ),
-                  );
-                },
-              ).toList(),
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
   // ==========================================================
-  // EMPTY STATE
+  // EMPTY
   // ==========================================================
 
   Widget _buildEmptyState() {
-    return const Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.inbox_outlined,
-            size: 64,
-          ),
-          SizedBox(height: 12),
-          Text(
-            'No walk requests found',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.inbox_outlined,
+              size: 64,
+              color: Theme.of(context)
+                  .colorScheme
+                  .onSurfaceVariant,
             ),
-          ),
-        ],
+            const SizedBox(height: 14),
+            const Text(
+              'No walk requests found',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Try changing the filter or search term.',
+              style: TextStyle(
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
-
-  // ==========================================================
-  // DISPOSE
-  // ==========================================================
 
   @override
   void dispose() {
@@ -726,33 +1010,67 @@ class _StatBox extends StatelessWidget {
   Widget build(
     BuildContext context,
   ) {
+    final colorScheme =
+        Theme.of(context).colorScheme;
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      constraints: const BoxConstraints(
+        minHeight: 82,
+      ),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: 12,
+      ),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
+        color: colorScheme.surface,
+        borderRadius:
+            BorderRadius.circular(16),
         border: Border.all(
-          color: Theme.of(context).dividerColor,
+          color: colorScheme.outlineVariant,
         ),
       ),
       child: Row(
         children: [
-          Icon(icon),
-
-          const SizedBox(width: 10),
-
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: colorScheme
+                  .primaryContainer,
+              borderRadius:
+                  BorderRadius.circular(12),
+            ),
+            child: Icon(
+              icon,
+              color: colorScheme
+                  .onPrimaryContainer,
+            ),
+          ),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
+              mainAxisAlignment:
+                  MainAxisAlignment.center,
               crossAxisAlignment:
                   CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  maxLines: 1,
+                  overflow:
+                      TextOverflow.ellipsis,
+                  style: TextStyle(
                     fontSize: 12,
+                    color: colorScheme
+                        .onSurfaceVariant,
                   ),
                 ),
+                const SizedBox(height: 2),
                 Text(
                   value,
+                  maxLines: 1,
+                  overflow:
+                      TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
@@ -802,10 +1120,6 @@ class _AssignWalkerDialogState
 
   bool saving = false;
 
-  // ==========================================================
-  // VALUE
-  // ==========================================================
-
   String _value(
     Map<String, dynamic> data,
     String key,
@@ -817,19 +1131,16 @@ class _AssignWalkerDialogState
         : value.toString();
   }
 
-  // ==========================================================
-  // ASSIGN
-  // ==========================================================
-
   Future<void> _assign() async {
     if (selectedDocId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Please select a walker.',
+      ScaffoldMessenger.of(context)
+        .showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Please select a walker.',
+            ),
           ),
-        ),
-      );
+        );
 
       return;
     }
@@ -840,86 +1151,46 @@ class _AssignWalkerDialogState
 
     final data = walker.data();
 
-    // ========================================================
-    // WALKER UID
-    // ========================================================
-
     final walkerUid =
-        _value(
-          data,
-          'authUid',
-        ).isNotEmpty
-            ? _value(
-                data,
-                'authUid',
-              )
-            : _value(
-                data,
-                'walkerUid',
-              );
+        _value(data, 'authUid').isNotEmpty
+            ? _value(data, 'authUid')
+            : _value(data, 'walkerUid');
 
-    // ========================================================
-    // WALKER ID
-    // ========================================================
-
-    final walkerId = _value(
-      data,
-      'walkerId',
-    );
-
-    // ========================================================
-    // WALKER NAME
-    // ========================================================
+    final walkerId =
+        _value(data, 'walkerId');
 
     final walkerName =
-        _value(
-          data,
-          'name',
-        ).isNotEmpty
-            ? _value(
-                data,
-                'name',
-              )
-            : _value(
-                data,
-                'walkerName',
-              );
-
-    // ========================================================
-    // VALIDATION
-    // ========================================================
+        _value(data, 'name').isNotEmpty
+            ? _value(data, 'name')
+            : _value(data, 'walkerName');
 
     if (walkerUid.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Selected walker has no valid UID.',
+      ScaffoldMessenger.of(context)
+        .showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Selected walker has no valid UID.',
+            ),
           ),
-        ),
-      );
-
+        );
       return;
     }
 
     if (walkerId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Selected walker has no Walker ID.',
+      ScaffoldMessenger.of(context)
+        .showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Selected walker has no Walker ID.',
+            ),
           ),
-        ),
-      );
-
+        );
       return;
     }
 
     setState(() {
       saving = true;
     });
-
-    // ========================================================
-    // SAVE
-    // ========================================================
 
     try {
       await widget.service.assignWalker(
@@ -935,13 +1206,18 @@ class _AssignWalkerDialogState
 
       Navigator.pop(context);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Walker assigned successfully.',
+      ScaffoldMessenger.of(context)
+        .showSnackBar(
+          SnackBar(
+            content: Text(
+              _currentWalkerId().isEmpty
+                  ? 'Walker assigned successfully.'
+                  : 'Walker changed successfully.',
+            ),
+            behavior:
+                SnackBarBehavior.floating,
           ),
-        ),
-      );
+        );
     } catch (e) {
       if (!mounted) {
         return;
@@ -951,42 +1227,57 @@ class _AssignWalkerDialogState
         saving = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Failed to assign walker: $e',
+      ScaffoldMessenger.of(context)
+        .showSnackBar(
+          SnackBar(
+            content: Text(
+              'Failed to assign walker: $e',
+            ),
           ),
-        ),
-      );
+        );
     }
   }
 
-  // ==========================================================
-  // BUILD
-  // ==========================================================
+  String _currentWalkerId() {
+    return _value(
+      widget.requestData,
+      'walkerId',
+    );
+  }
 
   @override
   Widget build(
     BuildContext context,
   ) {
+    final changing =
+        _currentWalkerId().isNotEmpty;
+
     return AlertDialog(
-      title: const Text(
-        'Assign Walker',
+      title: Text(
+        changing
+            ? 'Change Walker'
+            : 'Assign Walker',
+        style: const TextStyle(
+          fontWeight: FontWeight.w700,
+        ),
       ),
-
       content: SizedBox(
-        width: 500,
-
+        width: 520,
+        height: 500,
         child: widget.walkers.isEmpty
-            ? const Padding(
-                padding: EdgeInsets.all(20),
+            ? const Center(
                 child: Text(
                   'No walkers found.',
                 ),
               )
-            : ListView.builder(
-                shrinkWrap: true,
-                itemCount: widget.walkers.length,
+            : ListView.separated(
+                itemCount:
+                    widget.walkers.length,
+                separatorBuilder:
+                    (_, __) =>
+                        const SizedBox(
+                  height: 8,
+                ),
                 itemBuilder: (
                   context,
                   index,
@@ -994,7 +1285,8 @@ class _AssignWalkerDialogState
                   final doc =
                       widget.walkers[index];
 
-                  final data = doc.data();
+                  final data =
+                      doc.data();
 
                   final name =
                       _value(
@@ -1017,56 +1309,76 @@ class _AssignWalkerDialogState
                       );
 
                   final selected =
-                      selectedDocId == doc.id;
+                      selectedDocId ==
+                          doc.id;
 
                   return Card(
+                    margin: EdgeInsets.zero,
                     child: ListTile(
+                      contentPadding:
+                          const EdgeInsets
+                              .symmetric(
+                        horizontal: 14,
+                        vertical: 4,
+                      ),
                       leading:
                           const CircleAvatar(
                         child: Icon(
-                          Icons.person,
+                          Icons.person_outline,
                         ),
                       ),
-
                       title: Text(
                         name.isEmpty
                             ? 'Walker'
                             : name,
+                        maxLines: 1,
+                        overflow:
+                            TextOverflow
+                                .ellipsis,
+                        style:
+                            const TextStyle(
+                          fontWeight:
+                              FontWeight.w600,
+                        ),
                       ),
-
                       subtitle: Text(
                         walkerId.isEmpty
                             ? doc.id
                             : walkerId,
+                        maxLines: 1,
+                        overflow:
+                            TextOverflow
+                                .ellipsis,
                       ),
-
                       trailing:
                           Radio<String>(
                         value: doc.id,
                         groupValue:
                             selectedDocId,
-                        onChanged: (value) {
-                          setState(() {
-                            selectedDocId =
-                                value;
-                          });
-                        },
+                        onChanged:
+                            saving
+                                ? null
+                                : (value) {
+                                    setState(() {
+                                      selectedDocId =
+                                          value;
+                                    });
+                                  },
                       ),
-
                       selected: selected,
-
-                      onTap: () {
-                        setState(() {
-                          selectedDocId =
-                              doc.id;
-                        });
-                      },
+                      onTap: saving
+                          ? null
+                          : () {
+                              setState(() {
+                                selectedDocId =
+                                    doc.id;
+                              });
+                            },
                     ),
                   );
                 },
               ),
       ),
-
       actions: [
         TextButton(
           onPressed: saving
@@ -1078,11 +1390,9 @@ class _AssignWalkerDialogState
             'Cancel',
           ),
         ),
-
         FilledButton(
-          onPressed: saving
-              ? null
-              : _assign,
+          onPressed:
+              saving ? null : _assign,
           child: saving
               ? const SizedBox(
                   width: 18,
@@ -1092,8 +1402,10 @@ class _AssignWalkerDialogState
                     strokeWidth: 2,
                   ),
                 )
-              : const Text(
-                  'Assign Walker',
+              : Text(
+                  changing
+                      ? 'Change Walker'
+                      : 'Assign Walker',
                 ),
         ),
       ],
