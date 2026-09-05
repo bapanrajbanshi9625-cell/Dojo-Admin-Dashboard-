@@ -96,16 +96,86 @@ class WalkRequestDetailsSheet extends StatelessWidget {
   }
 
   // ==========================================================
-  // LOCATION
+  // OWNER LOCATION
   // ==========================================================
 
-  LatLng? _location() {
-    final value = data['ownerLocation'];
+  LatLng? _ownerLocation() {
+    final possibleKeys = [
+      'ownerLocation',
+      'pickupLocation',
+      'location',
+    ];
 
-    if (value is GeoPoint) {
+    for (final key in possibleKeys) {
+      final value = data[key];
+
+      if (value is GeoPoint) {
+        return LatLng(
+          value.latitude,
+          value.longitude,
+        );
+      }
+
+      if (value is Map) {
+        final map =
+            Map<String, dynamic>.from(value);
+
+        final latitude =
+            _toDouble(
+          map['latitude'] ??
+              map['lat'],
+        );
+
+        final longitude =
+            _toDouble(
+          map['longitude'] ??
+              map['lng'] ??
+              map['lon'],
+        );
+
+        if (latitude != null &&
+            longitude != null) {
+          return LatLng(
+            latitude,
+            longitude,
+          );
+        }
+      }
+    }
+
+    final latitude =
+        _toDouble(
+      data['latitude'],
+    );
+
+    final longitude =
+        _toDouble(
+      data['longitude'],
+    );
+
+    if (latitude != null &&
+        longitude != null) {
       return LatLng(
-        value.latitude,
-        value.longitude,
+        latitude,
+        longitude,
+      );
+    }
+
+    return null;
+  }
+
+  double? _toDouble(dynamic value) {
+    if (value == null) {
+      return null;
+    }
+
+    if (value is num) {
+      return value.toDouble();
+    }
+
+    if (value is String) {
+      return double.tryParse(
+        value.trim(),
       );
     }
 
@@ -117,7 +187,8 @@ class WalkRequestDetailsSheet extends StatelessWidget {
   // ==========================================================
 
   String _formatRadius() {
-    final value = data['searchRadiusKm'];
+    final value =
+        data['searchRadiusKm'];
 
     if (value == null) {
       return 'Not available';
@@ -127,7 +198,8 @@ class WalkRequestDetailsSheet extends StatelessWidget {
       return '${value.toStringAsFixed(1)} km';
     }
 
-    final parsed = double.tryParse(
+    final parsed =
+        double.tryParse(
       value.toString(),
     );
 
@@ -163,11 +235,13 @@ class WalkRequestDetailsSheet extends StatelessWidget {
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          content: Text('$label copied'),
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(
-            seconds: 1,
+          content: Text(
+            '$label copied',
           ),
+          behavior:
+              SnackBarBehavior.floating,
+          duration:
+              const Duration(seconds: 1),
         ),
       );
   }
@@ -179,7 +253,9 @@ class WalkRequestDetailsSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final status = _status();
-    final location = _location();
+
+    final ownerLocation =
+        _ownerLocation();
 
     final pending =
         status == 'searching' ||
@@ -192,6 +268,12 @@ class WalkRequestDetailsSheet extends StatelessWidget {
     final canCancel =
         pending || assigned;
 
+    final walkerId =
+        _value('walkerId');
+
+    final walkerUid =
+        _value('walkerUid');
+
     final walkerName =
         _value('walkerName');
 
@@ -199,14 +281,17 @@ class WalkRequestDetailsSheet extends StatelessWidget {
       color: Theme.of(context)
           .colorScheme
           .surface,
-      borderRadius: const BorderRadius.vertical(
+      borderRadius:
+          const BorderRadius.vertical(
         top: Radius.circular(24),
       ),
-      clipBehavior: Clip.antiAlias,
+      clipBehavior:
+          Clip.antiAlias,
       child: SafeArea(
         top: false,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(
+          padding:
+              const EdgeInsets.fromLTRB(
             20,
             14,
             20,
@@ -214,19 +299,22 @@ class WalkRequestDetailsSheet extends StatelessWidget {
           ),
           children: [
             // ==================================================
-            // MOBILE HANDLE
+            // HANDLE
             // ==================================================
 
             Center(
               child: Container(
                 width: 42,
                 height: 5,
-                decoration: BoxDecoration(
+                decoration:
+                    BoxDecoration(
                   color: Theme.of(context)
                       .colorScheme
                       .outlineVariant,
                   borderRadius:
-                      BorderRadius.circular(10),
+                      BorderRadius.circular(
+                    10,
+                  ),
                 ),
               ),
             ),
@@ -268,7 +356,8 @@ class WalkRequestDetailsSheet extends StatelessWidget {
                 ),
                 const SizedBox(width: 12),
                 _StatusBadge(
-                  status: _displayStatus(),
+                  status:
+                      _displayStatus(),
                 ),
               ],
             ),
@@ -276,7 +365,7 @@ class WalkRequestDetailsSheet extends StatelessWidget {
             const SizedBox(height: 20),
 
             // ==================================================
-            // REQUEST SUMMARY
+            // SUMMARY
             // ==================================================
 
             _buildSummaryCard(context),
@@ -290,12 +379,14 @@ class WalkRequestDetailsSheet extends StatelessWidget {
             _buildSection(
               context,
               title: 'Owner',
-              icon: Icons.person_outline,
+              icon:
+                  Icons.person_outline,
               children: [
                 _buildCopyDetail(
                   context,
                   title: 'Owner ID',
-                  value: _value('ownerId'),
+                  value:
+                      _value('ownerId'),
                 ),
                 _buildDetail(
                   'Name',
@@ -321,7 +412,8 @@ class WalkRequestDetailsSheet extends StatelessWidget {
               _buildSection(
                 context,
                 title: 'Dog',
-                icon: Icons.pets_outlined,
+                icon:
+                    Icons.pets_outlined,
                 children: [
                   _buildDetail(
                     'Name',
@@ -348,13 +440,14 @@ class WalkRequestDetailsSheet extends StatelessWidget {
               ),
 
             // ==================================================
-            // LOCATION
+            // PICKUP LOCATION
             // ==================================================
 
             _buildSection(
               context,
               title: 'Pickup Location',
-              icon: Icons.location_on_outlined,
+              icon:
+                  Icons.location_on_outlined,
               children: [
                 _buildDetail(
                   'Address',
@@ -362,16 +455,37 @@ class WalkRequestDetailsSheet extends StatelessWidget {
                 ),
                 _buildDetail(
                   'Location Type',
-                  _value('ownerLocationType'),
+                  _value(
+                    'ownerLocationType',
+                  ),
                 ),
               ],
             ),
 
-            if (location != null) ...[
+            // ==================================================
+            // OPEN STREET MAP
+            // ==================================================
+
+            if (ownerLocation != null) ...[
               WalkRequestMapPreview(
-                location: location,
+                ownerLocation:
+                    ownerLocation,
+                walkerId:
+                    assigned &&
+                            walkerId.isNotEmpty
+                        ? walkerId
+                        : null,
+                walkerUid:
+                    assigned &&
+                            walkerUid.isNotEmpty
+                        ? walkerUid
+                        : null,
+                walkerName:
+                    walkerName,
                 onOpenMaps: () {
-                  onOpenMaps(location);
+                  onOpenMaps(
+                    ownerLocation,
+                  );
                 },
               ),
               const SizedBox(height: 18),
@@ -384,7 +498,8 @@ class WalkRequestDetailsSheet extends StatelessWidget {
             _buildSection(
               context,
               title: 'Walker',
-              icon: Icons.directions_walk,
+              icon:
+                  Icons.directions_walk,
               children: [
                 _buildDetail(
                   'Name',
@@ -395,7 +510,8 @@ class WalkRequestDetailsSheet extends StatelessWidget {
                 _buildCopyDetail(
                   context,
                   title: 'Walker ID',
-                  value: _value('walkerId'),
+                  value:
+                      _value('walkerId'),
                 ),
               ],
             ),
@@ -407,7 +523,8 @@ class WalkRequestDetailsSheet extends StatelessWidget {
             _buildSection(
               context,
               title: 'Walk Information',
-              icon: Icons.receipt_long_outlined,
+              icon:
+                  Icons.receipt_long_outlined,
               children: [
                 _buildCopyDetail(
                   context,
@@ -461,10 +578,12 @@ class WalkRequestDetailsSheet extends StatelessWidget {
             if (pending)
               SizedBox(
                 width: double.infinity,
-                child: FilledButton.icon(
+                child:
+                    FilledButton.icon(
                   onPressed: onAssign,
                   icon: const Icon(
-                    Icons.person_add_alt_1,
+                    Icons
+                        .person_add_alt_1,
                   ),
                   label: const Text(
                     'Assign Walker',
@@ -475,7 +594,8 @@ class WalkRequestDetailsSheet extends StatelessWidget {
             if (assigned)
               SizedBox(
                 width: double.infinity,
-                child: FilledButton.icon(
+                child:
+                    FilledButton.icon(
                   onPressed: onAssign,
                   icon: const Icon(
                     Icons.swap_horiz,
@@ -490,10 +610,12 @@ class WalkRequestDetailsSheet extends StatelessWidget {
               const SizedBox(height: 8),
               SizedBox(
                 width: double.infinity,
-                child: OutlinedButton.icon(
+                child:
+                    OutlinedButton.icon(
                   onPressed: onCancel,
                   icon: const Icon(
-                    Icons.cancel_outlined,
+                    Icons
+                        .cancel_outlined,
                   ),
                   label: const Text(
                     'Cancel Request',
@@ -517,7 +639,8 @@ class WalkRequestDetailsSheet extends StatelessWidget {
     BuildContext context,
   ) {
     final colorScheme =
-        Theme.of(context).colorScheme;
+        Theme.of(context)
+            .colorScheme;
 
     final ownerName =
         _value('ownerName');
@@ -526,7 +649,8 @@ class WalkRequestDetailsSheet extends StatelessWidget {
         _value('walkerName');
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding:
+          const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: colorScheme
             .primaryContainer
@@ -534,8 +658,7 @@ class WalkRequestDetailsSheet extends StatelessWidget {
         borderRadius:
             BorderRadius.circular(18),
         border: Border.all(
-          color: colorScheme
-              .primary
+          color: colorScheme.primary
               .withValues(alpha: 0.15),
         ),
       ),
@@ -547,7 +670,8 @@ class WalkRequestDetailsSheet extends StatelessWidget {
             children: [
               Icon(
                 Icons.directions_walk,
-                color: colorScheme.primary,
+                color:
+                    colorScheme.primary,
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -558,7 +682,8 @@ class WalkRequestDetailsSheet extends StatelessWidget {
                   maxLines: 1,
                   overflow:
                       TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style:
+                      const TextStyle(
                     fontSize: 17,
                     fontWeight:
                         FontWeight.w800,
@@ -573,7 +698,8 @@ class WalkRequestDetailsSheet extends StatelessWidget {
             runSpacing: 8,
             children: [
               _InfoPill(
-                icon: Icons.schedule,
+                icon:
+                    Icons.schedule,
                 text: _dateText(
                   data['createdAt'],
                 ),
@@ -583,7 +709,8 @@ class WalkRequestDetailsSheet extends StatelessWidget {
                 text: _formatRadius(),
               ),
               _InfoPill(
-                icon: Icons.person_outline,
+                icon:
+                    Icons.person_outline,
                 text: walkerName.isEmpty
                     ? 'Walker not assigned'
                     : walkerName,
@@ -618,7 +745,8 @@ class WalkRequestDetailsSheet extends StatelessWidget {
     List<String> keys,
   ) {
     for (final key in keys) {
-      final value = _value(key);
+      final value =
+          _value(key);
 
       if (value.isNotEmpty) {
         return value;
@@ -639,7 +767,8 @@ class WalkRequestDetailsSheet extends StatelessWidget {
     required List<Widget> children,
   }) {
     return Padding(
-      padding: const EdgeInsets.only(
+      padding:
+          const EdgeInsets.only(
         bottom: 18,
       ),
       child: Column(
@@ -658,7 +787,8 @@ class WalkRequestDetailsSheet extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 title,
-                style: const TextStyle(
+                style:
+                    const TextStyle(
                   fontSize: 17,
                   fontWeight:
                       FontWeight.w800,
@@ -669,10 +799,14 @@ class WalkRequestDetailsSheet extends StatelessWidget {
           const SizedBox(height: 10),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
+            padding:
+                const EdgeInsets.all(14),
+            decoration:
+                BoxDecoration(
               borderRadius:
-                  BorderRadius.circular(15),
+                  BorderRadius.circular(
+                15,
+              ),
               border: Border.all(
                 color: Theme.of(context)
                     .colorScheme
@@ -689,7 +823,7 @@ class WalkRequestDetailsSheet extends StatelessWidget {
   }
 
   // ==========================================================
-  // NORMAL DETAIL
+  // DETAIL
   // ==========================================================
 
   Widget _buildDetail(
@@ -702,7 +836,8 @@ class WalkRequestDetailsSheet extends StatelessWidget {
             : value;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(
+      padding:
+          const EdgeInsets.symmetric(
         vertical: 6,
       ),
       child: LayoutBuilder(
@@ -711,16 +846,19 @@ class WalkRequestDetailsSheet extends StatelessWidget {
           constraints,
         ) {
           final narrow =
-              constraints.maxWidth < 360;
+              constraints.maxWidth <
+                  360;
 
           if (narrow) {
             return Column(
               crossAxisAlignment:
-                  CrossAxisAlignment.start,
+                  CrossAxisAlignment
+                      .start,
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style:
+                      const TextStyle(
                     fontSize: 12,
                     fontWeight:
                         FontWeight.w700,
@@ -736,13 +874,15 @@ class WalkRequestDetailsSheet extends StatelessWidget {
 
           return Row(
             crossAxisAlignment:
-                CrossAxisAlignment.start,
+                CrossAxisAlignment
+                    .start,
             children: [
               SizedBox(
                 width: 130,
                 child: Text(
                   title,
-                  style: const TextStyle(
+                  style:
+                      const TextStyle(
                     fontSize: 13,
                     fontWeight:
                         FontWeight.w600,
@@ -776,7 +916,8 @@ class WalkRequestDetailsSheet extends StatelessWidget {
             : value;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(
+      padding:
+          const EdgeInsets.symmetric(
         vertical: 6,
       ),
       child: LayoutBuilder(
@@ -785,11 +926,13 @@ class WalkRequestDetailsSheet extends StatelessWidget {
           constraints,
         ) {
           final narrow =
-              constraints.maxWidth < 360;
+              constraints.maxWidth <
+                  360;
 
           final content = Row(
             crossAxisAlignment:
-                CrossAxisAlignment.start,
+                CrossAxisAlignment
+                    .start,
             children: [
               Expanded(
                 child: SelectableText(
@@ -800,7 +943,8 @@ class WalkRequestDetailsSheet extends StatelessWidget {
                 IconButton(
                   tooltip: 'Copy',
                   visualDensity:
-                      VisualDensity.compact,
+                      VisualDensity
+                          .compact,
                   onPressed: () {
                     _copy(
                       context,
@@ -809,7 +953,8 @@ class WalkRequestDetailsSheet extends StatelessWidget {
                     );
                   },
                   icon: const Icon(
-                    Icons.copy_outlined,
+                    Icons
+                        .copy_outlined,
                     size: 18,
                   ),
                 ),
@@ -819,11 +964,13 @@ class WalkRequestDetailsSheet extends StatelessWidget {
           if (narrow) {
             return Column(
               crossAxisAlignment:
-                  CrossAxisAlignment.start,
+                  CrossAxisAlignment
+                      .start,
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style:
+                      const TextStyle(
                     fontSize: 12,
                     fontWeight:
                         FontWeight.w700,
@@ -837,13 +984,15 @@ class WalkRequestDetailsSheet extends StatelessWidget {
 
           return Row(
             crossAxisAlignment:
-                CrossAxisAlignment.start,
+                CrossAxisAlignment
+                    .start,
             children: [
               SizedBox(
                 width: 130,
                 child: Text(
                   title,
-                  style: const TextStyle(
+                  style:
+                      const TextStyle(
                     fontSize: 13,
                     fontWeight:
                         FontWeight.w600,
@@ -865,7 +1014,8 @@ class WalkRequestDetailsSheet extends StatelessWidget {
 // INFO PILL
 // ============================================================
 
-class _InfoPill extends StatelessWidget {
+class _InfoPill
+    extends StatelessWidget {
   final IconData icon;
   final String text;
 
@@ -884,15 +1034,19 @@ class _InfoPill extends StatelessWidget {
         horizontal: 10,
         vertical: 7,
       ),
-      decoration: BoxDecoration(
+      decoration:
+          BoxDecoration(
         color: Theme.of(context)
             .colorScheme
             .surface,
         borderRadius:
-            BorderRadius.circular(30),
+            BorderRadius.circular(
+          30,
+        ),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize:
+            MainAxisSize.min,
         children: [
           Icon(
             icon,
@@ -905,7 +1059,8 @@ class _InfoPill extends StatelessWidget {
               maxLines: 1,
               overflow:
                   TextOverflow.ellipsis,
-              style: const TextStyle(
+              style:
+                  const TextStyle(
                 fontSize: 12,
                 fontWeight:
                     FontWeight.w600,
@@ -922,7 +1077,8 @@ class _InfoPill extends StatelessWidget {
 // STATUS BADGE
 // ============================================================
 
-class _StatusBadge extends StatelessWidget {
+class _StatusBadge
+    extends StatelessWidget {
   final String status;
 
   const _StatusBadge({
@@ -934,25 +1090,28 @@ class _StatusBadge extends StatelessWidget {
     BuildContext context,
   ) {
     final colorScheme =
-        Theme.of(context).colorScheme;
+        Theme.of(context)
+            .colorScheme;
 
-    final statusLower =
+    final lower =
         status.toLowerCase();
 
     ColorScheme scheme =
         colorScheme;
 
-    if (statusLower == 'cancelled' ||
-        statusLower == 'canceled') {
-      scheme = ColorScheme.fromSeed(
+    if (lower == 'cancelled' ||
+        lower == 'canceled') {
+      scheme =
+          ColorScheme.fromSeed(
         seedColor: Colors.red,
         brightness:
             Theme.of(context)
                 .brightness,
       );
-    } else if (statusLower ==
+    } else if (lower ==
         'completed') {
-      scheme = ColorScheme.fromSeed(
+      scheme =
+          ColorScheme.fromSeed(
         seedColor: Colors.green,
         brightness:
             Theme.of(context)
@@ -966,9 +1125,12 @@ class _StatusBadge extends StatelessWidget {
         horizontal: 11,
         vertical: 7,
       ),
-      decoration: BoxDecoration(
+      decoration:
+          BoxDecoration(
         borderRadius:
-            BorderRadius.circular(30),
+            BorderRadius.circular(
+          30,
+        ),
         color: scheme.primary
             .withValues(alpha: 0.10),
       ),
