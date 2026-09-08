@@ -1,12 +1,5 @@
 import 'package:flutter/material.dart';
 
-/// ===============================================================
-/// DOJO ADMIN — DASHBOARD DESIGN SYSTEM
-/// Primary  : Orange
-/// Secondary: Blue
-/// Style    : Light / Professional / Responsive
-/// ===============================================================
-
 const Color orange = Color(0xFFD35435);
 const Color blue = Color(0xFF2563EB);
 const Color green = Color(0xFF16A34A);
@@ -14,13 +7,8 @@ const Color dark = Color(0xFF0F172A);
 const Color grey = Color(0xFF64748B);
 const Color background = Color(0xFFF8FAFC);
 const Color border = Color(0xFFE2E8F0);
-
 const Color danger = Color(0xFFDC2626);
 const Color warning = Color(0xFFD97706);
-
-/// ===============================================================
-/// DATA PANEL
-/// ===============================================================
 
 class DataPanel extends StatefulWidget {
   final String title;
@@ -47,25 +35,13 @@ class _DataPanelState extends State<DataPanel> {
   Widget build(BuildContext context) {
     return MouseRegion(
       cursor: SystemMouseCursors.basic,
-      onEnter: (_) {
-        if (mounted) {
-          setState(() => _hovered = true);
-        }
-      },
-      onExit: (_) {
-        if (mounted) {
-          setState(() => _hovered = false);
-        }
-      },
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        curve: Curves.easeOut,
         width: double.infinity,
         transform: Matrix4.identity()
-          ..translate(
-            0.0,
-            _hovered ? -1.5 : 0.0,
-          ),
+          ..translate(0.0, _hovered ? -2.0 : 0.0),
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           color: Colors.white,
@@ -78,9 +54,9 @@ class _DataPanelState extends State<DataPanel> {
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(
-                alpha: _hovered ? 0.055 : 0.025,
+                alpha: _hovered ? 0.07 : 0.035,
               ),
-              blurRadius: _hovered ? 18 : 12,
+              blurRadius: _hovered ? 18 : 10,
               offset: const Offset(0, 5),
             ),
           ],
@@ -103,7 +79,7 @@ class _DataPanelState extends State<DataPanel> {
                     size: 20,
                   ),
                 ),
-                const SizedBox(width: 11),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     widget.title,
@@ -111,7 +87,6 @@ class _DataPanelState extends State<DataPanel> {
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontSize: 16,
-                      height: 1.2,
                       fontWeight: FontWeight.w800,
                       color: dark,
                     ),
@@ -119,18 +94,14 @@ class _DataPanelState extends State<DataPanel> {
                 ),
               ],
             ),
-            const SizedBox(height: 17),
-            child,
+            const SizedBox(height: 16),
+            widget.child,
           ],
         ),
       ),
     );
   }
 }
-
-/// ===============================================================
-/// EMPTY MESSAGE
-/// ===============================================================
 
 class EmptyMessage extends StatelessWidget {
   final String text;
@@ -142,51 +113,36 @@ class EmptyMessage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       width: double.infinity,
-      constraints: const BoxConstraints(
-        minHeight: 100,
-      ),
-      padding: const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 20,
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: blue.withValues(alpha: 0.07),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
+      height: 90,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
               Icons.inbox_outlined,
-              size: 19,
-              color: blue,
+              size: 24,
+              color: grey.withValues(alpha: 0.65),
             ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            text,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: grey,
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              height: 1.35,
+            const SizedBox(height: 7),
+            Text(
+              text,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: grey,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
-
-/// ===============================================================
-/// STAT CARD
-/// ===============================================================
 
 class StatCard extends StatefulWidget {
   final String title;
@@ -212,40 +168,28 @@ class _StatCardState extends State<StatCard> {
   @override
   Widget build(BuildContext context) {
     return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) {
-        if (mounted) {
-          setState(() => _hovered = true);
-        }
-      },
-      onExit: (_) {
-        if (mounted) {
-          setState(() => _hovered = false);
-        }
-      },
+      cursor: SystemMouseCursors.basic,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        curve: Curves.easeOut,
-        padding: const EdgeInsets.all(17),
         transform: Matrix4.identity()
-          ..translate(
-            0.0,
-            _hovered ? -2.0 : 0.0,
-          ),
+          ..translate(0.0, _hovered ? -2.0 : 0.0),
+        padding: const EdgeInsets.all(17),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(17),
           border: Border.all(
             color: _hovered
-                ? widget.iconColor.withValues(alpha: 0.25)
+                ? widget.iconColor.withValues(alpha: 0.28)
                 : border,
           ),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(
-                alpha: _hovered ? 0.055 : 0.025,
+                alpha: _hovered ? 0.07 : 0.035,
               ),
-              blurRadius: _hovered ? 18 : 11,
+              blurRadius: _hovered ? 18 : 10,
               offset: const Offset(0, 5),
             ),
           ],
@@ -253,16 +197,16 @@ class _StatCardState extends State<StatCard> {
         child: Row(
           children: [
             Container(
-              width: 50,
-              height: 50,
+              width: 48,
+              height: 48,
               decoration: BoxDecoration(
                 color: widget.iconColor.withValues(alpha: 0.10),
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(13),
               ),
               child: Icon(
                 widget.icon,
                 color: widget.iconColor,
-                size: 22,
+                size: 23,
               ),
             ),
             const SizedBox(width: 13),
@@ -279,19 +223,18 @@ class _StatCardState extends State<StatCard> {
                       fontSize: 12,
                       color: grey,
                       fontWeight: FontWeight.w600,
-                      height: 1.2,
                     ),
                   ),
-                  const SizedBox(height: 5),
+                  const SizedBox(height: 4),
                   Text(
                     widget.value,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontSize: 23,
-                      height: 1.05,
                       fontWeight: FontWeight.w900,
                       color: dark,
+                      height: 1.05,
                     ),
                   ),
                 ],
@@ -303,10 +246,6 @@ class _StatCardState extends State<StatCard> {
     );
   }
 }
-
-/// ===============================================================
-/// ACTION BUTTON
-/// ===============================================================
 
 class ActionButton extends StatefulWidget {
   final String title;
@@ -334,53 +273,32 @@ class _ActionButtonState extends State<ActionButton> {
   Widget build(BuildContext context) {
     return MouseRegion(
       cursor: SystemMouseCursors.click,
-      onEnter: (_) {
-        if (mounted) {
-          setState(() => _hovered = true);
-        }
-      },
-      onExit: (_) {
-        if (mounted) {
-          setState(() {
-            _hovered = false;
-            _pressed = false;
-          });
-        }
-      },
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() {
+        _hovered = false;
+        _pressed = false;
+      }),
       child: GestureDetector(
-        onTapDown: (_) {
-          if (mounted) {
-            setState(() => _pressed = true);
-          }
-        },
-        onTapUp: (_) {
-          if (mounted) {
-            setState(() => _pressed = false);
-          }
-        },
-        onTapCancel: () {
-          if (mounted) {
-            setState(() => _pressed = false);
-          }
-        },
+        onTapDown: (_) => setState(() => _pressed = true),
+        onTapUp: (_) => setState(() => _pressed = false),
+        onTapCancel: () => setState(() => _pressed = false),
         onTap: widget.onTap,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 140),
-          curve: Curves.easeOut,
+          duration: const Duration(milliseconds: 120),
+          transform: Matrix4.identity()
+            ..scale(_pressed ? 0.97 : 1.0),
           padding: const EdgeInsets.symmetric(
             horizontal: 13,
             vertical: 10,
           ),
-          transform: Matrix4.identity()
-            ..scale(_pressed ? 0.97 : 1.0),
           decoration: BoxDecoration(
-            color: _hovered
-                ? widget.color.withValues(alpha: 0.13)
-                : widget.color.withValues(alpha: 0.08),
+            color: widget.color.withValues(
+              alpha: _hovered ? 0.13 : 0.08,
+            ),
             borderRadius: BorderRadius.circular(11),
             border: Border.all(
               color: widget.color.withValues(
-                alpha: _hovered ? 0.28 : 0.18,
+                alpha: _hovered ? 0.30 : 0.18,
               ),
             ),
           ),
@@ -411,19 +329,13 @@ class _ActionButtonState extends State<ActionButton> {
   }
 }
 
-/// ===============================================================
-/// PHOTO AVATAR
-/// ===============================================================
-
 Widget photoAvatar({
   required String? imageUrl,
   required IconData icon,
   required Color color,
 }) {
-  final String? cleanUrl =
-      imageUrl?.trim().isNotEmpty == true
-          ? imageUrl!.trim()
-          : null;
+  final hasImage =
+      imageUrl != null && imageUrl.trim().isNotEmpty;
 
   return Container(
     width: 44,
@@ -432,13 +344,10 @@ Widget photoAvatar({
     decoration: BoxDecoration(
       color: color.withValues(alpha: 0.10),
       borderRadius: BorderRadius.circular(12),
-      border: Border.all(
-        color: color.withValues(alpha: 0.10),
-      ),
     ),
-    child: cleanUrl != null
+    child: hasImage
         ? Image.network(
-            cleanUrl,
+            imageUrl!,
             fit: BoxFit.cover,
             loadingBuilder: (
               context,
@@ -455,8 +364,7 @@ Widget photoAvatar({
                   height: 17,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    value: loadingProgress.expectedTotalBytes !=
-                            null
+                    value: loadingProgress.expectedTotalBytes != null
                         ? loadingProgress.cumulativeBytesLoaded /
                             loadingProgress.expectedTotalBytes!
                         : null,
@@ -466,21 +374,15 @@ Widget photoAvatar({
               );
             },
             errorBuilder: (_, __, ___) {
-              return Center(
-                child: Icon(
-                  icon,
-                  color: color,
-                  size: 21,
-                ),
+              return Icon(
+                icon,
+                color: color,
               );
             },
           )
-        : Center(
-            child: Icon(
-              icon,
-              color: color,
-              size: 21,
-            ),
+        : Icon(
+            icon,
+            color: color,
           ),
   );
 }
