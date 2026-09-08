@@ -37,7 +37,9 @@ class WalkRequestDetailsSummary extends StatelessWidget {
       decoration: BoxDecoration(
         color: white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: border),
+        border: Border.all(
+          color: border,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -129,10 +131,14 @@ class _SummaryRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10),
+      padding: const EdgeInsets.symmetric(
+        vertical: 10,
+      ),
       decoration: const BoxDecoration(
         border: Border(
-          bottom: BorderSide(color: border),
+          bottom: BorderSide(
+            color: border,
+          ),
         ),
       ),
       child: Row(
