@@ -122,6 +122,10 @@ class WalkRequestDetailsScreen extends StatelessWidget {
     }
   }
 
+  void _openMaps(LatLng location) {
+    onOpenMaps?.call(location);
+  }
+
   @override
   Widget build(BuildContext context) {
     final ownerName =
@@ -306,7 +310,7 @@ class WalkRequestDetailsScreen extends StatelessWidget {
                                         ownerLocation != null &&
                                                 onOpenMaps != null
                                             ? () {
-                                                onOpenMaps!(
+                                                _openMaps(
                                                   ownerLocation,
                                                 );
                                               }
@@ -365,7 +369,7 @@ class WalkRequestDetailsScreen extends StatelessWidget {
                                       onOpenMaps:
                                           onOpenMaps != null
                                               ? () {
-                                                  onOpenMaps!(
+                                                  _openMaps(
                                                     ownerLocation,
                                                   );
                                                 }
@@ -441,7 +445,7 @@ class WalkRequestDetailsScreen extends StatelessWidget {
                                   ownerLocation != null &&
                                           onOpenMaps != null
                                       ? () {
-                                          onOpenMaps!(
+                                          _openMaps(
                                             ownerLocation,
                                           );
                                         }
@@ -459,7 +463,7 @@ class WalkRequestDetailsScreen extends StatelessWidget {
                                 onOpenMaps:
                                     onOpenMaps != null
                                         ? () {
-                                            onOpenMaps!(
+                                            _openMaps(
                                               ownerLocation,
                                             );
                                           }
