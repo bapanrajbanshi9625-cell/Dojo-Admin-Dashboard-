@@ -25,6 +25,15 @@ class _WalkRequestsScreenState extends State<WalkRequestsScreen> {
 
   String _filter = 'All';
 
+  static const Color _orange = Color(0xFFD35435);
+  static const Color _blue = Color(0xFF2563EB);
+  static const Color _green = Color(0xFF16A34A);
+  static const Color _danger = Color(0xFFDC2626);
+  static const Color _dark = Color(0xFF0F172A);
+  static const Color _grey = Color(0xFF64748B);
+  static const Color _background = Color(0xFFF8FAFC);
+  static const Color _border = Color(0xFFE2E8F0);
+
   static const List<String> _filters = [
     'All',
     'Pending',
@@ -64,24 +73,6 @@ class _WalkRequestsScreenState extends State<WalkRequestsScreen> {
       data,
       'status',
     ).trim().toLowerCase();
-  }
-
-  bool _isPending(
-    Map<String, dynamic> data,
-  ) {
-    final status = _status(data);
-
-    return status == 'searching' ||
-        status == 'pending';
-  }
-
-  bool _isAssigned(
-    Map<String, dynamic> data,
-  ) {
-    final status = _status(data);
-
-    return status == 'accepted' ||
-        status == 'active';
   }
 
   // ==========================================================
@@ -198,8 +189,16 @@ class _WalkRequestsScreenState extends State<WalkRequestsScreen> {
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          content: Text(message),
+          content: Text(
+            message,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+          ),
           behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.all(16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       );
   }
@@ -270,16 +269,48 @@ class _WalkRequestsScreenState extends State<WalkRequestsScreen> {
             final isOther =
                 selectedReason == 'Other';
 
+            final width =
+                MediaQuery.sizeOf(context).width;
+
             return AlertDialog(
+              insetPadding: EdgeInsets.symmetric(
+                horizontal: width < 500 ? 16 : 40,
+                vertical: 24,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              titlePadding: const EdgeInsets.fromLTRB(
+                22,
+                20,
+                22,
+                8,
+              ),
+              contentPadding: const EdgeInsets.fromLTRB(
+                22,
+                8,
+                22,
+                4,
+              ),
+              actionsPadding: const EdgeInsets.fromLTRB(
+                16,
+                4,
+                16,
+                14,
+              ),
               title: const Text(
                 'Cancel Walk Request',
                 style: TextStyle(
-                  fontWeight: FontWeight.w700,
+                  color: _dark,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
               content: ConstrainedBox(
-                constraints: const BoxConstraints(
+                constraints: BoxConstraints(
                   maxWidth: 480,
+                  maxHeight:
+                      MediaQuery.sizeOf(context).height * 0.62,
                 ),
                 child: SingleChildScrollView(
                   child: Column(
@@ -289,23 +320,54 @@ class _WalkRequestsScreenState extends State<WalkRequestsScreen> {
                     children: [
                       const Text(
                         'Please select a reason for cancelling this request.',
+                        style: TextStyle(
+                          color: _grey,
+                          height: 1.4,
+                        ),
                       ),
                       const SizedBox(height: 18),
-
                       DropdownButtonFormField<String>(
-                       value: selectedReason,
-                       decoration: InputDecoration(
-                        labelText: 'Cancellation reason',
-                        border: OutlineInputBorder(
-                         borderRadius: BorderRadius.circular(12),
-                       ),
-                      ),
+                        initialValue: selectedReason,
+                        isExpanded: true,
+                        decoration: InputDecoration(
+                          labelText: 'Cancellation reason',
+                          filled: true,
+                          fillColor: _background,
+                          border: OutlineInputBorder(
+                            borderRadius:
+                                BorderRadius.circular(14),
+                            borderSide: const BorderSide(
+                              color: _border,
+                            ),
+                          ),
+                          enabledBorder:
+                              OutlineInputBorder(
+                            borderRadius:
+                                BorderRadius.circular(14),
+                            borderSide: const BorderSide(
+                              color: _border,
+                            ),
+                          ),
+                          focusedBorder:
+                              OutlineInputBorder(
+                            borderRadius:
+                                BorderRadius.circular(14),
+                            borderSide:
+                                const BorderSide(
+                              color: _orange,
+                              width: 1.5,
+                            ),
+                          ),
+                        ),
                         items: reasons.map(
                           (reason) {
-                            return DropdownMenuItem<
-                                String>(
+                            return DropdownMenuItem<String>(
                               value: reason,
-                              child: Text(reason),
+                              child: Text(
+                                reason,
+                                overflow:
+                                    TextOverflow.ellipsis,
+                              ),
                             );
                           },
                         ).toList(),
@@ -319,25 +381,44 @@ class _WalkRequestsScreenState extends State<WalkRequestsScreen> {
                           });
                         },
                       ),
-
                       if (isOther) ...[
                         const SizedBox(height: 14),
                         TextField(
-                          controller:
-                              otherController,
+                          controller: otherController,
                           maxLines: 3,
                           maxLength: 300,
-                          decoration:
-                              InputDecoration(
+                          decoration: InputDecoration(
                             labelText:
                                 'Enter cancellation reason',
                             hintText:
                                 'Please provide a reason...',
-                            border:
+                            filled: true,
+                            fillColor: _background,
+                            border: OutlineInputBorder(
+                              borderRadius:
+                                  BorderRadius.circular(14),
+                              borderSide:
+                                  const BorderSide(
+                                color: _border,
+                              ),
+                            ),
+                            enabledBorder:
                                 OutlineInputBorder(
                               borderRadius:
-                                  BorderRadius.circular(
-                                12,
+                                  BorderRadius.circular(14),
+                              borderSide:
+                                  const BorderSide(
+                                color: _border,
+                              ),
+                            ),
+                            focusedBorder:
+                                OutlineInputBorder(
+                              borderRadius:
+                                  BorderRadius.circular(14),
+                              borderSide:
+                                  const BorderSide(
+                                color: _orange,
+                                width: 1.5,
                               ),
                             ),
                           ),
@@ -354,14 +435,28 @@ class _WalkRequestsScreenState extends State<WalkRequestsScreen> {
                       dialogContext,
                     );
                   },
-                  child: const Text('Keep Request'),
+                  child: const Text(
+                    'Keep Request',
+                    style: TextStyle(
+                      color: _grey,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
                 FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _danger,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(0, 44),
+                    shape: RoundedRectangleBorder(
+                      borderRadius:
+                          BorderRadius.circular(12),
+                    ),
+                  ),
                   onPressed: () {
                     if (selectedReason == 'Other') {
                       final custom =
-                          otherController.text
-                              .trim();
+                          otherController.text.trim();
 
                       if (custom.isEmpty) {
                         ScaffoldMessenger.of(
@@ -460,6 +555,9 @@ class _WalkRequestsScreenState extends State<WalkRequestsScreen> {
           return Dialog(
             insetPadding: const EdgeInsets.all(24),
             clipBehavior: Clip.antiAlias,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(22),
+            ),
             child: ConstrainedBox(
               constraints: const BoxConstraints(
                 maxWidth: 1050,
@@ -494,7 +592,7 @@ class _WalkRequestsScreenState extends State<WalkRequestsScreen> {
     }
 
     // ========================================================
-    // MOBILE
+    // MOBILE DETAILS
     // ========================================================
 
     showModalBottomSheet<void>(
@@ -536,12 +634,33 @@ class _WalkRequestsScreenState extends State<WalkRequestsScreen> {
     BuildContext context,
   ) {
     return Scaffold(
+      backgroundColor: _background,
       appBar: AppBar(
-        title: const Text(
-          'Walk Requests',
-          style: TextStyle(
-            fontWeight: FontWeight.w700,
-          ),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        elevation: 0,
+        scrolledUnderElevation: 0.5,
+        titleSpacing: 16,
+        title: const Row(
+          children: [
+            Icon(
+              Icons.receipt_long_rounded,
+              color: _orange,
+              size: 23,
+            ),
+            SizedBox(width: 10),
+            Flexible(
+              child: Text(
+                'Walk Requests',
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: _dark,
+                  fontSize: 19,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
       body: StreamBuilder<
@@ -554,7 +673,9 @@ class _WalkRequestsScreenState extends State<WalkRequestsScreen> {
           if (snapshot.connectionState ==
               ConnectionState.waiting) {
             return const Center(
-              child: CircularProgressIndicator(),
+              child: CircularProgressIndicator(
+                color: _orange,
+              ),
             );
           }
 
@@ -578,7 +699,6 @@ class _WalkRequestsScreenState extends State<WalkRequestsScreen> {
           return Column(
             children: [
               _buildTopSection(docs),
-
               Expanded(
                 child: filteredDocs.isEmpty
                     ? _buildEmptyState()
@@ -601,37 +721,61 @@ class _WalkRequestsScreenState extends State<WalkRequestsScreen> {
     Object? error,
   ) {
     return Center(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: ConstrainedBox(
           constraints: const BoxConstraints(
-            maxWidth: 500,
+            maxWidth: 520,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.error_outline,
-                size: 56,
-                color: Theme.of(context)
-                    .colorScheme
-                    .error,
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius:
+                  BorderRadius.circular(20),
+              border: Border.all(
+                color: _border,
               ),
-              const SizedBox(height: 14),
-              const Text(
-                'Unable to load walk requests.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 58,
+                  height: 58,
+                  decoration: BoxDecoration(
+                    color: _danger.withValues(
+                      alpha: 0.10,
+                    ),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.error_outline_rounded,
+                    size: 32,
+                    color: _danger,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '$error',
-                textAlign: TextAlign.center,
-              ),
-            ],
+                const SizedBox(height: 16),
+                const Text(
+                  'Unable to load walk requests.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: _dark,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '$error',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: _grey,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -653,17 +797,25 @@ class _WalkRequestsScreenState extends State<WalkRequestsScreen> {
         context,
         constraints,
       ) {
-        final isWide =
-            constraints.maxWidth >= 900;
+        final width = constraints.maxWidth;
+        final horizontalPadding =
+            width >= 1200
+                ? 32.0
+                : width >= 700
+                    ? 24.0
+                    : 12.0;
 
         return ListView.separated(
-          padding: EdgeInsets.symmetric(
-            horizontal: isWide ? 32 : 16,
-            vertical: 18,
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: EdgeInsets.fromLTRB(
+            horizontalPadding,
+            10,
+            horizontalPadding,
+            24,
           ),
           itemCount: docs.length,
           separatorBuilder: (_, __) =>
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
           itemBuilder: (
             context,
             index,
@@ -673,8 +825,7 @@ class _WalkRequestsScreenState extends State<WalkRequestsScreen> {
 
             return Center(
               child: ConstrainedBox(
-                constraints:
-                    const BoxConstraints(
+                constraints: const BoxConstraints(
                   maxWidth: 1100,
                 ),
                 child: WalkRequestCard(
@@ -741,8 +892,14 @@ class _WalkRequestsScreenState extends State<WalkRequestsScreen> {
         context,
         constraints,
       ) {
-        final isWide =
-            constraints.maxWidth >= 700;
+        final width = constraints.maxWidth;
+        final isMobile = width < 600;
+        final horizontalPadding =
+            width >= 1200
+                ? 32.0
+                : width >= 700
+                    ? 24.0
+                    : 12.0;
 
         return Center(
           child: ConstrainedBox(
@@ -751,9 +908,9 @@ class _WalkRequestsScreenState extends State<WalkRequestsScreen> {
             ),
             child: Padding(
               padding: EdgeInsets.fromLTRB(
-                isWide ? 32 : 16,
-                20,
-                isWide ? 32 : 16,
+                horizontalPadding,
+                isMobile ? 12 : 18,
+                horizontalPadding,
                 8,
               ),
               child: Column(
@@ -762,171 +919,186 @@ class _WalkRequestsScreenState extends State<WalkRequestsScreen> {
                   // STATS
                   // ==================================================
 
-                  if (isWide)
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _StatBox(
-                            title: 'Pending',
-                            value:
-                                pending.toString(),
-                            icon:
-                                Icons.pending_actions,
-                          ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _StatBox(
+                          title: 'Pending',
+                          value: pending.toString(),
+                          icon:
+                              Icons.pending_actions_rounded,
+                          iconColor: _orange,
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _StatBox(
-                            title: 'Accepted',
-                            value:
-                                accepted.toString(),
-                            icon: Icons
-                                .check_circle_outline,
-                          ),
+                      ),
+                      SizedBox(
+                        width: isMobile ? 7 : 12,
+                      ),
+                      Expanded(
+                        child: _StatBox(
+                          title: 'Accepted',
+                          value: accepted.toString(),
+                          icon:
+                              Icons.check_circle_outline_rounded,
+                          iconColor: _green,
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _StatBox(
-                            title: 'Cancelled',
-                            value:
-                                cancelled.toString(),
-                            icon:
-                                Icons.cancel_outlined,
-                          ),
+                      ),
+                      SizedBox(
+                        width: isMobile ? 7 : 12,
+                      ),
+                      Expanded(
+                        child: _StatBox(
+                          title: 'Cancelled',
+                          value: cancelled.toString(),
+                          icon:
+                              Icons.cancel_outlined,
+                          iconColor: _danger,
                         ),
-                      ],
-                    )
-                  else
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _StatBox(
-                            title: 'Pending',
-                            value:
-                                pending.toString(),
-                            icon:
-                                Icons.pending_actions,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _StatBox(
-                            title: 'Accepted',
-                            value:
-                                accepted.toString(),
-                            icon: Icons
-                                .check_circle_outline,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _StatBox(
-                            title: 'Cancelled',
-                            value:
-                                cancelled.toString(),
-                            icon:
-                                Icons.cancel_outlined,
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
+                  ),
 
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
 
                   // ==================================================
                   // SEARCH
                   // ==================================================
 
                   TextField(
-                    controller:
-                        _searchController,
+                    controller: _searchController,
                     onChanged: (_) {
                       setState(() {});
                     },
                     textInputAction:
                         TextInputAction.search,
-                    decoration:
-                        InputDecoration(
-                      hintText:
-                          'Search owner, request ID, walker, dog...',
-                      prefixIcon:
-                          const Icon(
-                        Icons.search,
+                    decoration: InputDecoration(
+                      hintText: isMobile
+                          ? 'Search requests, owner, walker...'
+                          : 'Search owner, request ID, walker, dog...',
+                      hintStyle: const TextStyle(
+                        color: _grey,
+                        fontSize: 13,
+                      ),
+                      prefixIcon: const Icon(
+                        Icons.search_rounded,
+                        color: _grey,
                       ),
                       suffixIcon:
-                          _searchController
-                                  .text
-                                  .isEmpty
+                          _searchController.text.isEmpty
                               ? null
                               : IconButton(
                                   onPressed: () {
-                                    _searchController
-                                        .clear();
-
+                                    _searchController.clear();
                                     setState(() {});
                                   },
-                                  icon:
-                                      const Icon(
-                                    Icons.clear,
+                                  icon: const Icon(
+                                    Icons.clear_rounded,
                                   ),
                                 ),
                       filled: true,
-                      border:
+                      fillColor: Colors.white,
+                      contentPadding:
+                          const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius:
+                            BorderRadius.circular(14),
+                        borderSide:
+                            const BorderSide(
+                          color: _border,
+                        ),
+                      ),
+                      enabledBorder:
                           OutlineInputBorder(
                         borderRadius:
-                            BorderRadius.circular(
-                          14,
-                        ),
+                            BorderRadius.circular(14),
                         borderSide:
-                            BorderSide.none,
+                            const BorderSide(
+                          color: _border,
+                        ),
+                      ),
+                      focusedBorder:
+                          OutlineInputBorder(
+                        borderRadius:
+                            BorderRadius.circular(14),
+                        borderSide:
+                            const BorderSide(
+                          color: _blue,
+                          width: 1.5,
+                        ),
                       ),
                     ),
                   ),
 
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 11),
 
                   // ==================================================
                   // FILTERS
                   // ==================================================
 
-                  Align(
-                    alignment:
-                        Alignment.centerLeft,
-                    child:
-                        SingleChildScrollView(
+                  SizedBox(
+                    height: 42,
+                    child: ListView.separated(
                       scrollDirection:
                           Axis.horizontal,
-                      child: Row(
-                        children:
-                            _filters.map(
-                          (filter) {
-                            final selected =
-                                _filter ==
-                                    filter;
+                      physics:
+                          const BouncingScrollPhysics(),
+                      itemCount: _filters.length,
+                      separatorBuilder:
+                          (_, __) =>
+                              const SizedBox(width: 7),
+                      itemBuilder: (
+                        context,
+                        index,
+                      ) {
+                        final filter =
+                            _filters[index];
+                        final selected =
+                            _filter == filter;
 
-                            return Padding(
-                              padding:
-                                  const EdgeInsets
-                                      .only(
-                                right: 8,
-                              ),
-                              child:
-                                  ChoiceChip(
-                                label:
-                                    Text(filter),
-                                selected:
-                                    selected,
-                                onSelected: (_) {
-                                  setState(() {
-                                    _filter =
-                                        filter;
-                                  });
-                                },
-                              ),
-                            );
+                        return ChoiceChip(
+                          label: Text(
+                            filter,
+                            style: TextStyle(
+                              color: selected
+                                  ? Colors.white
+                                  : _dark,
+                              fontWeight:
+                                  FontWeight.w600,
+                              fontSize: 12,
+                            ),
+                          ),
+                          selected: selected,
+                          showCheckmark: false,
+                          selectedColor: _blue,
+                          backgroundColor:
+                              Colors.white,
+                          side: BorderSide(
+                            color: selected
+                                ? _blue
+                                : _border,
+                          ),
+                          shape:
+                              RoundedRectangleBorder(
+                            borderRadius:
+                                BorderRadius.circular(
+                              11,
+                            ),
+                          ),
+                          padding:
+                              const EdgeInsets
+                                  .symmetric(
+                            horizontal: 12,
+                            vertical: 7,
+                          ),
+                          onSelected: (_) {
+                            setState(() {
+                              _filter = filter;
+                            });
                           },
-                        ).toList(),
-                      ),
+                        );
+                      },
                     ),
                   ),
                 ],
@@ -944,36 +1116,61 @@ class _WalkRequestsScreenState extends State<WalkRequestsScreen> {
 
   Widget _buildEmptyState() {
     return Center(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.inbox_outlined,
-              size: 64,
-              color: Theme.of(context)
-                  .colorScheme
-                  .onSurfaceVariant,
+        child: Container(
+          width: double.infinity,
+          constraints: const BoxConstraints(
+            maxWidth: 480,
+          ),
+          padding: const EdgeInsets.all(28),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius:
+                BorderRadius.circular(20),
+            border: Border.all(
+              color: _border,
             ),
-            const SizedBox(height: 14),
-            const Text(
-              'No walk requests found',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 68,
+                height: 68,
+                decoration: BoxDecoration(
+                  color: _blue.withValues(
+                    alpha: 0.08,
+                  ),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.inbox_outlined,
+                  size: 34,
+                  color: _blue,
+                ),
               ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Try changing the filter or search term.',
-              style: TextStyle(
-                color: Theme.of(context)
-                    .colorScheme
-                    .onSurfaceVariant,
+              const SizedBox(height: 16),
+              const Text(
+                'No walk requests found',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: _dark,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 7),
+              const Text(
+                'Try changing the filter or search term.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: _grey,
+                  height: 1.4,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -994,54 +1191,63 @@ class _StatBox extends StatelessWidget {
   final String title;
   final String value;
   final IconData icon;
+  final Color iconColor;
 
   const _StatBox({
     required this.title,
     required this.value,
     required this.icon,
+    required this.iconColor,
   });
 
   @override
   Widget build(
     BuildContext context,
   ) {
-    final colorScheme =
-        Theme.of(context).colorScheme;
+    final width = MediaQuery.sizeOf(context).width;
+    final isMobile = width < 600;
 
     return Container(
-      constraints: const BoxConstraints(
-        minHeight: 82,
+      constraints: BoxConstraints(
+        minHeight: isMobile ? 74 : 84,
       ),
-      padding: const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 12,
+      padding: EdgeInsets.symmetric(
+        horizontal: isMobile ? 9 : 16,
+        vertical: isMobile ? 9 : 12,
       ),
       decoration: BoxDecoration(
-        color: colorScheme.surface,
+        color: Colors.white,
         borderRadius:
-            BorderRadius.circular(16),
+            BorderRadius.circular(
+          isMobile ? 13 : 16,
+        ),
         border: Border.all(
-          color: colorScheme.outlineVariant,
+          color: _WalkRequestsScreenState._border,
         ),
       ),
       child: Row(
         children: [
           Container(
-            width: 42,
-            height: 42,
+            width: isMobile ? 34 : 42,
+            height: isMobile ? 34 : 42,
             decoration: BoxDecoration(
-              color: colorScheme
-                  .primaryContainer,
+              color: iconColor.withValues(
+                alpha: 0.10,
+              ),
               borderRadius:
-                  BorderRadius.circular(12),
+                  BorderRadius.circular(
+                isMobile ? 10 : 12,
+              ),
             ),
             child: Icon(
               icon,
-              color: colorScheme
-                  .onPrimaryContainer,
+              size: isMobile ? 18 : 21,
+              color: iconColor,
             ),
           ),
-          const SizedBox(width: 12),
+          SizedBox(
+            width: isMobile ? 7 : 12,
+          ),
           Expanded(
             child: Column(
               mainAxisAlignment:
@@ -1055,9 +1261,11 @@ class _StatBox extends StatelessWidget {
                   overflow:
                       TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 12,
-                    color: colorScheme
-                        .onSurfaceVariant,
+                    fontSize: isMobile ? 10 : 12,
+                    color:
+                        _WalkRequestsScreenState._grey,
+                    fontWeight:
+                        FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -1066,9 +1274,12 @@ class _StatBox extends StatelessWidget {
                   maxLines: 1,
                   overflow:
                       TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
+                  style: TextStyle(
+                    color:
+                        _WalkRequestsScreenState._dark,
+                    fontSize: isMobile ? 18 : 22,
+                    fontWeight:
+                        FontWeight.w800,
                   ),
                 ),
               ],
@@ -1087,7 +1298,6 @@ class _StatBox extends StatelessWidget {
 class _AssignWalkerDialog
     extends StatefulWidget {
   final String requestId;
-
   final Map<String, dynamic> requestData;
 
   final List<
@@ -1115,6 +1325,13 @@ class _AssignWalkerDialogState
 
   bool saving = false;
 
+  static const Color _orange = Color(0xFFD35435);
+  static const Color _blue = Color(0xFF2563EB);
+  static const Color _dark = Color(0xFF0F172A);
+  static const Color _grey = Color(0xFF64748B);
+  static const Color _border = Color(0xFFE2E8F0);
+  static const Color _background = Color(0xFFF8FAFC);
+
   String _value(
     Map<String, dynamic> data,
     String key,
@@ -1129,13 +1346,13 @@ class _AssignWalkerDialogState
   Future<void> _assign() async {
     if (selectedDocId == null) {
       ScaffoldMessenger.of(context)
-        .showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Please select a walker.',
-            ),
+          .showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Please select a walker.',
           ),
-        );
+        ),
+      );
 
       return;
     }
@@ -1161,25 +1378,25 @@ class _AssignWalkerDialogState
 
     if (walkerUid.isEmpty) {
       ScaffoldMessenger.of(context)
-        .showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Selected walker has no valid UID.',
-            ),
+          .showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Selected walker has no valid UID.',
           ),
-        );
+        ),
+      );
       return;
     }
 
     if (walkerId.isEmpty) {
       ScaffoldMessenger.of(context)
-        .showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Selected walker has no Walker ID.',
-            ),
+          .showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Selected walker has no Walker ID.',
           ),
-        );
+        ),
+      );
       return;
     }
 
@@ -1202,17 +1419,17 @@ class _AssignWalkerDialogState
       Navigator.pop(context);
 
       ScaffoldMessenger.of(context)
-        .showSnackBar(
-          SnackBar(
-            content: Text(
-              _currentWalkerId().isEmpty
-                  ? 'Walker assigned successfully.'
-                  : 'Walker changed successfully.',
-            ),
-            behavior:
-                SnackBarBehavior.floating,
+          .showSnackBar(
+        SnackBar(
+          content: Text(
+            _currentWalkerId().isEmpty
+                ? 'Walker assigned successfully.'
+                : 'Walker changed successfully.',
           ),
-        );
+          behavior:
+              SnackBarBehavior.floating,
+        ),
+      );
     } catch (e) {
       if (!mounted) {
         return;
@@ -1223,13 +1440,15 @@ class _AssignWalkerDialogState
       });
 
       ScaffoldMessenger.of(context)
-        .showSnackBar(
-          SnackBar(
-            content: Text(
-              'Failed to assign walker: $e',
-            ),
+          .showSnackBar(
+        SnackBar(
+          content: Text(
+            'Failed to assign walker: $e',
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
           ),
-        );
+        ),
+      );
     }
   }
 
@@ -1247,31 +1466,104 @@ class _AssignWalkerDialogState
     final changing =
         _currentWalkerId().isNotEmpty;
 
+    final size = MediaQuery.sizeOf(context);
+    final isMobile = size.width < 600;
+
     return AlertDialog(
-      title: Text(
-        changing
-            ? 'Change Walker'
-            : 'Assign Walker',
-        style: const TextStyle(
-          fontWeight: FontWeight.w700,
-        ),
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: isMobile ? 12 : 40,
+        vertical: 20,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius:
+            BorderRadius.circular(20),
+      ),
+      titlePadding: const EdgeInsets.fromLTRB(
+        20,
+        18,
+        20,
+        8,
+      ),
+      contentPadding: const EdgeInsets.fromLTRB(
+        14,
+        6,
+        14,
+        4,
+      ),
+      actionsPadding: const EdgeInsets.fromLTRB(
+        14,
+        4,
+        14,
+        12,
+      ),
+      title: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: _blue.withValues(
+                alpha: 0.10,
+              ),
+              borderRadius:
+                  BorderRadius.circular(11),
+            ),
+            child: const Icon(
+              Icons.person_add_alt_1_rounded,
+              color: _blue,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              changing
+                  ? 'Change Walker'
+                  : 'Assign Walker',
+              maxLines: 1,
+              overflow:
+                  TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: _dark,
+                fontSize: 19,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
       ),
       content: SizedBox(
-        width: 520,
-        height: 500,
+        width: isMobile
+            ? double.maxFinite
+            : 520,
+        height: isMobile
+            ? size.height * 0.58
+            : 500,
         child: widget.walkers.isEmpty
             ? const Center(
                 child: Text(
                   'No walkers found.',
+                  style: TextStyle(
+                    color: _grey,
+                    fontWeight:
+                        FontWeight.w600,
+                  ),
                 ),
               )
             : ListView.separated(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior
+                        .onDrag,
+                padding:
+                    const EdgeInsets.symmetric(
+                  vertical: 4,
+                ),
                 itemCount:
                     widget.walkers.length,
                 separatorBuilder:
                     (_, __) =>
                         const SizedBox(
-                  height: 8,
+                  height: 7,
                 ),
                 itemBuilder: (
                   context,
@@ -1307,60 +1599,13 @@ class _AssignWalkerDialogState
                       selectedDocId ==
                           doc.id;
 
-                  return Card(
-                    margin: EdgeInsets.zero,
-                    child: ListTile(
-                      contentPadding:
-                          const EdgeInsets
-                              .symmetric(
-                        horizontal: 14,
-                        vertical: 4,
+                  return Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius:
+                          BorderRadius.circular(
+                        14,
                       ),
-                      leading:
-                          const CircleAvatar(
-                        child: Icon(
-                          Icons.person_outline,
-                        ),
-                      ),
-                      title: Text(
-                        name.isEmpty
-                            ? 'Walker'
-                            : name,
-                        maxLines: 1,
-                        overflow:
-                            TextOverflow
-                                .ellipsis,
-                        style:
-                            const TextStyle(
-                          fontWeight:
-                              FontWeight.w600,
-                        ),
-                      ),
-                      subtitle: Text(
-                        walkerId.isEmpty
-                            ? doc.id
-                            : walkerId,
-                        maxLines: 1,
-                        overflow:
-                            TextOverflow
-                                .ellipsis,
-                      ),
-                      trailing:
-                          Radio<String>(
-                        value: doc.id,
-                        groupValue:
-                            selectedDocId,
-                        onChanged:
-                            saving
-                                ? null
-                                : (value) {
-                                    setState(() {
-                                      selectedDocId =
-                                          value;
-                                    });
-                                  },
-                      ),
-                      selected: selected,
                       onTap: saving
                           ? null
                           : () {
@@ -1369,6 +1614,127 @@ class _AssignWalkerDialogState
                                     doc.id;
                               });
                             },
+                      child: AnimatedContainer(
+                        duration:
+                            const Duration(
+                          milliseconds: 180,
+                        ),
+                        padding:
+                            const EdgeInsets
+                                .symmetric(
+                          horizontal: 11,
+                          vertical: 10,
+                        ),
+                        decoration:
+                            BoxDecoration(
+                          color: selected
+                              ? _blue.withValues(
+                                  alpha: 0.06,
+                                )
+                              : _background,
+                          borderRadius:
+                              BorderRadius.circular(
+                            14,
+                          ),
+                          border: Border.all(
+                            color: selected
+                                ? _blue
+                                : _border,
+                            width:
+                                selected
+                                    ? 1.4
+                                    : 1,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 42,
+                              height: 42,
+                              decoration:
+                                  BoxDecoration(
+                                color: _orange
+                                    .withValues(
+                                  alpha: 0.10,
+                                ),
+                                shape:
+                                    BoxShape.circle,
+                              ),
+                              child:
+                                  const Icon(
+                                Icons
+                                    .person_outline_rounded,
+                                color: _orange,
+                                size: 22,
+                              ),
+                            ),
+                            const SizedBox(
+                              width: 11,
+                            ),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment
+                                        .start,
+                                children: [
+                                  Text(
+                                    name.isEmpty
+                                        ? 'Walker'
+                                        : name,
+                                    maxLines: 1,
+                                    overflow:
+                                        TextOverflow
+                                            .ellipsis,
+                                    style:
+                                        const TextStyle(
+                                      color: _dark,
+                                      fontSize: 14,
+                                      fontWeight:
+                                          FontWeight
+                                              .w700,
+                                    ),
+                                  ),
+                                  const SizedBox(
+                                    height: 3,
+                                  ),
+                                  Text(
+                                    walkerId.isEmpty
+                                        ? doc.id
+                                        : walkerId,
+                                    maxLines: 1,
+                                    overflow:
+                                        TextOverflow
+                                            .ellipsis,
+                                    style:
+                                        const TextStyle(
+                                      color: _grey,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(
+                              width: 6,
+                            ),
+                            Radio<String>(
+                              value: doc.id,
+                              groupValue:
+                                  selectedDocId,
+                              activeColor: _blue,
+                              onChanged:
+                                  saving
+                                      ? null
+                                      : (value) {
+                                          setState(() {
+                                            selectedDocId =
+                                                value;
+                                          });
+                                        },
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   );
                 },
@@ -1383,9 +1749,29 @@ class _AssignWalkerDialogState
                 },
           child: const Text(
             'Cancel',
+            style: TextStyle(
+              color: _grey,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
         FilledButton(
+          style: FilledButton.styleFrom(
+            backgroundColor: _orange,
+            foregroundColor: Colors.white,
+            minimumSize: const Size(
+              0,
+              44,
+            ),
+            padding:
+                const EdgeInsets.symmetric(
+              horizontal: 16,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius:
+                  BorderRadius.circular(12),
+            ),
+          ),
           onPressed:
               saving ? null : _assign,
           child: saving
@@ -1395,6 +1781,7 @@ class _AssignWalkerDialogState
                   child:
                       CircularProgressIndicator(
                     strokeWidth: 2,
+                    color: Colors.white,
                   ),
                 )
               : Text(
