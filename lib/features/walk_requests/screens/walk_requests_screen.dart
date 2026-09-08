@@ -378,8 +378,8 @@ class _WalkRequestsScreenState extends State<WalkRequestsScreen> {
                       ),
                       DropdownButtonFormField<
                           String>(
-                        initialValue:
-                            selectedReason,
+                        value:
+                          selectedReason,
                         isExpanded: true,
                         decoration:
                             InputDecoration(
