@@ -32,13 +32,17 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.32.8"
+          flutter-version: "3.44.8"
           channel: stable
           cache: true
 
       # Enable Flutter Web
       - name: Enable Flutter Web
         run: flutter config --enable-web
+
+      # Show Flutter Version
+      - name: Flutter Version
+        run: flutter --version
 
       # Get Dependencies
       - name: Get dependencies
@@ -121,7 +125,7 @@ jobs:
           retention-days: 7
 
       # Cleanup Service Account
-      - name: Cleanup Firebase Service Account
+      - name: Cleanup Service Account
         if: always()
         run: |
           rm -f "$RUNNER_TEMP/firebase-service-account.json"
