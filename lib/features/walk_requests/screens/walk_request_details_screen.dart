@@ -2,7 +2,9 @@
 // lib/features/walk_requests/screens/walk_request_details_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../utils/walk_request_details_helpers.dart';
 import '../widgets/walk_request_details_actions.dart';
@@ -40,9 +42,85 @@ class WalkRequestDetailsScreen extends StatelessWidget {
   static const Color blue = Color(0xFF2563EB);
   static const Color background = Color(0xFFF8FAFC);
   static const Color dark = Color(0xFF0F172A);
-  static const Color grey = Color(0xFF64748B);
   static const Color border = Color(0xFFE2E8F0);
   static const Color white = Colors.white;
+
+  String _status() {
+    final value = WalkRequestDetailsHelpers.value(
+      data,
+      'status',
+    );
+
+    return value.trim().isEmpty ? 'pending' : value;
+  }
+
+  Future<void> _copyText(
+    BuildContext context,
+    String value,
+    String label,
+  ) async {
+    final text = value.trim();
+
+    if (text.isEmpty || text == '—') {
+      return;
+    }
+
+    await Clipboard.setData(
+      ClipboardData(text: text),
+    );
+
+    if (!context.mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$label copied'),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  Future<void> _callPhone(
+    BuildContext context,
+    String phone,
+  ) async {
+    final value = phone.trim();
+
+    if (value.isEmpty || value == '—') {
+      return;
+    }
+
+    final uri = Uri(
+      scheme: 'tel',
+      path: value,
+    );
+
+    try {
+      final launched = await launchUrl(uri);
+
+      if (!launched && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Unable to open phone dialer'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (_) {
+      if (!context.mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to open phone dialer'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -76,18 +154,7 @@ class WalkRequestDetailsScreen extends StatelessWidget {
     final address =
         WalkRequestDetailsHelpers.address(data);
 
-    final searchType =
-        WalkRequestDetailsHelpers.searchType(data);
-
-    final radius =
-        WalkRequestDetailsHelpers.radius(data);
-
-    final status =
-        WalkRequestDetailsHelpers.value(
-          data,
-          'status',
-          fallback: 'pending',
-        );
+    final status = _status();
 
     final createdAt =
         WalkRequestDetailsHelpers.createdAt(data);
@@ -100,6 +167,12 @@ class WalkRequestDetailsScreen extends StatelessWidget {
 
     final ownerLocation =
         WalkRequestDetailsHelpers.ownerLocation(data);
+
+    final walkerUid =
+        WalkRequestDetailsHelpers.value(
+      data,
+      'walkerUid',
+    );
 
     return Scaffold(
       backgroundColor: background,
@@ -139,10 +212,12 @@ class WalkRequestDetailsScreen extends StatelessWidget {
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final isDesktop = constraints.maxWidth >= 1000;
+            final isDesktop =
+                constraints.maxWidth >= 1000;
 
             return SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
+              physics:
+                  const AlwaysScrollableScrollPhysics(),
               padding: EdgeInsets.fromLTRB(
                 isDesktop ? 32 : 16,
                 20,
@@ -173,6 +248,13 @@ class WalkRequestDetailsScreen extends StatelessWidget {
                         walkerName: walkerName,
                         status: status,
                         createdAt: createdAt,
+                        onCopy: () {
+                          _copyText(
+                            context,
+                            requestId,
+                            'Request ID',
+                          );
+                        },
                       ),
 
                       const SizedBox(height: 16),
@@ -191,6 +273,19 @@ class WalkRequestDetailsScreen extends StatelessWidget {
                                     ownerName: ownerName,
                                     ownerId: ownerId,
                                     ownerPhone: ownerPhone,
+                                    onCall: () {
+                                      _callPhone(
+                                        context,
+                                        ownerPhone,
+                                      );
+                                    },
+                                    onCopy: () {
+                                      _copyText(
+                                        context,
+                                        ownerId,
+                                        'Owner ID',
+                                      );
+                                    },
                                   ),
 
                                   const SizedBox(height: 16),
@@ -229,10 +324,23 @@ class WalkRequestDetailsScreen extends StatelessWidget {
                                     CrossAxisAlignment.stretch,
                                 children: [
                                   WalkRequestDetailsWalker(
+                                    hasWalker: hasWalker,
                                     walkerName: walkerName,
                                     walkerId: walkerId,
                                     walkerPhone: walkerPhone,
-                                    hasWalker: hasWalker,
+                                    onCall: () {
+                                      _callPhone(
+                                        context,
+                                        walkerPhone,
+                                      );
+                                    },
+                                    onCopy: () {
+                                      _copyText(
+                                        context,
+                                        walkerId,
+                                        'Walker ID',
+                                      );
+                                    },
                                   ),
 
                                   const SizedBox(height: 16),
@@ -246,24 +354,16 @@ class WalkRequestDetailsScreen extends StatelessWidget {
                                     status: status,
                                   ),
 
-                                  const SizedBox(height: 16),
-
-                                  if (ownerLocation != null)
+                                  if (ownerLocation != null) ...[
+                                    const SizedBox(height: 16),
                                     WalkRequestDetailsMap(
                                       ownerLocation:
                                           ownerLocation,
                                       walkerId: walkerId,
-                                      walkerUid:
-                                          WalkRequestDetailsHelpers
-                                              .value(
-                                        data,
-                                        'walkerUid',
-                                      ),
-                                      walkerName:
-                                          walkerName,
+                                      walkerUid: walkerUid,
+                                      walkerName: walkerName,
                                       onOpenMaps:
-                                          ownerLocation != null &&
-                                                  onOpenMaps != null
+                                          onOpenMaps != null
                                               ? () {
                                                   onOpenMaps!(
                                                     ownerLocation,
@@ -271,6 +371,7 @@ class WalkRequestDetailsScreen extends StatelessWidget {
                                                 }
                                               : null,
                                     ),
+                                  ],
                                 ],
                               ),
                             ),
@@ -285,6 +386,19 @@ class WalkRequestDetailsScreen extends StatelessWidget {
                               ownerName: ownerName,
                               ownerId: ownerId,
                               ownerPhone: ownerPhone,
+                              onCall: () {
+                                _callPhone(
+                                  context,
+                                  ownerPhone,
+                                );
+                              },
+                              onCopy: () {
+                                _copyText(
+                                  context,
+                                  ownerId,
+                                  'Owner ID',
+                                );
+                              },
                             ),
 
                             const SizedBox(height: 16),
@@ -298,10 +412,23 @@ class WalkRequestDetailsScreen extends StatelessWidget {
                             const SizedBox(height: 16),
 
                             WalkRequestDetailsWalker(
+                              hasWalker: hasWalker,
                               walkerName: walkerName,
                               walkerId: walkerId,
                               walkerPhone: walkerPhone,
-                              hasWalker: hasWalker,
+                              onCall: () {
+                                _callPhone(
+                                  context,
+                                  walkerPhone,
+                                );
+                              },
+                              onCopy: () {
+                                _copyText(
+                                  context,
+                                  walkerId,
+                                  'Walker ID',
+                                );
+                              },
                             ),
 
                             const SizedBox(height: 16),
@@ -321,22 +448,16 @@ class WalkRequestDetailsScreen extends StatelessWidget {
                                       : null,
                             ),
 
-                            const SizedBox(height: 16),
-
-                            if (ownerLocation != null)
+                            if (ownerLocation != null) ...[
+                              const SizedBox(height: 16),
                               WalkRequestDetailsMap(
                                 ownerLocation:
                                     ownerLocation,
                                 walkerId: walkerId,
-                                walkerUid:
-                                    WalkRequestDetailsHelpers.value(
-                                  data,
-                                  'walkerUid',
-                                ),
+                                walkerUid: walkerUid,
                                 walkerName: walkerName,
                                 onOpenMaps:
-                                    ownerLocation != null &&
-                                            onOpenMaps != null
+                                    onOpenMaps != null
                                         ? () {
                                             onOpenMaps!(
                                               ownerLocation,
@@ -344,6 +465,7 @@ class WalkRequestDetailsScreen extends StatelessWidget {
                                           }
                                         : null,
                               ),
+                            ],
 
                             const SizedBox(height: 16),
 
