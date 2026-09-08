@@ -2,17 +2,17 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 // ============================================================
-// DOJO COLORS
+// DOJO ADMIN COLORS
 // ============================================================
 
 const Color dojoOrange = Color(0xFFD35435);
-const Color dojoBlue = Color(0xFF3F6FA5);
-const Color dojoGreen = Color(0xFF3F8F68);
-const Color dojoRed = Color(0xFFD9534F);
-const Color dojoDark = Color(0xFF263238);
-const Color dojoGrey = Color(0xFF6B7280);
-const Color dojoBackground = Color(0xFFF7F8FA);
-const Color dojoBorder = Color(0xFFE7E9ED);
+const Color dojoBlue = Color(0xFF2563EB);
+const Color dojoGreen = Color(0xFF16A34A);
+const Color dojoRed = Color(0xFFDC2626);
+const Color dojoDark = Color(0xFF0F172A);
+const Color dojoGrey = Color(0xFF64748B);
+const Color dojoBackground = Color(0xFFF8FAFC);
+const Color dojoBorder = Color(0xFFE2E8F0);
 
 // ============================================================
 // LIVE WALK SCREEN
@@ -35,7 +35,7 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
   String selectedFilter = 'All';
 
   // ==========================================================
-  // LIVE WALK SESSIONS
+  // FIRESTORE CONNECTION — UNCHANGED
   // ==========================================================
 
   Stream<QuerySnapshot<Map<String, dynamic>>>
@@ -45,19 +45,11 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
         .snapshots();
   }
 
-  // ==========================================================
-  // DISPOSE
-  // ==========================================================
-
   @override
   void dispose() {
     searchController.dispose();
     super.dispose();
   }
-
-  // ==========================================================
-  // BUILD
-  // ==========================================================
 
   @override
   Widget build(BuildContext context) {
@@ -79,6 +71,7 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
               child: Padding(
                 padding: EdgeInsets.all(50),
                 child: CircularProgressIndicator(
+                  strokeWidth: 3,
                   color: dojoOrange,
                 ),
               ),
@@ -117,17 +110,16 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _header(),
-
-          const SizedBox(height: 20),
-
+          const SizedBox(height: 22),
           _summaryCards(walks),
-
-          const SizedBox(height: 20),
-
+          const SizedBox(height: 22),
           _toolbar(),
-
           const SizedBox(height: 16),
-
+          _resultsHeader(
+            total: filtered.length,
+            all: walks.length,
+          ),
+          const SizedBox(height: 10),
           _liveList(filtered),
         ],
       ),
@@ -139,26 +131,126 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
   // ==========================================================
 
   Widget _header() {
-    return const Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Live Walks',
-          style: TextStyle(
-            fontSize: 29,
-            fontWeight: FontWeight.w900,
-            color: dojoDark,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 600;
+
+        return Container(
+          width: double.infinity,
+          padding: EdgeInsets.all(
+            compact ? 18 : 22,
+          ),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: dojoBorder,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(
+                  alpha: 0.035,
+                ),
+                blurRadius: 14,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          child: Row(
+            crossAxisAlignment:
+                CrossAxisAlignment.center,
+            children: [
+              Container(
+                width: compact ? 46 : 52,
+                height: compact ? 46 : 52,
+                decoration: BoxDecoration(
+                  color: dojoOrange.withValues(
+                    alpha: 0.10,
+                  ),
+                  borderRadius:
+                      BorderRadius.circular(14),
+                ),
+                child: const Icon(
+                  Icons.directions_walk_rounded,
+                  color: dojoOrange,
+                  size: 27,
+                ),
+              ),
+              const SizedBox(width: 14),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Live Walks',
+                      style: TextStyle(
+                        fontSize: 27,
+                        height: 1.05,
+                        fontWeight: FontWeight.w900,
+                        color: dojoDark,
+                      ),
+                    ),
+                    SizedBox(height: 6),
+                    Text(
+                      'Monitor all currently active walks in real time',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: dojoGrey,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (!compact) ...[
+                const SizedBox(width: 15),
+                _statusIndicator(),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _statusIndicator() {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 12,
+        vertical: 9,
+      ),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEFFAF3),
+        borderRadius: BorderRadius.circular(11),
+        border: Border.all(
+          color: dojoGreen.withValues(
+            alpha: 0.16,
           ),
         ),
-        SizedBox(height: 5),
-        Text(
-          'Monitor all currently active walks',
-          style: TextStyle(
-            color: dojoGrey,
-            fontSize: 14,
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.circle,
+            size: 8,
+            color: dojoGreen,
           ),
-        ),
-      ],
+          SizedBox(width: 7),
+          Text(
+            'LIVE MONITORING',
+            style: TextStyle(
+              color: dojoGreen,
+              fontSize: 10,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.3,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -180,40 +272,44 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
     );
 
     return LayoutBuilder(
-      builder: (
-        context,
-        constraints,
-      ) {
+      builder: (context, constraints) {
         final columns = constraints.maxWidth >= 900
             ? 3
-            : constraints.maxWidth >= 550
+            : constraints.maxWidth >= 560
                 ? 2
                 : 1;
 
         return GridView.count(
           crossAxisCount: columns,
           shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
+          physics:
+              const NeverScrollableScrollPhysics(),
           crossAxisSpacing: 14,
           mainAxisSpacing: 14,
-          childAspectRatio: columns == 1 ? 3.2 : 2.5,
+          childAspectRatio:
+              columns == 1 ? 3.15 : 2.65,
           children: [
             _SummaryCard(
               title: 'Live Walks',
               value: '${walks.length}',
-              icon: Icons.directions_walk,
+              subtitle: 'Currently active',
+              icon: Icons.directions_walk_rounded,
               color: dojoOrange,
             ),
             _SummaryCard(
               title: 'Live Distance',
               value:
                   '${totalDistance.toStringAsFixed(1)} km',
-              icon: Icons.route_outlined,
+              subtitle: 'Total distance',
+              icon: Icons.route_rounded,
               color: dojoBlue,
             ),
             _SummaryCard(
               title: 'Total Time',
-              value: _formatDuration(totalElapsed),
+              value: _formatDuration(
+                totalElapsed,
+              ),
+              subtitle: 'Combined duration',
               icon: Icons.timer_outlined,
               color: dojoGreen,
             ),
@@ -236,18 +332,27 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
         border: Border.all(
           color: dojoBorder,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(
+              alpha: 0.025,
+            ),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: LayoutBuilder(
-        builder: (
-          context,
-          constraints,
-        ) {
+        builder: (context, constraints) {
           if (constraints.maxWidth < 650) {
             return Column(
               children: [
                 _searchBox(),
                 const SizedBox(height: 12),
-                _filters(),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: _filters(),
+                ),
               ],
             );
           }
@@ -257,7 +362,7 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
               Expanded(
                 child: _searchBox(),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 14),
               _filters(),
             ],
           );
@@ -276,47 +381,65 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
       onChanged: (_) {
         setState(() {});
       },
+      style: const TextStyle(
+        color: dojoDark,
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+      ),
       decoration: InputDecoration(
-        hintText: 'Search walk, owner, walker or dog...',
+        hintText:
+            'Search walk, owner, walker or dog...',
         hintStyle: const TextStyle(
           color: dojoGrey,
           fontSize: 12,
+          fontWeight: FontWeight.w500,
         ),
         prefixIcon: const Icon(
-          Icons.search,
+          Icons.search_rounded,
           size: 20,
           color: dojoGrey,
         ),
         suffixIcon: searchController.text.isNotEmpty
             ? IconButton(
+                tooltip: 'Clear search',
                 onPressed: () {
                   searchController.clear();
                   setState(() {});
                 },
                 icon: const Icon(
-                  Icons.close,
+                  Icons.close_rounded,
                   size: 18,
+                  color: dojoGrey,
                 ),
               )
             : null,
         filled: true,
-        fillColor: const Color(0xFFF8F9FA),
+        fillColor: dojoBackground,
+        contentPadding:
+            const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 14,
+        ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(11),
+          borderRadius:
+              BorderRadius.circular(11),
           borderSide: const BorderSide(
             color: dojoBorder,
           ),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(11),
+          borderRadius:
+              BorderRadius.circular(11),
           borderSide: const BorderSide(
             color: dojoBorder,
           ),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(11),
+          borderRadius:
+              BorderRadius.circular(11),
           borderSide: const BorderSide(
-            color: dojoOrange,
+            color: dojoBlue,
+            width: 1.4,
           ),
         ),
       ),
@@ -340,41 +463,62 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
   }
 
   Widget _filterButton(String title) {
-    final selected = selectedFilter == title;
+    final selected =
+        selectedFilter == title;
 
-    return InkWell(
-      borderRadius: BorderRadius.circular(10),
-      onTap: () {
-        setState(() {
-          selectedFilter = title;
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 13,
-          vertical: 10,
-        ),
-        decoration: BoxDecoration(
-          color: selected
-              ? dojoOrange
-              : const Color(0xFFF8F9FA),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: selected
-                ? dojoOrange
-                : dojoBorder,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius:
+            BorderRadius.circular(10),
+        onTap: () {
+          setState(() {
+            selectedFilter = title;
+          });
+        },
+        child: AnimatedContainer(
+          duration:
+              const Duration(milliseconds: 160),
+          padding:
+              const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 10,
           ),
-        ),
-        child: Text(
-          title,
-          style: TextStyle(
+          decoration: BoxDecoration(
             color: selected
-                ? Colors.white
-                : dojoDark,
-            fontSize: 12,
-            fontWeight: selected
-                ? FontWeight.w800
-                : FontWeight.w600,
+                ? dojoBlue
+                : dojoBackground,
+            borderRadius:
+                BorderRadius.circular(10),
+            border: Border.all(
+              color: selected
+                  ? dojoBlue
+                  : dojoBorder,
+            ),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: dojoBlue.withValues(
+                        alpha: 0.15,
+                      ),
+                      blurRadius: 8,
+                      offset:
+                          const Offset(0, 3),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Text(
+            title,
+            style: TextStyle(
+              color: selected
+                  ? Colors.white
+                  : dojoDark,
+              fontSize: 12,
+              fontWeight: selected
+                  ? FontWeight.w800
+                  : FontWeight.w600,
+            ),
           ),
         ),
       ),
@@ -382,7 +526,52 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
   }
 
   // ==========================================================
-  // FILTER LOGIC
+  // RESULTS HEADER
+  // ==========================================================
+
+  Widget _resultsHeader({
+    required int total,
+    required int all,
+  }) {
+    return Row(
+      children: [
+        const Text(
+          'Active Sessions',
+          style: TextStyle(
+            color: dojoDark,
+            fontSize: 15,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Container(
+          padding:
+              const EdgeInsets.symmetric(
+            horizontal: 8,
+            vertical: 4,
+          ),
+          decoration: BoxDecoration(
+            color: dojoBlue.withValues(
+              alpha: 0.09,
+            ),
+            borderRadius:
+                BorderRadius.circular(7),
+          ),
+          child: Text(
+            '$total${total != all ? ' / $all' : ''}',
+            style: const TextStyle(
+              color: dojoBlue,
+              fontSize: 10,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ==========================================================
+  // FILTER LOGIC — UNCHANGED
   // ==========================================================
 
   List<LiveWalkSessionData> _filterWalks(
@@ -395,23 +584,41 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
     return walks.where((walk) {
       final matchesSearch =
           query.isEmpty ||
-          walk.documentId.toLowerCase().contains(query) ||
-          walk.id.toLowerCase().contains(query) ||
-          walk.ownerId.toLowerCase().contains(query) ||
-          walk.ownerName.toLowerCase().contains(query) ||
-          walk.walkerId.toLowerCase().contains(query) ||
-          walk.walkerUid.toLowerCase().contains(query) ||
-          walk.walkerName.toLowerCase().contains(query) ||
-          walk.dogName.toLowerCase().contains(query);
+          walk.documentId
+              .toLowerCase()
+              .contains(query) ||
+          walk.id
+              .toLowerCase()
+              .contains(query) ||
+          walk.ownerId
+              .toLowerCase()
+              .contains(query) ||
+          walk.ownerName
+              .toLowerCase()
+              .contains(query) ||
+          walk.walkerId
+              .toLowerCase()
+              .contains(query) ||
+          walk.walkerUid
+              .toLowerCase()
+              .contains(query) ||
+          walk.walkerName
+              .toLowerCase()
+              .contains(query) ||
+          walk.dogName
+              .toLowerCase()
+              .contains(query);
 
       final matchesFilter =
           selectedFilter == 'All' ||
           (selectedFilter == 'With Route' &&
-              walk.routeCoordinates.isNotEmpty) ||
+              walk.routeCoordinates
+                  .isNotEmpty) ||
           (selectedFilter == 'Events' &&
               walk.events.isNotEmpty);
 
-      return matchesSearch && matchesFilter;
+      return matchesSearch &&
+          matchesFilter;
     }).toList();
   }
 
@@ -429,173 +636,22 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
     return Column(
       children: walks.map((walk) {
         return Padding(
-          padding: const EdgeInsets.only(
-            bottom: 12,
+          padding:
+              const EdgeInsets.only(bottom: 12),
+          child: _LiveWalkCard(
+            walk: walk,
+            onView: () {
+              _showLiveDetails(walk);
+            },
+            liveBadge: _liveBadge(),
+            mainInfo: _mainInfo(walk),
+            infoItem: _infoItem,
+            miniStat: _miniStat,
+            viewButton: _viewButton(walk),
+            liveAvatar: _liveAvatar(),
           ),
-          child: _liveCard(walk),
         );
       }).toList(),
-    );
-  }
-
-  // ==========================================================
-  // LIVE CARD
-  // ==========================================================
-
-  Widget _liveCard(
-    LiveWalkSessionData walk,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(17),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(17),
-        border: Border.all(
-          color: dojoBorder,
-        ),
-      ),
-      child: LayoutBuilder(
-        builder: (
-          context,
-          constraints,
-        ) {
-          if (constraints.maxWidth < 650) {
-            return _mobileCard(walk);
-          }
-
-          return _desktopCard(walk);
-        },
-      ),
-    );
-  }
-
-  // ==========================================================
-  // DESKTOP CARD
-  // ==========================================================
-
-  Widget _desktopCard(
-    LiveWalkSessionData walk,
-  ) {
-    return Row(
-      children: [
-        _liveAvatar(),
-
-        const SizedBox(width: 14),
-
-        Expanded(
-          flex: 3,
-          child: _mainInfo(walk),
-        ),
-
-        Expanded(
-          child: _infoItem(
-            Icons.timer_outlined,
-            'Duration',
-            _formatDuration(
-              walk.elapsedSeconds,
-            ),
-          ),
-        ),
-
-        Expanded(
-          child: _infoItem(
-            Icons.route_outlined,
-            'Distance',
-            '${walk.distanceKm.toStringAsFixed(1)} km',
-          ),
-        ),
-
-        _liveBadge(),
-
-        const SizedBox(width: 12),
-
-        _viewButton(walk),
-      ],
-    );
-  }
-
-  // ==========================================================
-  // MOBILE CARD
-  // ==========================================================
-
-  Widget _mobileCard(
-    LiveWalkSessionData walk,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            _liveAvatar(),
-
-            const SizedBox(width: 12),
-
-            Expanded(
-              child: _mainInfo(walk),
-            ),
-
-            _liveBadge(),
-          ],
-        ),
-
-        const SizedBox(height: 15),
-
-        Row(
-          children: [
-            Expanded(
-              child: _infoItem(
-                Icons.timer_outlined,
-                'Duration',
-                _formatDuration(
-                  walk.elapsedSeconds,
-                ),
-              ),
-            ),
-            Expanded(
-              child: _infoItem(
-                Icons.route_outlined,
-                'Distance',
-                '${walk.distanceKm.toStringAsFixed(1)} km',
-              ),
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 12),
-
-        Row(
-          children: [
-            Expanded(
-              child: _miniStat(
-                Icons.water_drop_outlined,
-                'Pee',
-                '${walk.peeCount}',
-              ),
-            ),
-            Expanded(
-              child: _miniStat(
-                Icons.pets,
-                'Poop',
-                '${walk.poopCount}',
-              ),
-            ),
-            Expanded(
-              child: _miniStat(
-                Icons.alt_route,
-                'Route',
-                '${walk.routeCoordinates.length}',
-              ),
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 14),
-
-        SizedBox(
-          width: double.infinity,
-          child: _viewButton(walk),
-        ),
-      ],
     );
   }
 
@@ -605,16 +661,24 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
 
   Widget _liveAvatar() {
     return Container(
-      width: 55,
-      height: 55,
+      width: 56,
+      height: 56,
       decoration: BoxDecoration(
-        color: const Color(0xFFFFEEE9),
-        borderRadius: BorderRadius.circular(15),
+        color: dojoOrange.withValues(
+          alpha: 0.10,
+        ),
+        borderRadius:
+            BorderRadius.circular(15),
+        border: Border.all(
+          color: dojoOrange.withValues(
+            alpha: 0.12,
+          ),
+        ),
       ),
       child: const Icon(
-        Icons.directions_walk,
+        Icons.directions_walk_rounded,
         color: dojoOrange,
-        size: 27,
+        size: 28,
       ),
     );
   }
@@ -627,43 +691,34 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
     LiveWalkSessionData walk,
   ) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Flexible(
-              child: Text(
-                walk.id.isEmpty
-                    ? walk.documentId
-                    : walk.id,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w900,
-                  color: dojoDark,
-                ),
-              ),
-            ),
-
-            const SizedBox(width: 7),
-
-            _liveBadge(),
-          ],
+        Text(
+          walk.id.isEmpty
+              ? walk.documentId
+              : walk.id,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w900,
+            color: dojoDark,
+          ),
         ),
-
         const SizedBox(height: 5),
-
         Text(
           walk.dogName.isEmpty
               ? 'Dog'
               : walk.dogName,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w800,
+            color: dojoDark,
           ),
         ),
-
         if (walk.dogBreed.isNotEmpty)
           Text(
             walk.dogBreed,
@@ -674,9 +729,7 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
               color: dojoGrey,
             ),
           ),
-
         const SizedBox(height: 3),
-
         Text(
           '${walk.ownerId} • ${walk.walkerId}',
           maxLines: 1,
@@ -686,7 +739,6 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
             color: dojoGrey,
           ),
         ),
-
         if (walk.walkerName.isNotEmpty)
           Text(
             'Walker: ${walk.walkerName}',
@@ -707,13 +759,20 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
 
   Widget _liveBadge() {
     return Container(
-      padding: const EdgeInsets.symmetric(
+      padding:
+          const EdgeInsets.symmetric(
         horizontal: 8,
         vertical: 5,
       ),
       decoration: BoxDecoration(
-        color: const Color(0xFFE9F7EF),
-        borderRadius: BorderRadius.circular(8),
+        color: const Color(0xFFEAF8EF),
+        borderRadius:
+            BorderRadius.circular(8),
+        border: Border.all(
+          color: dojoGreen.withValues(
+            alpha: 0.13,
+          ),
+        ),
       ),
       child: const Row(
         mainAxisSize: MainAxisSize.min,
@@ -746,39 +805,63 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
     String label,
     String value,
   ) {
-    return Row(
-      children: [
-        Icon(
-          icon,
-          size: 19,
-          color: dojoBlue,
+    return Container(
+      padding:
+          const EdgeInsets.symmetric(
+        horizontal: 10,
+        vertical: 9,
+      ),
+      margin:
+          const EdgeInsets.only(right: 8),
+      decoration: BoxDecoration(
+        color: dojoBackground,
+        borderRadius:
+            BorderRadius.circular(10),
+        border: Border.all(
+          color: dojoBorder,
         ),
-
-        const SizedBox(width: 7),
-
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 10,
-                color: dojoGrey,
-              ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 18,
+            color: dojoBlue,
+          ),
+          const SizedBox(width: 7),
+          Flexible(
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow:
+                      TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 9,
+                    color: dojoGrey,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow:
+                      TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight:
+                        FontWeight.w800,
+                    color: dojoDark,
+                  ),
+                ),
+              ],
             ),
-
-            const SizedBox(height: 2),
-
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ],
-        ),
-      ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -791,37 +874,54 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
     String label,
     String value,
   ) {
-    return Row(
-      children: [
-        Icon(
-          icon,
-          size: 17,
-          color: dojoBlue,
+    return Container(
+      padding:
+          const EdgeInsets.symmetric(
+        horizontal: 9,
+        vertical: 8,
+      ),
+      margin:
+          const EdgeInsets.only(right: 7),
+      decoration: BoxDecoration(
+        color: dojoBackground,
+        borderRadius:
+            BorderRadius.circular(9),
+        border: Border.all(
+          color: dojoBorder,
         ),
-
-        const SizedBox(width: 6),
-
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 9,
-                color: dojoGrey,
+      ),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 16,
+            color: dojoBlue,
+          ),
+          const SizedBox(width: 5),
+          Column(
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 8,
+                  color: dojoGrey,
+                ),
               ),
-            ),
-
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight:
+                      FontWeight.w800,
+                  color: dojoDark,
+                ),
               ),
-            ),
-          ],
-        ),
-      ],
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -832,7 +932,7 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
   Widget _viewButton(
     LiveWalkSessionData walk,
   ) {
-    return OutlinedButton.icon(
+    return FilledButton.icon(
       onPressed: () {
         _showLiveDetails(walk);
       },
@@ -840,25 +940,28 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
         Icons.visibility_outlined,
         size: 17,
       ),
-      label: const Text('View Live'),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: dojoOrange,
-        side: const BorderSide(
-          color: dojoOrange,
+      label: const Text(
+        'View Live',
+      ),
+      style: FilledButton.styleFrom(
+        backgroundColor: dojoOrange,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        padding:
+            const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 11,
         ),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
-        padding: const EdgeInsets.symmetric(
-          horizontal: 13,
-          vertical: 11,
+          borderRadius:
+              BorderRadius.circular(10),
         ),
       ),
     );
   }
 
   // ==========================================================
-  // SHOW LIVE DETAILS
+  // DETAILS
   // ==========================================================
 
   void _showLiveDetails(
@@ -866,15 +969,23 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
   ) {
     showDialog<void>(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
-          titlePadding: const EdgeInsets.fromLTRB(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius:
+                BorderRadius.circular(20),
+          ),
+          titlePadding:
+              const EdgeInsets.fromLTRB(
             20,
             20,
             20,
             8,
           ),
-          contentPadding: const EdgeInsets.fromLTRB(
+          contentPadding:
+              const EdgeInsets.fromLTRB(
             20,
             8,
             20,
@@ -882,30 +993,43 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
           ),
           title: Row(
             children: [
-              const Icon(
-                Icons.directions_walk,
-                color: dojoOrange,
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color:
+                      dojoOrange.withValues(
+                    alpha: 0.10,
+                  ),
+                  borderRadius:
+                      BorderRadius.circular(11),
+                ),
+                child: const Icon(
+                  Icons.directions_walk_rounded,
+                  color: dojoOrange,
+                  size: 21,
+                ),
               ),
-
-              const SizedBox(width: 9),
-
+              const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   data.id.isEmpty
                       ? data.documentId
                       : data.id,
                   maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  overflow:
+                      TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontWeight: FontWeight.w800,
+                    fontSize: 16,
+                    fontWeight:
+                        FontWeight.w900,
+                    color: dojoDark,
                   ),
                 ),
               ),
-
               _liveBadge(),
             ],
           ),
-
           content: SizedBox(
             width: 560,
             child: SingleChildScrollView(
@@ -946,7 +1070,6 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
                       ),
                     ],
                   ),
-
                   _detailSection(
                     'Dog',
                     [
@@ -960,7 +1083,6 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
                       ),
                     ],
                   ),
-
                   _detailSection(
                     'Live Stats',
                     [
@@ -992,7 +1114,6 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
                       ),
                     ],
                   ),
-
                   _detailSection(
                     'Current Location',
                     [
@@ -1001,32 +1122,41 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
                         data.locationLat == null
                             ? '-'
                             : data.locationLat!
-                                .toStringAsFixed(7),
+                                .toStringAsFixed(
+                                7,
+                              ),
                       ),
                       _detailRow(
                         'Longitude',
                         data.locationLng == null
                             ? '-'
                             : data.locationLng!
-                                .toStringAsFixed(7),
+                                .toStringAsFixed(
+                                7,
+                              ),
                       ),
                     ],
                   ),
-
                   _routeSection(data),
-
                   _eventsSection(data),
                 ],
               ),
             ),
           ),
-
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.pop(context);
+                Navigator.pop(
+                  dialogContext,
+                );
               },
-              child: const Text('Close'),
+              child: const Text(
+                'Close',
+                style: TextStyle(
+                  color: dojoBlue,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
           ],
         );
@@ -1044,13 +1174,13 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
   ) {
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(
-        bottom: 14,
-      ),
+      margin:
+          const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F9FA),
-        borderRadius: BorderRadius.circular(13),
+        color: dojoBackground,
+        borderRadius:
+            BorderRadius.circular(13),
         border: Border.all(
           color: dojoBorder,
         ),
@@ -1067,27 +1197,20 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
               color: dojoOrange,
             ),
           ),
-
           const SizedBox(height: 10),
-
           ...children,
         ],
       ),
     );
   }
 
-  // ==========================================================
-  // DETAIL ROW
-  // ==========================================================
-
   Widget _detailRow(
     String title,
     String value,
   ) {
     return Padding(
-      padding: const EdgeInsets.only(
-        bottom: 8,
-      ),
+      padding:
+          const EdgeInsets.only(bottom: 8),
       child: Row(
         crossAxisAlignment:
             CrossAxisAlignment.start,
@@ -1099,16 +1222,17 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
               style: const TextStyle(
                 color: dojoGrey,
                 fontSize: 11,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ),
-
           Expanded(
             child: Text(
               value.isEmpty ? '-' : value,
               style: const TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
+                color: dojoDark,
               ),
             ),
           ),
@@ -1118,7 +1242,7 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
   }
 
   // ==========================================================
-  // ROUTE SECTION
+  // ROUTE
   // ==========================================================
 
   Widget _routeSection(
@@ -1126,15 +1250,19 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
   ) {
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(
-        bottom: 14,
-      ),
+      margin:
+          const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF1F6FB),
-        borderRadius: BorderRadius.circular(13),
+        color: dojoBlue.withValues(
+          alpha: 0.045,
+        ),
+        borderRadius:
+            BorderRadius.circular(13),
         border: Border.all(
-          color: const Color(0xFFDCE7F2),
+          color: dojoBlue.withValues(
+            alpha: 0.13,
+          ),
         ),
       ),
       child: Column(
@@ -1144,7 +1272,7 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
           const Row(
             children: [
               Icon(
-                Icons.alt_route,
+                Icons.alt_route_rounded,
                 size: 18,
                 color: dojoBlue,
               ),
@@ -1159,19 +1287,16 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
               ),
             ],
           ),
-
           const SizedBox(height: 10),
-
           Text(
             '${data.routeCoordinates.length} route points recorded',
             style: const TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w700,
+              color: dojoDark,
             ),
           ),
-
           const SizedBox(height: 5),
-
           const Text(
             'Map preview will be connected later with the Map API.',
             style: TextStyle(
@@ -1185,7 +1310,7 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
   }
 
   // ==========================================================
-  // EVENTS SECTION
+  // EVENTS
   // ==========================================================
 
   Widget _eventsSection(
@@ -1208,13 +1333,13 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
 
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(
-        bottom: 10,
-      ),
+      margin:
+          const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(13),
+        borderRadius:
+            BorderRadius.circular(13),
         border: Border.all(
           color: dojoBorder,
         ),
@@ -1231,9 +1356,7 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
               color: dojoOrange,
             ),
           ),
-
           const SizedBox(height: 10),
-
           ...data.events
               .take(20)
               .map(_eventTile),
@@ -1241,10 +1364,6 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
       ),
     );
   }
-
-  // ==========================================================
-  // EVENT TILE
-  // ==========================================================
 
   Widget _eventTile(
     Map<String, dynamic> event,
@@ -1259,26 +1378,38 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
         _string(event, 'timestamp') ?? '';
 
     return Container(
-      margin: const EdgeInsets.only(
-        bottom: 8,
-      ),
+      margin:
+          const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F9FA),
-        borderRadius: BorderRadius.circular(10),
+        color: dojoBackground,
+        borderRadius:
+            BorderRadius.circular(10),
+        border: Border.all(
+          color: dojoBorder,
+        ),
       ),
       child: Row(
         crossAxisAlignment:
             CrossAxisAlignment.start,
         children: [
-          const Icon(
-            Icons.notifications_none,
-            size: 17,
-            color: dojoBlue,
+          Container(
+            width: 30,
+            height: 30,
+            decoration: BoxDecoration(
+              color: dojoBlue.withValues(
+                alpha: 0.09,
+              ),
+              borderRadius:
+                  BorderRadius.circular(9),
+            ),
+            child: const Icon(
+              Icons.notifications_none_rounded,
+              size: 17,
+              color: dojoBlue,
+            ),
           ),
-
-          const SizedBox(width: 8),
-
+          const SizedBox(width: 9),
           Expanded(
             child: Column(
               crossAxisAlignment:
@@ -1289,29 +1420,34 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
                   style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
+                    color: dojoDark,
                   ),
                 ),
-
                 if (note.isNotEmpty)
                   Padding(
                     padding:
-                        const EdgeInsets.only(top: 2),
+                        const EdgeInsets.only(
+                      top: 2,
+                    ),
                     child: Text(
                       note,
-                      style: const TextStyle(
+                      style:
+                          const TextStyle(
                         fontSize: 10,
                         color: dojoGrey,
                       ),
                     ),
                   ),
-
                 if (timestamp.isNotEmpty)
                   Padding(
                     padding:
-                        const EdgeInsets.only(top: 2),
+                        const EdgeInsets.only(
+                      top: 2,
+                    ),
                     child: Text(
                       timestamp,
-                      style: const TextStyle(
+                      style:
+                          const TextStyle(
                         fontSize: 9,
                         color: dojoGrey,
                       ),
@@ -1335,7 +1471,8 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
       height: 300,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(17),
+        borderRadius:
+            BorderRadius.circular(17),
         border: Border.all(
           color: dojoBorder,
         ),
@@ -1355,6 +1492,7 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w800,
+                color: dojoDark,
               ),
             ),
             SizedBox(height: 5),
@@ -1373,7 +1511,7 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
   }
 
   // ==========================================================
-  // ERROR STATE
+  // ERROR
   // ==========================================================
 
   Widget _errorState(String error) {
@@ -1384,31 +1522,40 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(17),
+          borderRadius:
+              BorderRadius.circular(17),
           border: Border.all(
             color: dojoBorder,
           ),
         ),
         child: Column(
           children: [
-            const Icon(
-              Icons.error_outline,
-              size: 45,
-              color: dojoOrange,
+            Container(
+              width: 54,
+              height: 54,
+              decoration: BoxDecoration(
+                color: dojoRed.withValues(
+                  alpha: 0.09,
+                ),
+                borderRadius:
+                    BorderRadius.circular(14),
+              ),
+              child: const Icon(
+                Icons.error_outline_rounded,
+                size: 30,
+                color: dojoRed,
+              ),
             ),
-
             const SizedBox(height: 12),
-
             const Text(
               'Unable to load live walks',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w800,
+                color: dojoDark,
               ),
             ),
-
             const SizedBox(height: 8),
-
             Text(
               error,
               textAlign: TextAlign.center,
@@ -1425,7 +1572,345 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
 }
 
 // ============================================================
-// LIVE SESSION MODEL
+// LIVE WALK CARD
+// ============================================================
+
+class _LiveWalkCard extends StatefulWidget {
+  final LiveWalkSessionData walk;
+  final VoidCallback onView;
+  final Widget liveBadge;
+  final Widget mainInfo;
+  final Widget Function(
+    IconData,
+    String,
+    String,
+  ) infoItem;
+  final Widget Function(
+    IconData,
+    String,
+    String,
+  ) miniStat;
+  final Widget viewButton;
+  final Widget liveAvatar;
+
+  const _LiveWalkCard({
+    required this.walk,
+    required this.onView,
+    required this.liveBadge,
+    required this.mainInfo,
+    required this.infoItem,
+    required this.miniStat,
+    required this.viewButton,
+    required this.liveAvatar,
+  });
+
+  @override
+  State<_LiveWalkCard> createState() =>
+      _LiveWalkCardState();
+}
+
+class _LiveWalkCardState
+    extends State<_LiveWalkCard> {
+  bool hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.basic,
+      onEnter: (_) {
+        setState(() => hovered = true);
+      },
+      onExit: (_) {
+        setState(() => hovered = false);
+      },
+      child: AnimatedContainer(
+        duration:
+            const Duration(milliseconds: 170),
+        transform: Matrix4.identity()
+          ..translate(
+            0.0,
+            hovered ? -2.0 : 0.0,
+          ),
+        padding: const EdgeInsets.all(17),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius:
+              BorderRadius.circular(17),
+          border: Border.all(
+            color: hovered
+                ? dojoBlue.withValues(
+                    alpha: 0.24,
+                  )
+                : dojoBorder,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(
+                alpha: hovered ? 0.065 : 0.03,
+              ),
+              blurRadius: hovered ? 18 : 10,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            if (constraints.maxWidth < 650) {
+              return _mobile();
+            }
+
+            return _desktop();
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _desktop() {
+    return Row(
+      children: [
+        widget.liveAvatar,
+        const SizedBox(width: 14),
+        Expanded(
+          flex: 3,
+          child: widget.mainInfo,
+        ),
+        Expanded(
+          child: widget.infoItem(
+            Icons.timer_outlined,
+            'Duration',
+            _formatDuration(
+              widget.walk.elapsedSeconds,
+            ),
+          ),
+        ),
+        Expanded(
+          child: widget.infoItem(
+            Icons.route_outlined,
+            'Distance',
+            '${widget.walk.distanceKm.toStringAsFixed(1)} km',
+          ),
+        ),
+        widget.liveBadge,
+        const SizedBox(width: 12),
+        widget.viewButton,
+      ],
+    );
+  }
+
+  Widget _mobile() {
+    return Column(
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            widget.liveAvatar,
+            const SizedBox(width: 12),
+            Expanded(
+              child: widget.mainInfo,
+            ),
+            widget.liveBadge,
+          ],
+        ),
+        const SizedBox(height: 15),
+        Row(
+          children: [
+            Expanded(
+              child: widget.infoItem(
+                Icons.timer_outlined,
+                'Duration',
+                _formatDuration(
+                  widget.walk.elapsedSeconds,
+                ),
+              ),
+            ),
+            Expanded(
+              child: widget.infoItem(
+                Icons.route_outlined,
+                'Distance',
+                '${widget.walk.distanceKm.toStringAsFixed(1)} km',
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: widget.miniStat(
+                Icons.water_drop_outlined,
+                'Pee',
+                '${widget.walk.peeCount}',
+              ),
+            ),
+            Expanded(
+              child: widget.miniStat(
+                Icons.pets,
+                'Poop',
+                '${widget.walk.poopCount}',
+              ),
+            ),
+            Expanded(
+              child: widget.miniStat(
+                Icons.alt_route,
+                'Route',
+                '${widget.walk.routeCoordinates.length}',
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        SizedBox(
+          width: double.infinity,
+          child: widget.viewButton,
+        ),
+      ],
+    );
+  }
+}
+
+// ============================================================
+// SUMMARY CARD
+// ============================================================
+
+class _SummaryCard extends StatefulWidget {
+  final String title;
+  final String value;
+  final String subtitle;
+  final IconData icon;
+  final Color color;
+
+  const _SummaryCard({
+    required this.title,
+    required this.value,
+    required this.subtitle,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  State<_SummaryCard> createState() =>
+      _SummaryCardState();
+}
+
+class _SummaryCardState
+    extends State<_SummaryCard> {
+  bool hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) {
+        setState(() => hovered = true);
+      },
+      onExit: (_) {
+        setState(() => hovered = false);
+      },
+      child: AnimatedContainer(
+        duration:
+            const Duration(milliseconds: 170),
+        transform: Matrix4.identity()
+          ..translate(
+            0.0,
+            hovered ? -2.0 : 0.0,
+          ),
+        padding: const EdgeInsets.all(17),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius:
+              BorderRadius.circular(16),
+          border: Border.all(
+            color: hovered
+                ? widget.color.withValues(
+                    alpha: 0.25,
+                  )
+                : dojoBorder,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(
+                alpha: hovered ? 0.065 : 0.03,
+              ),
+              blurRadius: hovered ? 18 : 10,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: widget.color.withValues(
+                  alpha: 0.10,
+                ),
+                borderRadius:
+                    BorderRadius.circular(13),
+              ),
+              child: Icon(
+                widget.icon,
+                color: widget.color,
+                size: 23,
+              ),
+            ),
+            const SizedBox(width: 13),
+            Expanded(
+              child: Column(
+                mainAxisAlignment:
+                    MainAxisAlignment.center,
+                crossAxisAlignment:
+                    CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.title,
+                    maxLines: 1,
+                    overflow:
+                        TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: dojoGrey,
+                      fontWeight:
+                          FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    widget.value,
+                    maxLines: 1,
+                    overflow:
+                        TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight:
+                          FontWeight.w900,
+                      color: dojoDark,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    widget.subtitle,
+                    maxLines: 1,
+                    overflow:
+                        TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 9,
+                      color: dojoGrey,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================
+// MODEL — FIRESTORE FIELD MAPPING UNCHANGED
 // ============================================================
 
 class LiveWalkSessionData {
@@ -1451,7 +1936,8 @@ class LiveWalkSessionData {
   final double? locationLat;
   final double? locationLng;
 
-  final List<Map<String, dynamic>> routeCoordinates;
+  final List<Map<String, dynamic>>
+      routeCoordinates;
 
   final List<Map<String, dynamic>> events;
 
@@ -1479,142 +1965,46 @@ class LiveWalkSessionData {
     String documentId,
     Map<String, dynamic> data,
   ) {
-    final location = _map(data['location']);
+    final location =
+        _map(data['location']);
 
     return LiveWalkSessionData(
       documentId: documentId,
-
       id: _string(data, 'id') ?? documentId,
-
-      ownerId: _string(data, 'ownerId') ?? '-',
-
+      ownerId:
+          _string(data, 'ownerId') ?? '-',
       ownerName:
           _string(data, 'ownerName') ?? '',
-
       walkerId:
           _string(data, 'walkerId') ??
-          _string(data, 'walkerid') ??
-          '-',
-
+              _string(data, 'walkerid') ??
+              '-',
       walkerUid:
           _string(data, 'walkerUid') ??
-          _string(data, 'walkeruid') ??
-          '-',
-
+              _string(data, 'walkeruid') ??
+              '-',
       walkerName:
           _string(data, 'walkerName') ?? '',
-
       dogName:
           _string(data, 'dogName') ?? 'Dog',
-
       dogBreed:
           _string(data, 'dogBreed') ?? '',
-
       distanceKm:
           _double(data['distanceKm']) ?? 0,
-
       elapsedSeconds:
           _int(data['elapsedSeconds']) ?? 0,
-
       peeCount:
           _int(data['peeCount']) ?? 0,
-
       poopCount:
           _int(data['poopCount']) ?? 0,
-
       locationLat:
           _double(location?['lat']),
-
       locationLng:
           _double(location?['lng']),
-
       routeCoordinates:
           _list(data['routeCoordinates']),
-
       events:
           _list(data['events']),
-    );
-  }
-}
-
-// ============================================================
-// SUMMARY CARD
-// ============================================================
-
-class _SummaryCard extends StatelessWidget {
-  final String title;
-  final String value;
-  final IconData icon;
-  final Color color;
-
-  const _SummaryCard({
-    required this.title,
-    required this.value,
-    required this.icon,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(17),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: dojoBorder,
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 47,
-            height: 47,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(13),
-            ),
-            child: Icon(
-              icon,
-              color: color,
-            ),
-          ),
-
-          const SizedBox(width: 12),
-
-          Expanded(
-            child: Column(
-              mainAxisAlignment:
-                  MainAxisAlignment.center,
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow:
-                      TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: dojoGrey,
-                  ),
-                ),
-
-                const SizedBox(height: 4),
-
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 23,
-                    fontWeight: FontWeight.w900,
-                    color: dojoDark,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -1674,7 +2064,9 @@ Map<String, dynamic>? _map(dynamic value) {
   return null;
 }
 
-List<Map<String, dynamic>> _list(dynamic value) {
+List<Map<String, dynamic>> _list(
+  dynamic value,
+) {
   if (value is! List) {
     return [];
   }
@@ -1682,7 +2074,8 @@ List<Map<String, dynamic>> _list(dynamic value) {
   return value
       .whereType<Map>()
       .map(
-        (item) => Map<String, dynamic>.from(item),
+        (item) =>
+            Map<String, dynamic>.from(item),
       )
       .toList();
 }
@@ -1693,7 +2086,8 @@ String _formatDuration(int seconds) {
   }
 
   final hours = seconds ~/ 3600;
-  final minutes = (seconds % 3600) ~/ 60;
+  final minutes =
+      (seconds % 3600) ~/ 60;
   final secs = seconds % 60;
 
   if (hours > 0) {
