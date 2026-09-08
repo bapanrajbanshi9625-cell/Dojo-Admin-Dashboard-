@@ -17,6 +17,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+name: DOJO Admin Web Build & Deploy
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # --------------------------------------------------
+      # Checkout
+      # --------------------------------------------------
+      - name: Checkout
+        uses: actions/checkout@v5
+
       # --------------------------------------------------
       # Setup Java
       # --------------------------------------------------
@@ -25,6 +44,16 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+
+      # --------------------------------------------------
+      # Setup Node.js
+      # GitHub Actions is moving to Node 24.
+      # --------------------------------------------------
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: npm
 
       # --------------------------------------------------
       # Setup Flutter
@@ -50,8 +79,8 @@ jobs:
 
       # --------------------------------------------------
       # Analyze
-      # Warnings and infos will NOT fail CI.
-      # Real analyzer errors will still fail CI.
+      # Warnings and infos do NOT fail CI.
+      # Real analyzer errors still fail CI.
       # --------------------------------------------------
       - name: Analyze
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
@@ -63,26 +92,36 @@ jobs:
         run: flutter build web --release
 
       # --------------------------------------------------
+      # Verify Web Build
+      # --------------------------------------------------
+      - name: Verify Web Build
+        run: |
+          if [ ! -d "build/web" ]; then
+            echo "ERROR: build/web directory was not created."
+            exit 1
+          fi
+
+          if [ ! -f "build/web/index.html" ]; then
+            echo "ERROR: build/web/index.html was not created."
+            exit 1
+          fi
+
+          echo "Flutter Web build verified successfully."
+          echo "Build size:"
+          du -sh build/web
+
+      # --------------------------------------------------
       # Check Firebase Hosting Configuration
       # --------------------------------------------------
       - name: Check Firebase configuration
         run: |
           if [ ! -f firebase.json ]; then
-            echo "ERROR: firebase.json was not found in the repository root."
+            echo "ERROR: firebase.json was not found in repository root."
             exit 1
           fi
 
           echo "firebase.json found."
           cat firebase.json
-
-      # --------------------------------------------------
-      # Upload Web Build
-      # --------------------------------------------------
-      - name: Upload Web Build
-        uses: actions/upload-artifact@v4
-        with:
-          name: dojo-admin-web
-          path: build/web
 
       # --------------------------------------------------
       # Setup Firebase CLI
@@ -104,7 +143,7 @@ jobs:
             exit 1
           fi
 
-          echo "$FIREBASE_SERVICE_ACCOUNT" \
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" \
             > "$RUNNER_TEMP/firebase-service-account.json"
 
           echo "Firebase service account file created."
@@ -121,7 +160,21 @@ jobs:
             --project dojo-platform-a5dc8
 
       # --------------------------------------------------
-      # Remove Service Account
+      # Upload Web Build Artifact
+      # This is intentionally AFTER Firebase deployment.
+      # --------------------------------------------------
+      - name: Upload Web Build
+        if: ${{ success() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: dojo-admin-web
+          path: build/web
+          if-no-files-found: error
+          compression-level: 6
+          retention-days: 7
+
+      # --------------------------------------------------
+      # Cleanup Service Account
       # --------------------------------------------------
       - name: Cleanup Firebase Service Account
         if: always()
