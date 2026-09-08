@@ -7,6 +7,8 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 
+import 'dashboard_components.dart';
+
 class DashboardLiveMap extends StatelessWidget {
   const DashboardLiveMap({
     super.key,
@@ -21,28 +23,14 @@ class DashboardLiveMap extends StatelessWidget {
       stream: activeWalksStream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return _MapPreviewCard(
-            child: const Center(
-              child: CircularProgressIndicator(),
-            ),
+          return const _MapPreviewCard(
+            child: _MapLoadingState(),
           );
         }
 
         if (snapshot.hasError) {
-          return _MapPreviewCard(
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Text(
-                  'Unable to load live walk locations.',
-                  style: TextStyle(
-                    color: Colors.grey.shade700,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ),
+          return const _MapPreviewCard(
+            child: _MapErrorState(),
           );
         }
 
@@ -100,28 +88,42 @@ class DashboardLiveMap extends StatelessWidget {
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(18),
-                child: _MiniMap(walks: walks),
+                child: _MiniMap(
+                  walks: walks,
+                ),
               ),
 
+              /// Top status
               Positioned(
                 top: 14,
                 left: 14,
-                child: _MapStatusBadge(count: walks.length),
+                child: _MapStatusBadge(
+                  count: walks.length,
+                ),
               ),
 
+              /// Map controls / open button
               Positioned(
                 right: 14,
                 bottom: 14,
-                child: FilledButton.icon(
-                  onPressed: walks.isEmpty
+                child: _OpenMapButton(
+                  enabled: walks.isNotEmpty,
+                  onTap: walks.isEmpty
                       ? null
                       : () {
-                          _openFullMap(context, walks);
+                          _openFullMap(
+                            context,
+                            walks,
+                          );
                         },
-                  icon: const Icon(Icons.open_in_full, size: 18),
-                  label: const Text('Open Live Map'),
                 ),
               ),
+
+              /// Empty state overlay
+              if (walks.isEmpty)
+                const Positioned.fill(
+                  child: _MapEmptyOverlay(),
+                ),
             ],
           ),
         );
@@ -142,12 +144,19 @@ class DashboardLiveMap extends StatelessWidget {
         builder: (_) {
           return Dialog(
             insetPadding: const EdgeInsets.all(24),
+            backgroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
+            ),
+            clipBehavior: Clip.antiAlias,
             child: ConstrainedBox(
               constraints: const BoxConstraints(
                 maxWidth: 1100,
                 maxHeight: 800,
               ),
-              child: _FullLiveMap(walks: walks),
+              child: _FullLiveMap(
+                walks: walks,
+              ),
             ),
           );
         },
@@ -164,7 +173,9 @@ class DashboardLiveMap extends StatelessWidget {
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(24),
               ),
-              child: _FullLiveMap(walks: walks),
+              child: _FullLiveMap(
+                walks: walks,
+              ),
             ),
           );
         },
@@ -215,7 +226,10 @@ class DashboardLiveMap extends StatelessWidget {
         );
 
         if (lat != null && lng != null) {
-          return GeoPoint(lat, lng);
+          return GeoPoint(
+            lat,
+            lng,
+          );
         }
       }
     }
@@ -236,7 +250,10 @@ class DashboardLiveMap extends StatelessWidget {
     );
 
     if (lat != null && lng != null) {
-      return GeoPoint(lat, lng);
+      return GeoPoint(
+        lat,
+        lng,
+      );
     }
 
     return null;
@@ -255,6 +272,10 @@ class DashboardLiveMap extends StatelessWidget {
   }
 }
 
+/// ===============================================================
+/// MAP PREVIEW CARD
+/// ===============================================================
+
 class _MapPreviewCard extends StatelessWidget {
   const _MapPreviewCard({
     required this.child,
@@ -264,18 +285,28 @@ class _MapPreviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 330,
+    final width = MediaQuery.sizeOf(context).width;
+
+    final height = width < 600
+        ? 285.0
+        : width < 1000
+            ? 310.0
+            : 330.0;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      height: height,
       decoration: BoxDecoration(
+        color: Colors.white,
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: Colors.grey.withValues(alpha: 0.16),
+          color: border,
         ),
         boxShadow: [
           BoxShadow(
             blurRadius: 18,
             offset: const Offset(0, 7),
-            color: Colors.black.withValues(alpha: 0.07),
+            color: Colors.black.withValues(alpha: 0.055),
           ),
         ],
       ),
@@ -284,6 +315,158 @@ class _MapPreviewCard extends StatelessWidget {
     );
   }
 }
+
+/// ===============================================================
+/// LOADING
+/// ===============================================================
+
+class _MapLoadingState extends StatelessWidget {
+  const _MapLoadingState();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: const Color(0xFFF8FAFC),
+      child: const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 28,
+              height: 28,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.5,
+                color: blue,
+              ),
+            ),
+            SizedBox(height: 12),
+            Text(
+              'Loading live walks...',
+              style: TextStyle(
+                color: grey,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// ===============================================================
+/// ERROR
+/// ===============================================================
+
+class _MapErrorState extends StatelessWidget {
+  const _MapErrorState();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: const Color(0xFFF8FAFC),
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: danger.withValues(alpha: 0.09),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.location_off_outlined,
+                  color: danger,
+                  size: 23,
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Unable to load live walk locations.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: dark,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// ===============================================================
+/// EMPTY MAP OVERLAY
+/// ===============================================================
+
+class _MapEmptyOverlay extends StatelessWidget {
+  const _MapEmptyOverlay();
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Container(
+        color: Colors.white.withValues(alpha: 0.76),
+        child: Center(
+          child: Container(
+            margin: const EdgeInsets.all(24),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 18,
+              vertical: 15,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: border,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  blurRadius: 18,
+                  color: Colors.black.withValues(alpha: 0.08),
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.location_searching,
+                  color: blue,
+                  size: 20,
+                ),
+                SizedBox(width: 9),
+                Flexible(
+                  child: Text(
+                    'No active walk locations available',
+                    style: TextStyle(
+                      color: dark,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// ===============================================================
+/// STATUS BADGE
+/// ===============================================================
 
 class _MapStatusBadge extends StatelessWidget {
   const _MapStatusBadge({
@@ -297,15 +480,19 @@ class _MapStatusBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: 12,
-        vertical: 8,
+        vertical: 9,
       ),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: border,
+        ),
         boxShadow: [
           BoxShadow(
-            blurRadius: 12,
-            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: 0.10),
           ),
         ],
       ),
@@ -315,17 +502,26 @@ class _MapStatusBadge extends StatelessWidget {
           Container(
             width: 9,
             height: 9,
-            decoration: const BoxDecoration(
-              color: Colors.green,
+            decoration: BoxDecoration(
+              color: count > 0 ? green : grey,
               shape: BoxShape.circle,
+              boxShadow: count > 0
+                  ? [
+                      BoxShadow(
+                        color: green.withValues(alpha: 0.35),
+                        blurRadius: 6,
+                      ),
+                    ]
+                  : null,
             ),
           ),
           const SizedBox(width: 8),
           Text(
             '$count active ${count == 1 ? 'walk' : 'walks'}',
             style: const TextStyle(
+              color: dark,
               fontSize: 12,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w800,
             ),
           ),
         ],
@@ -333,6 +529,96 @@ class _MapStatusBadge extends StatelessWidget {
     );
   }
 }
+
+/// ===============================================================
+/// OPEN MAP BUTTON
+/// ===============================================================
+
+class _OpenMapButton extends StatefulWidget {
+  const _OpenMapButton({
+    required this.enabled,
+    required this.onTap,
+  });
+
+  final bool enabled;
+  final VoidCallback? onTap;
+
+  @override
+  State<_OpenMapButton> createState() => _OpenMapButtonState();
+}
+
+class _OpenMapButtonState extends State<_OpenMapButton> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = widget.enabled ? blue : grey;
+
+    return MouseRegion(
+      cursor: widget.enabled
+          ? SystemMouseCursors.click
+          : SystemMouseCursors.basic,
+      onEnter: (_) {
+        if (mounted) {
+          setState(() => _hovered = true);
+        }
+      },
+      onExit: (_) {
+        if (mounted) {
+          setState(() => _hovered = false);
+        }
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+              color: Colors.black.withValues(alpha: 0.12),
+            ),
+          ],
+        ),
+        child: FilledButton.icon(
+          onPressed: widget.onTap,
+          style: FilledButton.styleFrom(
+            backgroundColor: _hovered && widget.enabled
+                ? const Color(0xFF1D4ED8)
+                : color,
+            foregroundColor: Colors.white,
+            disabledBackgroundColor:
+                Colors.white.withValues(alpha: 0.92),
+            disabledForegroundColor: grey,
+            elevation: 0,
+            padding: const EdgeInsets.symmetric(
+              horizontal: 13,
+              vertical: 11,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          icon: const Icon(
+            Icons.open_in_full,
+            size: 17,
+          ),
+          label: const Text(
+            'Open Live Map',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// ===============================================================
+/// MINI MAP
+/// ===============================================================
 
 class _MiniMap extends StatelessWidget {
   const _MiniMap({
@@ -364,7 +650,7 @@ class _MiniMap extends StatelessWidget {
         ),
         RichAttributionWidget(
           attributions: [
-            TextSourceAttribution(
+            const TextSourceAttribution(
               'OpenStreetMap contributors',
             ),
           ],
@@ -373,6 +659,10 @@ class _MiniMap extends StatelessWidget {
     );
   }
 }
+
+/// ===============================================================
+/// FULL LIVE MAP
+/// ===============================================================
 
 class _FullLiveMap extends StatefulWidget {
   const _FullLiveMap({
@@ -493,7 +783,10 @@ class _FullLiveMapState extends State<_FullLiveMap> {
           final lat = (item[1] as num).toDouble();
 
           points.add(
-            LatLng(lat, lng),
+            LatLng(
+              lat,
+              lng,
+            ),
           );
         }
       }
@@ -513,11 +806,15 @@ class _FullLiveMapState extends State<_FullLiveMap> {
 
     for (final walk in widget.walks) {
       if (walk.walkerLatLng != null) {
-        points.add(walk.walkerLatLng!);
+        points.add(
+          walk.walkerLatLng!,
+        );
       }
 
       if (walk.ownerLatLng != null) {
-        points.add(walk.ownerLatLng!);
+        points.add(
+          walk.ownerLatLng!,
+        );
       }
     }
 
@@ -576,18 +873,20 @@ class _FullLiveMapState extends State<_FullLiveMap> {
                           return Polyline(
                             points: entry.value,
                             strokeWidth: 5,
-                            color: Colors.blue,
+                            color: blue,
                           );
                         }).toList(),
                       ),
 
                     MarkerLayer(
-                      markers: _buildMarkers(widget.walks),
+                      markers: _buildMarkers(
+                        widget.walks,
+                      ),
                     ),
 
                     RichAttributionWidget(
                       attributions: [
-                        TextSourceAttribution(
+                        const TextSourceAttribution(
                           'OpenStreetMap contributors',
                         ),
                       ],
@@ -595,89 +894,50 @@ class _FullLiveMapState extends State<_FullLiveMap> {
                   ],
                 ),
 
+                /// Legend
                 Positioned(
                   left: 16,
                   bottom: 16,
-                  child: _MapLegend(),
+                  child: const _MapLegend(),
                 ),
 
+                /// Map controls
                 Positioned(
                   right: 16,
                   bottom: 16,
-                  child: Column(
-                    children: [
-                      FloatingActionButton.small(
-                        heroTag: 'zoom_in',
-                        onPressed: () {
-                          _mapController.move(
-                            _mapController.camera.center,
-                            _mapController.camera.zoom + 1,
-                          );
-                        },
-                        child: const Icon(Icons.add),
-                      ),
-                      const SizedBox(height: 8),
-                      FloatingActionButton.small(
-                        heroTag: 'zoom_out',
-                        onPressed: () {
-                          _mapController.move(
-                            _mapController.camera.center,
-                            _mapController.camera.zoom - 1,
-                          );
-                        },
-                        child: const Icon(Icons.remove),
-                      ),
-                      const SizedBox(height: 8),
-                      FloatingActionButton.small(
-                        heroTag: 'fit_all',
-                        onPressed: _fitAll,
-                        child: const Icon(Icons.fit_screen),
-                      ),
-                    ],
+                  child: _MapControls(
+                    onZoomIn: () {
+                      _mapController.move(
+                        _mapController.camera.center,
+                        _mapController.camera.zoom + 1,
+                      );
+                    },
+                    onZoomOut: () {
+                      _mapController.move(
+                        _mapController.camera.center,
+                        _mapController.camera.zoom - 1,
+                      );
+                    },
+                    onFitAll: _fitAll,
                   ),
                 ),
 
+                /// Route loading
                 if (_loadingRoutes)
                   Positioned(
                     top: 16,
                     right: 16,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 9,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            blurRadius: 12,
-                            color: Colors.black.withValues(alpha: 0.12),
-                          ),
-                        ],
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          SizedBox(
-                            width: 15,
-                            height: 15,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                            ),
-                          ),
-                          SizedBox(width: 8),
-                          Text(
-                            'Loading routes...',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                    child: _RouteLoadingBadge(),
                   ),
+
+                /// Active count
+                Positioned(
+                  top: 16,
+                  left: 16,
+                  child: _FullMapActiveBadge(
+                    count: widget.walks.length,
+                  ),
+                ),
               ],
             ),
           ),
@@ -687,37 +947,89 @@ class _FullLiveMapState extends State<_FullLiveMap> {
   }
 
   Widget _buildHeader(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 16, 12, 14),
+    final width = MediaQuery.sizeOf(context).width;
+    final compact = width < 600;
+
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+        compact ? 14 : 20,
+        compact ? 13 : 17,
+        compact ? 8 : 12,
+        compact ? 12 : 15,
+      ),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          bottom: BorderSide(
+            color: border,
+          ),
+        ),
+      ),
       child: Row(
         children: [
+          Container(
+            width: compact ? 40 : 44,
+            height: compact ? 40 : 44,
+            decoration: BoxDecoration(
+              color: blue.withValues(alpha: 0.09),
+              borderRadius: BorderRadius.circular(13),
+            ),
+            child: const Icon(
+              Icons.map_outlined,
+              color: blue,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 11),
           const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'Live Walk Map',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 20,
+                    color: dark,
+                    fontSize: 19,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
                 SizedBox(height: 3),
                 Text(
                   'Walker locations, pickup points and routes',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey,
+                    color: grey,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
             ),
           ),
           IconButton(
+            tooltip: 'Close',
             onPressed: () {
               Navigator.of(context).pop();
             },
-            icon: const Icon(Icons.close),
+            icon: Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: background,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: border,
+                ),
+              ),
+              child: const Icon(
+                Icons.close,
+                size: 18,
+                color: dark,
+              ),
+            ),
           ),
         ],
       ),
@@ -725,19 +1037,88 @@ class _FullLiveMapState extends State<_FullLiveMap> {
   }
 }
 
-class _MapLegend extends StatelessWidget {
-  const _MapLegend();
+/// ===============================================================
+/// FULL MAP ACTIVE BADGE
+/// ===============================================================
+
+class _FullMapActiveBadge extends StatelessWidget {
+  const _FullMapActiveBadge({
+    required this.count,
+  });
+
+  final int count;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: 12,
-        vertical: 10,
+        vertical: 9,
       ),
       decoration: BoxDecoration(
         color: Colors.white,
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(
+          color: border,
+        ),
+        boxShadow: [
+          BoxShadow(
+            blurRadius: 12,
+            color: Colors.black.withValues(alpha: 0.10),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: const BoxDecoration(
+              color: green,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 7),
+          Text(
+            '$count active',
+            style: const TextStyle(
+              color: dark,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// ===============================================================
+/// MAP CONTROLS
+/// ===============================================================
+
+class _MapControls extends StatelessWidget {
+  const _MapControls({
+    required this.onZoomIn,
+    required this.onZoomOut,
+    required this.onFitAll,
+  });
+
+  final VoidCallback onZoomIn;
+  final VoidCallback onZoomOut;
+  final VoidCallback onFitAll;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(5),
+      decoration: BoxDecoration(
+        color: Colors.white,
         borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: border,
+        ),
         boxShadow: [
           BoxShadow(
             blurRadius: 14,
@@ -745,25 +1126,182 @@ class _MapLegend extends StatelessWidget {
           ),
         ],
       ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _MapControlButton(
+            tooltip: 'Zoom in',
+            icon: Icons.add,
+            onTap: onZoomIn,
+          ),
+          const SizedBox(height: 4),
+          _MapControlButton(
+            tooltip: 'Zoom out',
+            icon: Icons.remove,
+            onTap: onZoomOut,
+          ),
+          const SizedBox(height: 4),
+          Container(
+            height: 1,
+            width: 28,
+            color: border,
+          ),
+          const SizedBox(height: 4),
+          _MapControlButton(
+            tooltip: 'Fit all walks',
+            icon: Icons.fit_screen,
+            onTap: onFitAll,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MapControlButton extends StatelessWidget {
+  const _MapControlButton({
+    required this.tooltip,
+    required this.icon,
+    required this.onTap,
+  });
+
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: background,
+        borderRadius: BorderRadius.circular(9),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(9),
+          child: SizedBox(
+            width: 34,
+            height: 34,
+            child: Icon(
+              icon,
+              color: dark,
+              size: 19,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// ===============================================================
+/// ROUTE LOADING BADGE
+/// ===============================================================
+
+class _RouteLoadingBadge extends StatelessWidget {
+  const _RouteLoadingBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 12,
+        vertical: 9,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: border,
+        ),
+        boxShadow: [
+          BoxShadow(
+            blurRadius: 12,
+            color: Colors.black.withValues(alpha: 0.12),
+          ),
+        ],
+      ),
       child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 15,
+            height: 15,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: blue,
+            ),
+          ),
+          SizedBox(width: 8),
+          Text(
+            'Loading routes...',
+            style: TextStyle(
+              color: dark,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// ===============================================================
+/// LEGEND
+/// ===============================================================
+
+class _MapLegend extends StatelessWidget {
+  const _MapLegend();
+
+  @override
+  Widget build(BuildContext context) {
+    final compact = MediaQuery.sizeOf(context).width < 600;
+
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 9 : 12,
+        vertical: compact ? 8 : 10,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: border,
+        ),
+        boxShadow: [
+          BoxShadow(
+            blurRadius: 14,
+            color: Colors.black.withValues(alpha: 0.13),
+          ),
+        ],
+      ),
+      child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           _LegendItem(
             icon: Icons.location_on,
             label: 'Pickup',
-            iconColor: Colors.red,
+            iconColor: danger,
+            compact: compact,
           ),
-          SizedBox(width: 14),
+          SizedBox(
+            width: compact ? 9 : 14,
+          ),
           _LegendItem(
             icon: Icons.directions_walk,
             label: 'Walker',
-            iconColor: Colors.green,
+            iconColor: green,
+            compact: compact,
           ),
-          SizedBox(width: 14),
+          SizedBox(
+            width: compact ? 9 : 14,
+          ),
           _LegendItem(
             icon: Icons.route,
             label: 'Route',
-            iconColor: Colors.blue,
+            iconColor: blue,
+            compact: compact,
           ),
         ],
       ),
@@ -776,11 +1314,13 @@ class _LegendItem extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.iconColor,
+    required this.compact,
   });
 
   final IconData icon;
   final String label;
   final Color iconColor;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -789,14 +1329,15 @@ class _LegendItem extends StatelessWidget {
       children: [
         Icon(
           icon,
-          size: 17,
+          size: compact ? 15 : 17,
           color: iconColor,
         ),
         const SizedBox(width: 5),
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 11,
+          style: TextStyle(
+            color: dark,
+            fontSize: compact ? 10 : 11,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -804,6 +1345,10 @@ class _LegendItem extends StatelessWidget {
     );
   }
 }
+
+/// ===============================================================
+/// LIVE WALK DATA
+/// ===============================================================
 
 class _LiveWalkData {
   const _LiveWalkData({
@@ -847,7 +1392,13 @@ class _LiveWalkData {
   }
 }
 
-LatLng _initialCenter(List<_LiveWalkData> walks) {
+/// ===============================================================
+/// INITIAL CENTER
+/// ===============================================================
+
+LatLng _initialCenter(
+  List<_LiveWalkData> walks,
+) {
   for (final walk in walks) {
     if (walk.walkerLatLng != null) {
       return walk.walkerLatLng!;
@@ -864,6 +1415,10 @@ LatLng _initialCenter(List<_LiveWalkData> walks) {
   );
 }
 
+/// ===============================================================
+/// MARKERS
+/// ===============================================================
+
 List<Marker> _buildMarkers(
   List<_LiveWalkData> walks,
 ) {
@@ -878,7 +1433,7 @@ List<Marker> _buildMarkers(
           height: 54,
           child: const _MapMarker(
             icon: Icons.location_on,
-            backgroundColor: Colors.red,
+            backgroundColor: danger,
           ),
         ),
       );
@@ -892,7 +1447,7 @@ List<Marker> _buildMarkers(
           height: 54,
           child: const _MapMarker(
             icon: Icons.directions_walk,
-            backgroundColor: Colors.green,
+            backgroundColor: green,
           ),
         ),
       );
@@ -901,6 +1456,10 @@ List<Marker> _buildMarkers(
 
   return markers;
 }
+
+/// ===============================================================
+/// MAP MARKER
+/// ===============================================================
 
 class _MapMarker extends StatelessWidget {
   const _MapMarker({
@@ -926,7 +1485,7 @@ class _MapMarker extends StatelessWidget {
           ),
           boxShadow: [
             BoxShadow(
-              blurRadius: 8,
+              blurRadius: 9,
               offset: const Offset(0, 3),
               color: Colors.black.withValues(alpha: 0.25),
             ),
