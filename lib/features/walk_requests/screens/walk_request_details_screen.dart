@@ -245,17 +245,22 @@ class WalkRequestDetailsScreen extends StatelessWidget {
 
                       const SizedBox(height: 16),
 
-                      // Request Summary
+                      // =====================================================
+                      // REQUEST SUMMARY
+                      // =====================================================
                       _RequestSummaryCard(
-                       requestId: requestId,
-                       ownerName: ownerName,
-                       dogName: dogName,
-                       walkerName: walkerName,
-                       status: status,
+                        requestId: requestId,
+                        ownerName: ownerName,
+                        dogName: dogName,
+                        walkerName: walkerName,
+                        status: status,
                       ),
- 
+
                       const SizedBox(height: 16),
 
+                      // =====================================================
+                      // DESKTOP LAYOUT
+                      // =====================================================
                       if (isDesktop)
                         Row(
                           crossAxisAlignment:
@@ -374,6 +379,10 @@ class WalkRequestDetailsScreen extends StatelessWidget {
                             ),
                           ],
                         )
+
+                      // =====================================================
+                      // MOBILE LAYOUT
+                      // =====================================================
                       else
                         Column(
                           crossAxisAlignment:
@@ -479,6 +488,9 @@ class WalkRequestDetailsScreen extends StatelessWidget {
 
                       const SizedBox(height: 16),
 
+                      // =====================================================
+                      // ACTIONS
+                      // =====================================================
                       WalkRequestDetailsActions(
                         isPending: isPending,
                         hasWalker: hasWalker,
@@ -503,20 +515,17 @@ class WalkRequestDetailsScreen extends StatelessWidget {
   }
 }
 
-// ============================================================
-// REQUEST SUMMARY
-// Kept inside WalkRequestDetailsScreen file intentionally.
-// ============================================================
+// ============================================================================
+// REQUEST SUMMARY CARD
+// ============================================================================
 
-class _RequestSummary extends StatelessWidget {
-  const _RequestSummary({
+class _RequestSummaryCard extends StatelessWidget {
+  const _RequestSummaryCard({
     required this.requestId,
     required this.ownerName,
     required this.dogName,
     required this.walkerName,
     required this.status,
-    required this.createdAt,
-    required this.onCopy,
   });
 
   final String requestId;
@@ -524,12 +533,11 @@ class _RequestSummary extends StatelessWidget {
   final String dogName;
   final String walkerName;
   final String status;
-  final String createdAt;
-  final VoidCallback onCopy;
 
   static const Color orange = Color(0xFFD35435);
   static const Color blue = Color(0xFF2563EB);
   static const Color dark = Color(0xFF0F172A);
+  static const Color grey = Color(0xFF64748B);
   static const Color white = Colors.white;
   static const Color border = Color(0xFFE2E8F0);
 
@@ -583,15 +591,6 @@ class _RequestSummary extends StatelessWidget {
           _SummaryRow(
             label: 'Request ID',
             value: requestId,
-            trailing: IconButton(
-              tooltip: 'Copy Request ID',
-              onPressed: onCopy,
-              icon: const Icon(
-                Icons.copy_rounded,
-                size: 18,
-                color: blue,
-              ),
-            ),
           ),
 
           _SummaryRow(
@@ -615,27 +614,24 @@ class _RequestSummary extends StatelessWidget {
             label: 'Status',
             value: status.toUpperCase(),
           ),
-
-          _SummaryRow(
-            label: 'Created',
-            value: createdAt,
-          ),
         ],
       ),
     );
   }
 }
 
+// ============================================================================
+// SUMMARY ROW
+// ============================================================================
+
 class _SummaryRow extends StatelessWidget {
   const _SummaryRow({
     required this.label,
     required this.value,
-    this.trailing,
   });
 
   final String label;
   final String value;
-  final Widget? trailing;
 
   static const Color dark = Color(0xFF0F172A);
   static const Color grey = Color(0xFF64748B);
@@ -655,6 +651,8 @@ class _SummaryRow extends StatelessWidget {
         ),
       ),
       child: Row(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
           Expanded(
             child: Text(
@@ -671,7 +669,7 @@ class _SummaryRow extends StatelessWidget {
 
           Flexible(
             child: Text(
-              value,
+              value.isEmpty ? '—' : value,
               textAlign: TextAlign.right,
               style: const TextStyle(
                 color: dark,
@@ -680,13 +678,15 @@ class _SummaryRow extends StatelessWidget {
               ),
             ),
           ),
-
-          if (trailing != null) trailing!,
         ],
       ),
     );
   }
 }
+
+// ============================================================================
+// BOTTOM REFERENCE
+// ============================================================================
 
 class _BottomReference extends StatelessWidget {
   const _BottomReference({
