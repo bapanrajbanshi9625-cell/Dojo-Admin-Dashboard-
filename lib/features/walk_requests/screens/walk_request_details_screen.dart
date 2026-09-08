@@ -246,22 +246,14 @@ class WalkRequestDetailsScreen extends StatelessWidget {
                       const SizedBox(height: 16),
 
                       // Request Summary
-                      _RequestSummary(
-                        requestId: requestId,
-                        ownerName: ownerName,
-                        dogName: dogName,
-                        walkerName: walkerName,
-                        status: status,
-                        createdAt: createdAt,
-                        onCopy: () {
-                          _copyText(
-                            context,
-                            requestId,
-                            'Request ID',
-                          );
-                        },
+                      _RequestSummaryCard(
+                       requestId: requestId,
+                       ownerName: ownerName,
+                       dogName: dogName,
+                       walkerName: walkerName,
+                       status: status,
                       ),
-
+ 
                       const SizedBox(height: 16),
 
                       if (isDesktop)
