@@ -4,7 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 
-import '../widgets/walk_request_map_preview.dart';
+import 'walk_request_map_preview.dart';
 
 class WalkRequestDetailsMap extends StatelessWidget {
   const WalkRequestDetailsMap({
@@ -21,13 +21,6 @@ class WalkRequestDetailsMap extends StatelessWidget {
   final String? walkerUid;
   final String? walkerName;
   final VoidCallback? onOpenMaps;
-
-  static const Color blue = Color(0xFF2563EB);
-  static const Color dark = Color(0xFF0F172A);
-  static const Color grey = Color(0xFF64748B);
-  static const Color background = Color(0xFFF8FAFC);
-  static const Color border = Color(0xFFE2E8F0);
-  static const Color white = Colors.white;
 
   @override
   Widget build(BuildContext context) {
