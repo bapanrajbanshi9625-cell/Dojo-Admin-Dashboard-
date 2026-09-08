@@ -5,7 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../services/walk_requests_service.dart';
 import '../widgets/walk_request_card.dart';
-import '../widgets/walk_request_details_sheet.dart';
+import 'walk_request_details_screen.dart';
 
 class WalkRequestsScreen extends StatefulWidget {
   const WalkRequestsScreen({
