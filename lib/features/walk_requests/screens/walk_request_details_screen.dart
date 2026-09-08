@@ -1,10 +1,17 @@
-// File: lib/features/walk_requests/screens/walk_request_details_screen.dart
+// File:
+// lib/features/walk_requests/screens/walk_request_details_screen.dart
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../widgets/walk_request_map_preview.dart';
+
+// ============================================================
+// COLORS
+// ============================================================
 
 class _WalkRequestDetailsColors {
   static const Color orange = Color(0xFFD35435);
@@ -18,7 +25,12 @@ class _WalkRequestDetailsColors {
   static const Color white = Colors.white;
 }
 
-class WalkRequestDetailsScreen extends StatelessWidget {
+// ============================================================
+// SCREEN
+// ============================================================
+
+class WalkRequestDetailsScreen
+    extends StatelessWidget {
   const WalkRequestDetailsScreen({
     super.key,
     required this.requestId,
@@ -30,18 +42,30 @@ class WalkRequestDetailsScreen extends StatelessWidget {
 
   final String requestId;
   final Map<String, dynamic> data;
+
   final VoidCallback? onAssign;
   final VoidCallback? onCancel;
   final VoidCallback? onOpenMaps;
 
-  String _value(String key, [String fallback = '—']) {
+  // ==========================================================
+  // BASIC HELPERS
+  // ==========================================================
+
+  String _value(
+    String key, [
+    String fallback = '—',
+  ]) {
     final value = data[key];
 
-    if (value == null) return fallback;
+    if (value == null) {
+      return fallback;
+    }
 
     final text = value.toString().trim();
 
-    if (text.isEmpty || text == 'null') return fallback;
+    if (text.isEmpty || text == 'null') {
+      return fallback;
+    }
 
     return text;
   }
@@ -53,11 +77,14 @@ class WalkRequestDetailsScreen extends StatelessWidget {
     for (final key in keys) {
       final value = data[key];
 
-      if (value == null) continue;
+      if (value == null) {
+        continue;
+      }
 
       final text = value.toString().trim();
 
-      if (text.isNotEmpty && text != 'null') {
+      if (text.isNotEmpty &&
+          text != 'null') {
         return text;
       }
     }
@@ -65,21 +92,32 @@ class WalkRequestDetailsScreen extends StatelessWidget {
     return fallback;
   }
 
-  String get status => _value('status', 'pending');
+  // ==========================================================
+  // FIELDS
+  // ==========================================================
 
-  String get ownerName => _firstAvailable([
-        'ownerName',
-        'ownerDisplayName',
-        'name',
-      ], 'Unknown Owner');
+  String get status =>
+      _value('status', 'pending');
 
-  String get ownerId => _firstAvailable([
+  String get ownerName =>
+      _firstAvailable(
+        [
+          'ownerName',
+          'ownerDisplayName',
+          'name',
+        ],
+        'Unknown Owner',
+      );
+
+  String get ownerId =>
+      _firstAvailable([
         'ownerId',
         'ownerAuthUid',
         'ownerUid',
       ]);
 
-  String get ownerPhone => _firstAvailable([
+  String get ownerPhone =>
+      _firstAvailable([
         'ownerPhone',
         'ownerMobile',
         'ownerPhoneNumber',
@@ -87,18 +125,21 @@ class WalkRequestDetailsScreen extends StatelessWidget {
         'mobile',
       ]);
 
-  String get walkerName => _firstAvailable([
+  String get walkerName =>
+      _firstAvailable([
         'walkerName',
         'walkerDisplayName',
       ]);
 
-  String get walkerId => _firstAvailable([
+  String get walkerId =>
+      _firstAvailable([
         'walkerId',
         'walkerUid',
         'walkerAuthUid',
       ]);
 
-  String get walkerPhone => _firstAvailable([
+  String get walkerPhone =>
+      _firstAvailable([
         'walkerPhone',
         'walkerMobile',
         'walkerPhoneNumber',
@@ -107,43 +148,69 @@ class WalkRequestDetailsScreen extends StatelessWidget {
         'mobile',
       ]);
 
-  String get dogName => _firstAvailable([
-        'dogName',
-        'petName',
-      ], 'Dog');
+  String get dogName =>
+      _firstAvailable(
+        [
+          'dogName',
+          'petName',
+        ],
+        'Dog',
+      );
 
-  String get dogBreed => _firstAvailable([
+  String get dogBreed =>
+      _firstAvailable([
         'dogBreed',
         'petBreed',
         'breed',
       ]);
 
-  String get dogPhoto => _firstAvailable([
+  String get dogPhoto =>
+      _firstAvailable([
         'dogPhoto',
         'petPhoto',
         'dogImage',
         'petImage',
       ]);
 
-  String get address => _firstAvailable([
+  String get address =>
+      _firstAvailable([
         'address',
         'pickupAddress',
         'location',
       ]);
 
-  String get searchType => _value('searchType', 'Instant Walk');
+  String get searchType =>
+      _value(
+        'searchType',
+        'Instant Walk',
+      );
 
-  String get radius => data['searchRadiusKm'] == null
-      ? '—'
-      : '${data['searchRadiusKm']} km';
+  String get radius {
+    final value =
+        data['searchRadiusKm'];
+
+    if (value == null) {
+      return '—';
+    }
+
+    return '$value km';
+  }
+
+  // ==========================================================
+  // CREATED DATE
+  // ==========================================================
 
   String get createdAt {
     final value = data['createdAt'];
 
-    if (value == null) return '—';
+    if (value == null) {
+      return '—';
+    }
 
     if (value is Timestamp) {
-      return _formatDate(value.toDate());
+      return _formatDate(
+        value.toDate(),
+      );
     }
 
     if (value is DateTime) {
@@ -153,17 +220,33 @@ class WalkRequestDetailsScreen extends StatelessWidget {
     return value.toString();
   }
 
-  String _formatDate(DateTime date) {
-    final day = date.day.toString().padLeft(2, '0');
-    final month = date.month.toString().padLeft(2, '0');
+  String _formatDate(
+    DateTime date,
+  ) {
+    final day =
+        date.day.toString().padLeft(
+              2,
+              '0',
+            );
+
+    final month =
+        date.month.toString().padLeft(
+              2,
+              '0',
+            );
 
     return '$day/$month/${date.year} '
         '${date.hour.toString().padLeft(2, '0')}:'
         '${date.minute.toString().padLeft(2, '0')}';
   }
 
+  // ==========================================================
+  // STATUS HELPERS
+  // ==========================================================
+
   bool get isPending {
-    final value = status.toLowerCase();
+    final value =
+        status.toLowerCase();
 
     return value == 'pending' ||
         value == 'searching' ||
@@ -176,96 +259,374 @@ class WalkRequestDetailsScreen extends StatelessWidget {
         data['walkerId'] != null;
   }
 
-  Future<void> _callNumber(String phone) async {
-    if (phone == '—' || phone.trim().isEmpty) return;
+  Color _statusColor(
+    String value,
+  ) {
+    switch (value.toLowerCase()) {
+      case 'accepted':
+      case 'assigned':
+      case 'active':
+      case 'started':
+      case 'in_progress':
+      case 'completed':
+        return _WalkRequestDetailsColors
+            .green;
 
-    final uri = Uri.parse('tel:$phone');
+      case 'cancelled':
+      case 'canceled':
+      case 'rejected':
+        return _WalkRequestDetailsColors
+            .danger;
 
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
+      default:
+        return _WalkRequestDetailsColors
+            .blue;
     }
   }
 
-  Future<void> _copy(BuildContext context, String value) async {
-    if (value == '—' || value.isEmpty) return;
+  // ==========================================================
+  // PHONE
+  // ==========================================================
 
-    await Clipboard.setData(
-      ClipboardData(text: value),
+  Future<void> _callNumber(
+    String phone,
+  ) async {
+    if (phone == '—' ||
+        phone.trim().isEmpty) {
+      return;
+    }
+
+    final uri = Uri.parse(
+      'tel:$phone',
     );
 
-    if (!context.mounted) return;
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+      }
+    } catch (_) {
+      // Ignore dialer errors.
+    }
+  }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Copied'),
-        duration: Duration(seconds: 1),
+  // ==========================================================
+  // COPY
+  // ==========================================================
+
+  Future<void> _copy(
+    BuildContext context,
+    String value,
+  ) async {
+    if (value == '—' ||
+        value.trim().isEmpty) {
+      return;
+    }
+
+    await Clipboard.setData(
+      ClipboardData(
+        text: value,
       ),
+    );
+
+    if (!context.mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('Copied'),
+          duration:
+              Duration(seconds: 1),
+          behavior:
+              SnackBarBehavior.floating,
+        ),
+      );
+  }
+
+  // ==========================================================
+  // OWNER LOCATION
+  // ==========================================================
+
+  LatLng? _getOwnerLocation() {
+    final candidates = [
+      data['ownerLocation'],
+      data['pickupLocation'],
+      data['location'],
+      data['currentLocation'],
+    ];
+
+    for (final value in candidates) {
+      final location =
+          _parseLocation(value);
+
+      if (location != null) {
+        return location;
+      }
+    }
+
+    final latitude =
+        _toDouble(
+      data['latitude'],
+    );
+
+    final longitude =
+        _toDouble(
+      data['longitude'],
+    );
+
+    if (latitude != null &&
+        longitude != null) {
+      return LatLng(
+        latitude,
+        longitude,
+      );
+    }
+
+    final lat =
+        _toDouble(
+      data['lat'],
+    );
+
+    final lng =
+        _toDouble(
+      data['lng'],
+    );
+
+    if (lat != null &&
+        lng != null) {
+      return LatLng(
+        lat,
+        lng,
+      );
+    }
+
+    final lon =
+        _toDouble(
+      data['lon'],
+    );
+
+    if (lat != null &&
+        lon != null) {
+      return LatLng(
+        lat,
+        lon,
+      );
+    }
+
+    return null;
+  }
+
+  // ==========================================================
+  // LOCATION PARSER
+  // ==========================================================
+
+  LatLng? _parseLocation(
+    dynamic value,
+  ) {
+    if (value == null) {
+      return null;
+    }
+
+    if (value is GeoPoint) {
+      return LatLng(
+        value.latitude,
+        value.longitude,
+      );
+    }
+
+    if (value is LatLng) {
+      return value;
+    }
+
+    if (value is Map) {
+      final map =
+          Map<String, dynamic>.from(
+        value,
+      );
+
+      final latitude =
+          _toDouble(
+        map['latitude'] ??
+            map['lat'],
+      );
+
+      final longitude =
+          _toDouble(
+        map['longitude'] ??
+            map['lng'] ??
+            map['lon'],
+      );
+
+      if (latitude != null &&
+          longitude != null) {
+        return LatLng(
+          latitude,
+          longitude,
+        );
+      }
+    }
+
+    if (value is List &&
+        value.length >= 2) {
+      final latitude =
+          _toDouble(
+        value[0],
+      );
+
+      final longitude =
+          _toDouble(
+        value[1],
+      );
+
+      if (latitude != null &&
+          longitude != null) {
+        return LatLng(
+          latitude,
+          longitude,
+        );
+      }
+    }
+
+    return null;
+  }
+
+  double? _toDouble(
+    dynamic value,
+  ) {
+    if (value == null) {
+      return null;
+    }
+
+    if (value is num) {
+      return value.toDouble();
+    }
+
+    return double.tryParse(
+      value.toString(),
     );
   }
 
+  // ==========================================================
+  // BUILD
+  // ==========================================================
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Scaffold(
-      backgroundColor: _WalkRequestDetailsColors.background,
+      backgroundColor:
+          _WalkRequestDetailsColors
+              .background,
       appBar: AppBar(
-        backgroundColor: _WalkRequestDetailsColors.white,
-        surfaceTintColor: Colors.transparent,
+        backgroundColor:
+            _WalkRequestDetailsColors
+                .white,
+        surfaceTintColor:
+            Colors.transparent,
         elevation: 0,
+        scrolledUnderElevation:
+            0.5,
         titleSpacing: 20,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pop(),
+          tooltip: 'Back',
+          icon: const Icon(
+            Icons.arrow_back_rounded,
+          ),
+          onPressed: () {
+            Navigator.of(context)
+                .pop();
+          },
         ),
         title: const Text(
           'Walk Request Details',
           style: TextStyle(
-            color: _WalkRequestDetailsColors.dark,
-            fontWeight: FontWeight.w800,
+            color:
+                _WalkRequestDetailsColors
+                    .dark,
+            fontWeight:
+                FontWeight.w800,
           ),
         ),
       ),
       body: LayoutBuilder(
-        builder: (context, constraints) {
-          final wide = constraints.maxWidth >= 1050;
+        builder: (
+          context,
+          constraints,
+        ) {
+          final wide =
+              constraints.maxWidth >=
+                  1050;
 
           return SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: EdgeInsets.all(wide ? 28 : 16),
+            physics:
+                const AlwaysScrollableScrollPhysics(),
+            padding: EdgeInsets.all(
+              wide ? 28 : 16,
+            ),
             child: Center(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(
+                constraints:
+                    const BoxConstraints(
                   maxWidth: 1450,
                 ),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  crossAxisAlignment:
+                      CrossAxisAlignment
+                          .stretch,
                   children: [
                     _Header(
-                      requestId: requestId,
+                      requestId:
+                          requestId,
                       status: status,
-                      onCopy: () => _copy(context, requestId),
+                      onCopy: () =>
+                          _copy(
+                        context,
+                        requestId,
+                      ),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(
+                      height: 20,
+                    ),
                     if (wide)
                       Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        crossAxisAlignment:
+                            CrossAxisAlignment
+                                .start,
                         children: [
                           Expanded(
                             flex: 5,
-                            child: _leftColumn(context),
+                            child:
+                                _leftColumn(
+                              context,
+                            ),
                           ),
-                          const SizedBox(width: 20),
+                          const SizedBox(
+                            width: 20,
+                          ),
                           Expanded(
                             flex: 4,
-                            child: _rightColumn(context),
+                            child:
+                                _rightColumn(
+                              context,
+                            ),
                           ),
                         ],
                       )
                     else
                       Column(
                         children: [
-                          _leftColumn(context),
-                          const SizedBox(height: 16),
-                          _rightColumn(context),
+                          _leftColumn(
+                            context,
+                          ),
+                          const SizedBox(
+                            height: 16,
+                          ),
+                          _rightColumn(
+                            context,
+                          ),
                         ],
                       ),
                   ],
@@ -278,28 +639,49 @@ class WalkRequestDetailsScreen extends StatelessWidget {
     );
   }
 
-  Widget _leftColumn(BuildContext context) {
+  // ==========================================================
+  // LEFT COLUMN
+  // ==========================================================
+
+  Widget _leftColumn(
+    BuildContext context,
+  ) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment:
+          CrossAxisAlignment.stretch,
       children: [
+        // ------------------------------------------------------
+        // REQUEST SUMMARY
+        // ------------------------------------------------------
+
         _InvoiceCard(
           title: 'Request Summary',
-          icon: Icons.receipt_long_rounded,
+          icon:
+              Icons.receipt_long_rounded,
           child: Column(
             children: [
               _SummaryRow(
                 label: 'Request ID',
                 value: requestId,
-                copy: () => _copy(context, requestId),
+                copy: () =>
+                    _copy(
+                  context,
+                  requestId,
+                ),
               ),
               _SummaryRow(
                 label: 'Status',
-                value: status.toUpperCase(),
-                valueColor: _statusColor(status),
+                value:
+                    status.toUpperCase(),
+                valueColor:
+                    _statusColor(
+                  status,
+                ),
               ),
               _SummaryRow(
                 label: 'Search Type',
-                value: searchType,
+                value:
+                    searchType,
               ),
               _SummaryRow(
                 label: 'Search Radius',
@@ -307,62 +689,118 @@ class WalkRequestDetailsScreen extends StatelessWidget {
               ),
               _SummaryRow(
                 label: 'Created',
-                value: createdAt,
+                value:
+                    createdAt,
               ),
             ],
           ),
         ),
-        const SizedBox(height: 16),
+
+        const SizedBox(
+          height: 16,
+        ),
+
+        // ------------------------------------------------------
+        // OWNER
+        // ------------------------------------------------------
+
         _InvoiceCard(
           title: 'Owner Details',
-          icon: Icons.person_rounded,
+          icon:
+              Icons.person_rounded,
           child: Column(
             children: [
               _ProfileHeader(
                 name: ownerName,
                 subtitle: ownerId,
               ),
-              const SizedBox(height: 14),
+              const SizedBox(
+                height: 14,
+              ),
               _PhoneRow(
                 phone: ownerPhone,
-                onCall: () => _callNumber(ownerPhone),
+                onCall: () =>
+                    _callNumber(
+                  ownerPhone,
+                ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(
+                height: 10,
+              ),
               _CopyRow(
                 label: 'Owner ID',
                 value: ownerId,
-                onCopy: () => _copy(context, ownerId),
+                onCopy: () =>
+                    _copy(
+                  context,
+                  ownerId,
+                ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 16),
+
+        const SizedBox(
+          height: 16,
+        ),
+
+        // ------------------------------------------------------
+        // DOG
+        // ------------------------------------------------------
+
         _InvoiceCard(
           title: 'Dog Details',
-          icon: Icons.pets_rounded,
+          icon:
+              Icons.pets_rounded,
           child: Row(
             children: [
-              _DogAvatar(photo: dogPhoto),
-              const SizedBox(width: 14),
+              _DogAvatar(
+                photo: dogPhoto,
+              ),
+              const SizedBox(
+                width: 14,
+              ),
               Expanded(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment:
+                      CrossAxisAlignment
+                          .start,
                   children: [
                     Text(
                       dogName,
-                      style: const TextStyle(
+                      maxLines: 1,
+                      overflow:
+                          TextOverflow
+                              .ellipsis,
+                      style:
+                          const TextStyle(
                         fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                        color: _WalkRequestDetailsColors.dark,
+                        fontWeight:
+                            FontWeight
+                                .w800,
+                        color:
+                            _WalkRequestDetailsColors
+                                .dark,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(
+                      height: 4,
+                    ),
                     Text(
                       dogBreed,
-                      style: const TextStyle(
-                        color: _WalkRequestDetailsColors.grey,
+                      maxLines: 1,
+                      overflow:
+                          TextOverflow
+                              .ellipsis,
+                      style:
+                          const TextStyle(
+                        color:
+                            _WalkRequestDetailsColors
+                                .grey,
                         fontSize: 13,
-                        fontWeight: FontWeight.w600,
+                        fontWeight:
+                            FontWeight
+                                .w600,
                       ),
                     ),
                   ],
@@ -371,27 +809,52 @@ class WalkRequestDetailsScreen extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 16),
+
+        const SizedBox(
+          height: 16,
+        ),
+
+        // ------------------------------------------------------
+        // WALKER
+        // ------------------------------------------------------
+
         _InvoiceCard(
           title: 'Walker Details',
-          icon: Icons.directions_walk_rounded,
+          icon:
+              Icons.directions_walk_rounded,
           child: hasWalker
               ? Column(
                   children: [
                     _ProfileHeader(
-                      name: walkerName,
-                      subtitle: walkerId,
+                      name:
+                          walkerName,
+                      subtitle:
+                          walkerId,
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(
+                      height: 14,
+                    ),
                     _PhoneRow(
-                      phone: walkerPhone,
-                      onCall: () => _callNumber(walkerPhone),
+                      phone:
+                          walkerPhone,
+                      onCall: () =>
+                          _callNumber(
+                        walkerPhone,
+                      ),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(
+                      height: 10,
+                    ),
                     _CopyRow(
-                      label: 'Walker ID',
-                      value: walkerId,
-                      onCopy: () => _copy(context, walkerId),
+                      label:
+                          'Walker ID',
+                      value:
+                          walkerId,
+                      onCopy: () =>
+                          _copy(
+                        context,
+                        walkerId,
+                      ),
                     ),
                   ],
                 )
@@ -401,40 +864,79 @@ class WalkRequestDetailsScreen extends StatelessWidget {
     );
   }
 
-  Widget _rightColumn(BuildContext context) {
+  // ==========================================================
+  // RIGHT COLUMN
+  // ==========================================================
+
+  Widget _rightColumn(
+    BuildContext context,
+  ) {
+    final ownerLocation =
+        _getOwnerLocation();
+
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment:
+          CrossAxisAlignment.stretch,
       children: [
+        // ------------------------------------------------------
+        // PICKUP LOCATION
+        // ------------------------------------------------------
+
         _InvoiceCard(
           title: 'Pickup Location',
-          icon: Icons.location_on_rounded,
+          icon:
+              Icons.location_on_rounded,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            crossAxisAlignment:
+                CrossAxisAlignment
+                    .stretch,
             children: [
               Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: _WalkRequestDetailsColors.background,
-                  borderRadius: BorderRadius.circular(12),
+                padding:
+                    const EdgeInsets
+                        .all(14),
+                decoration:
+                    BoxDecoration(
+                  color:
+                      _WalkRequestDetailsColors
+                          .background,
+                  borderRadius:
+                      BorderRadius.circular(
+                    12,
+                  ),
                   border: Border.all(
-                    color: _WalkRequestDetailsColors.border,
+                    color:
+                        _WalkRequestDetailsColors
+                            .border,
                   ),
                 ),
                 child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment:
+                      CrossAxisAlignment
+                          .start,
                   children: [
                     const Icon(
-                      Icons.location_on_rounded,
-                      color: _WalkRequestDetailsColors.orange,
+                      Icons
+                          .location_on_rounded,
+                      color:
+                          _WalkRequestDetailsColors
+                              .orange,
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(
+                      width: 10,
+                    ),
                     Expanded(
                       child: Text(
                         address,
-                        style: const TextStyle(
-                          color: _WalkRequestDetailsColors.dark,
+                        style:
+                            const TextStyle(
+                          color:
+                              _WalkRequestDetailsColors
+                                  .dark,
                           fontSize: 14,
-                          fontWeight: FontWeight.w600,
+                          fontWeight:
+                              FontWeight
+                                  .w600,
                           height: 1.4,
                         ),
                       ),
@@ -443,17 +945,40 @@ class WalkRequestDetailsScreen extends StatelessWidget {
                 ),
               ),
               if (onOpenMaps != null) ...[
-                const SizedBox(height: 12),
+                const SizedBox(
+                  height: 12,
+                ),
                 OutlinedButton.icon(
-                  onPressed: onOpenMaps,
-                  icon: const Icon(Icons.map_outlined),
-                  label: const Text('Open in Maps'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: _WalkRequestDetailsColors.blue,
-                    side: const BorderSide(
-                      color: _WalkRequestDetailsColors.border,
+                  onPressed:
+                      ownerLocation !=
+                              null
+                          ? () {
+                              onOpenMaps!(
+                                ownerLocation,
+                              );
+                            }
+                          : null,
+                  icon: const Icon(
+                    Icons.map_outlined,
+                  ),
+                  label: const Text(
+                    'Open in Maps',
+                  ),
+                  style:
+                      OutlinedButton
+                          .styleFrom(
+                    foregroundColor:
+                        _WalkRequestDetailsColors
+                            .blue,
+                    side:
+                        const BorderSide(
+                      color:
+                          _WalkRequestDetailsColors
+                              .border,
                     ),
-                    padding: const EdgeInsets.symmetric(
+                    padding:
+                        const EdgeInsets
+                            .symmetric(
                       vertical: 13,
                     ),
                   ),
@@ -462,47 +987,112 @@ class WalkRequestDetailsScreen extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 16),
-        _InvoiceCard(
-          title: 'Map',
-          icon: Icons.map_rounded,
-          child: SizedBox(
-            height: 360,
-            child: WalkRequestMapPreview(
-              data: data,
-            ),
-          ),
+
+        const SizedBox(
+          height: 16,
         ),
-        const SizedBox(height: 16),
+
+        // ------------------------------------------------------
+        // MAP
+        // ------------------------------------------------------
+
+        if (ownerLocation != null)
+          _InvoiceCard(
+            title: 'Map',
+            icon:
+                Icons.map_rounded,
+            child: SizedBox(
+              height: 360,
+              child:
+                  WalkRequestMapPreview(
+                ownerLocation:
+                    ownerLocation,
+                walkerId:
+                    walkerId != '—'
+                        ? walkerId
+                        : null,
+                walkerUid:
+                    data[
+                            'walkerUid']
+                        ?.toString(),
+                walkerName:
+                    walkerName !=
+                            '—'
+                        ? walkerName
+                        : null,
+                onOpenMaps:
+                    onOpenMaps != null
+                        ? () {
+                            onOpenMaps!(
+                              ownerLocation,
+                            );
+                          }
+                        : null,
+              ),
+            ),
+          )
+        else
+          _InvoiceCard(
+            title: 'Map',
+            icon:
+                Icons.map_rounded,
+            child:
+                _NoLocationMap(),
+          ),
+
+        const SizedBox(
+          height: 16,
+        ),
+
+        // ------------------------------------------------------
+        // WALK INFORMATION
+        // ------------------------------------------------------
+
         _InvoiceCard(
           title: 'Walk Information',
-          icon: Icons.info_outline_rounded,
+          icon:
+              Icons.info_outline_rounded,
           child: Column(
             children: [
               _InvoiceRow(
                 label: 'Request ID',
-                value: requestId,
+                value:
+                    requestId,
               ),
               _InvoiceRow(
                 label: 'Owner',
-                value: ownerName,
+                value:
+                    ownerName,
               ),
               _InvoiceRow(
                 label: 'Dog',
-                value: dogName,
+                value:
+                    dogName,
               ),
               _InvoiceRow(
                 label: 'Walker',
-                value: hasWalker ? walkerName : 'Not assigned',
+                value: hasWalker
+                    ? walkerName
+                    : 'Not assigned',
               ),
               _InvoiceRow(
                 label: 'Status',
-                value: status.toUpperCase(),
+                value:
+                    status
+                        .toUpperCase(),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 16),
+
+        const SizedBox(
+          height: 16,
+        ),
+
+        // ------------------------------------------------------
+        // ACTIONS
+        // ------------------------------------------------------
+
         _ActionsCard(
           isPending: isPending,
           hasWalker: hasWalker,
@@ -512,26 +1102,14 @@ class WalkRequestDetailsScreen extends StatelessWidget {
       ],
     );
   }
-
-  Color _statusColor(String value) {
-    switch (value.toLowerCase()) {
-      case 'accepted':
-      case 'assigned':
-      case 'completed':
-        return _WalkRequestDetailsColors.green;
-
-      case 'cancelled':
-      case 'canceled':
-      case 'rejected':
-        return _WalkRequestDetailsColors.danger;
-
-      default:
-        return _WalkRequestDetailsColors.blue;
-    }
-  }
 }
 
-class _Header extends StatelessWidget {
+// ============================================================
+// HEADER
+// ============================================================
+
+class _Header
+    extends StatelessWidget {
   const _Header({
     required this.requestId,
     required this.status,
@@ -543,14 +1121,23 @@ class _Header extends StatelessWidget {
   final VoidCallback onCopy;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: _WalkRequestDetailsColors.white,
-        borderRadius: BorderRadius.circular(18),
+      padding:
+          const EdgeInsets.all(20),
+      decoration:
+          BoxDecoration(
+        color:
+            _WalkRequestDetailsColors
+                .white,
+        borderRadius:
+            BorderRadius.circular(18),
         border: Border.all(
-          color: _WalkRequestDetailsColors.border,
+          color:
+              _WalkRequestDetailsColors
+                  .border,
         ),
       ),
       child: Row(
@@ -558,51 +1145,87 @@ class _Header extends StatelessWidget {
           Container(
             width: 48,
             height: 48,
-            decoration: BoxDecoration(
-              color: _WalkRequestDetailsColors.orange.withValues(
+            decoration:
+                BoxDecoration(
+              color:
+                  _WalkRequestDetailsColors
+                      .orange
+                      .withValues(
                 alpha: .10,
               ),
-              borderRadius: BorderRadius.circular(14),
+              borderRadius:
+                  BorderRadius.circular(
+                14,
+              ),
             ),
-            child: const Icon(
-              Icons.receipt_long_rounded,
-              color: _WalkRequestDetailsColors.orange,
+            child:
+                const Icon(
+              Icons
+                  .receipt_long_rounded,
+              color:
+                  _WalkRequestDetailsColors
+                      .orange,
             ),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(
+            width: 14,
+          ),
           Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment:
+                  CrossAxisAlignment
+                      .start,
               children: [
                 const Text(
                   'Walk Request',
-                  style: TextStyle(
-                    color: _WalkRequestDetailsColors.dark,
+                  style:
+                      TextStyle(
+                    color:
+                        _WalkRequestDetailsColors
+                            .dark,
                     fontSize: 20,
-                    fontWeight: FontWeight.w900,
+                    fontWeight:
+                        FontWeight
+                            .w900,
                   ),
                 ),
-                const SizedBox(height: 5),
+                const SizedBox(
+                  height: 5,
+                ),
                 InkWell(
                   onTap: onCopy,
                   child: Row(
                     children: [
                       Flexible(
-                        child: Text(
+                        child:
+                            Text(
                           requestId,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: _WalkRequestDetailsColors.grey,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
+                          overflow:
+                              TextOverflow
+                                  .ellipsis,
+                          style:
+                              const TextStyle(
+                            color:
+                                _WalkRequestDetailsColors
+                                    .grey,
+                            fontSize:
+                                13,
+                            fontWeight:
+                                FontWeight
+                                    .w600,
                           ),
                         ),
                       ),
-                      const SizedBox(width: 6),
+                      const SizedBox(
+                        width: 6,
+                      ),
                       const Icon(
-                        Icons.copy_rounded,
+                        Icons
+                            .copy_rounded,
                         size: 15,
-                        color: _WalkRequestDetailsColors.grey,
+                        color:
+                            _WalkRequestDetailsColors
+                                .grey,
                       ),
                     ],
                   ),
@@ -610,15 +1233,24 @@ class _Header extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: 10),
-          _StatusBadge(status: status),
+          const SizedBox(
+            width: 10,
+          ),
+          _StatusBadge(
+            status: status,
+          ),
         ],
       ),
     );
   }
 }
 
-class _InvoiceCard extends StatelessWidget {
+// ============================================================
+// INVOICE CARD
+// ============================================================
+
+class _InvoiceCard
+    extends StatelessWidget {
   const _InvoiceCard({
     required this.title,
     required this.icon,
@@ -630,38 +1262,60 @@ class _InvoiceCard extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: _WalkRequestDetailsColors.white,
-        borderRadius: BorderRadius.circular(18),
+      padding:
+          const EdgeInsets.all(18),
+      decoration:
+          BoxDecoration(
+        color:
+            _WalkRequestDetailsColors
+                .white,
+        borderRadius:
+            BorderRadius.circular(18),
         border: Border.all(
-          color: _WalkRequestDetailsColors.border,
+          color:
+              _WalkRequestDetailsColors
+                  .border,
         ),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment:
+            CrossAxisAlignment
+                .stretch,
         children: [
           Row(
             children: [
               Icon(
                 icon,
                 size: 19,
-                color: _WalkRequestDetailsColors.blue,
+                color:
+                    _WalkRequestDetailsColors
+                        .blue,
               ),
-              const SizedBox(width: 9),
+              const SizedBox(
+                width: 9,
+              ),
               Text(
                 title,
-                style: const TextStyle(
-                  color: _WalkRequestDetailsColors.dark,
+                style:
+                    const TextStyle(
+                  color:
+                      _WalkRequestDetailsColors
+                          .dark,
                   fontSize: 15,
-                  fontWeight: FontWeight.w900,
+                  fontWeight:
+                      FontWeight
+                          .w900,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(
+            height: 16,
+          ),
           child,
         ],
       ),
@@ -669,7 +1323,12 @@ class _InvoiceCard extends StatelessWidget {
   }
 }
 
-class _SummaryRow extends StatelessWidget {
+// ============================================================
+// SUMMARY ROW
+// ============================================================
+
+class _SummaryRow
+    extends StatelessWidget {
   const _SummaryRow({
     required this.label,
     required this.value,
@@ -683,46 +1342,72 @@ class _SummaryRow extends StatelessWidget {
   final VoidCallback? copy;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding:
+          const EdgeInsets.symmetric(
+        vertical: 8,
+      ),
       child: Row(
         children: [
           Expanded(
             child: Text(
               label,
-              style: const TextStyle(
-                color: _WalkRequestDetailsColors.grey,
+              style:
+                  const TextStyle(
+                color:
+                    _WalkRequestDetailsColors
+                        .grey,
                 fontSize: 13,
-                fontWeight: FontWeight.w600,
+                fontWeight:
+                    FontWeight
+                        .w600,
               ),
             ),
           ),
           Flexible(
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+              mainAxisAlignment:
+                  MainAxisAlignment
+                      .end,
               children: [
                 Flexible(
                   child: Text(
                     value,
-                    textAlign: TextAlign.right,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
+                    textAlign:
+                        TextAlign
+                            .right,
+                    overflow:
+                        TextOverflow
+                            .ellipsis,
+                    style:
+                        TextStyle(
                       color: valueColor ??
-                          _WalkRequestDetailsColors.dark,
+                          _WalkRequestDetailsColors
+                              .dark,
                       fontSize: 13,
-                      fontWeight: FontWeight.w800,
+                      fontWeight:
+                          FontWeight
+                              .w800,
                     ),
                   ),
                 ),
                 if (copy != null) ...[
-                  const SizedBox(width: 6),
+                  const SizedBox(
+                    width: 6,
+                  ),
                   InkWell(
                     onTap: copy,
-                    child: const Icon(
-                      Icons.copy_rounded,
+                    child:
+                        const Icon(
+                      Icons
+                          .copy_rounded,
                       size: 14,
-                      color: _WalkRequestDetailsColors.grey,
+                      color:
+                          _WalkRequestDetailsColors
+                              .grey,
                     ),
                   ),
                 ],
@@ -735,7 +1420,12 @@ class _SummaryRow extends StatelessWidget {
   }
 }
 
-class _ProfileHeader extends StatelessWidget {
+// ============================================================
+// PROFILE HEADER
+// ============================================================
+
+class _ProfileHeader
+    extends StatelessWidget {
   const _ProfileHeader({
     required this.name,
     required this.subtitle,
@@ -745,45 +1435,79 @@ class _ProfileHeader extends StatelessWidget {
   final String subtitle;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Row(
       children: [
         Container(
           width: 48,
           height: 48,
-          decoration: BoxDecoration(
-            color: _WalkRequestDetailsColors.blue.withValues(
+          decoration:
+              BoxDecoration(
+            color:
+                _WalkRequestDetailsColors
+                    .blue
+                    .withValues(
               alpha: .10,
             ),
-            borderRadius: BorderRadius.circular(14),
+            borderRadius:
+                BorderRadius.circular(
+              14,
+            ),
           ),
-          child: const Icon(
+          child:
+              const Icon(
             Icons.person_rounded,
-            color: _WalkRequestDetailsColors.blue,
+            color:
+                _WalkRequestDetailsColors
+                    .blue,
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(
+          width: 12,
+        ),
         Expanded(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment:
+                CrossAxisAlignment
+                    .start,
             children: [
               Text(
                 name,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: _WalkRequestDetailsColors.dark,
+                maxLines: 1,
+                overflow:
+                    TextOverflow
+                        .ellipsis,
+                style:
+                    const TextStyle(
+                  color:
+                      _WalkRequestDetailsColors
+                          .dark,
                   fontSize: 16,
-                  fontWeight: FontWeight.w900,
+                  fontWeight:
+                      FontWeight
+                          .w900,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(
+                height: 4,
+              ),
               Text(
                 subtitle,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: _WalkRequestDetailsColors.grey,
+                maxLines: 1,
+                overflow:
+                    TextOverflow
+                        .ellipsis,
+                style:
+                    const TextStyle(
+                  color:
+                      _WalkRequestDetailsColors
+                          .grey,
                   fontSize: 12,
-                  fontWeight: FontWeight.w600,
+                  fontWeight:
+                      FontWeight
+                          .w600,
                 ),
               ),
             ],
@@ -794,7 +1518,12 @@ class _ProfileHeader extends StatelessWidget {
   }
 }
 
-class _PhoneRow extends StatelessWidget {
+// ============================================================
+// PHONE ROW
+// ============================================================
+
+class _PhoneRow
+    extends StatelessWidget {
   const _PhoneRow({
     required this.phone,
     required this.onCall,
@@ -804,19 +1533,31 @@ class _PhoneRow extends StatelessWidget {
   final VoidCallback onCall;
 
   @override
-  Widget build(BuildContext context) {
-    final enabled = phone != '—';
+  Widget build(
+    BuildContext context,
+  ) {
+    final enabled =
+        phone != '—';
 
     return Container(
-      padding: const EdgeInsets.symmetric(
+      padding:
+          const EdgeInsets.symmetric(
         horizontal: 12,
         vertical: 10,
       ),
-      decoration: BoxDecoration(
-        color: _WalkRequestDetailsColors.background,
-        borderRadius: BorderRadius.circular(12),
+      decoration:
+          BoxDecoration(
+        color:
+            _WalkRequestDetailsColors
+                .background,
+        borderRadius:
+            BorderRadius.circular(
+          12,
+        ),
         border: Border.all(
-          color: _WalkRequestDetailsColors.border,
+          color:
+              _WalkRequestDetailsColors
+                  .border,
         ),
       ),
       child: Row(
@@ -824,25 +1565,51 @@ class _PhoneRow extends StatelessWidget {
           const Icon(
             Icons.phone_outlined,
             size: 18,
-            color: _WalkRequestDetailsColors.green,
+            color:
+                _WalkRequestDetailsColors
+                    .green,
           ),
-          const SizedBox(width: 9),
+          const SizedBox(
+            width: 9,
+          ),
           Expanded(
             child: Text(
               phone,
-              style: const TextStyle(
-                color: _WalkRequestDetailsColors.dark,
-                fontWeight: FontWeight.w700,
+              maxLines: 1,
+              overflow:
+                  TextOverflow
+                      .ellipsis,
+              style:
+                  const TextStyle(
+                color:
+                    _WalkRequestDetailsColors
+                        .dark,
+                fontWeight:
+                    FontWeight
+                        .w700,
                 fontSize: 13,
               ),
             ),
           ),
           TextButton.icon(
-            onPressed: enabled ? onCall : null,
-            icon: const Icon(Icons.call_rounded, size: 16),
-            label: const Text('Call'),
-            style: TextButton.styleFrom(
-              foregroundColor: _WalkRequestDetailsColors.green,
+            onPressed:
+                enabled
+                    ? onCall
+                    : null,
+            icon:
+                const Icon(
+              Icons.call_rounded,
+              size: 16,
+            ),
+            label:
+                const Text(
+              'Call',
+            ),
+            style:
+                TextButton.styleFrom(
+              foregroundColor:
+                  _WalkRequestDetailsColors
+                      .green,
             ),
           ),
         ],
@@ -851,7 +1618,12 @@ class _PhoneRow extends StatelessWidget {
   }
 }
 
-class _CopyRow extends StatelessWidget {
+// ============================================================
+// COPY ROW
+// ============================================================
+
+class _CopyRow
+    extends StatelessWidget {
   const _CopyRow({
     required this.label,
     required this.value,
@@ -863,44 +1635,75 @@ class _CopyRow extends StatelessWidget {
   final VoidCallback onCopy;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return InkWell(
       onTap: onCopy,
-      borderRadius: BorderRadius.circular(10),
+      borderRadius:
+          BorderRadius.circular(
+        10,
+      ),
       child: Container(
-        padding: const EdgeInsets.symmetric(
+        padding:
+            const EdgeInsets.symmetric(
           horizontal: 12,
           vertical: 11,
         ),
-        decoration: BoxDecoration(
-          color: _WalkRequestDetailsColors.background,
-          borderRadius: BorderRadius.circular(10),
+        decoration:
+            BoxDecoration(
+          color:
+              _WalkRequestDetailsColors
+                  .background,
+          borderRadius:
+              BorderRadius.circular(
+            10,
+          ),
           border: Border.all(
-            color: _WalkRequestDetailsColors.border,
+            color:
+                _WalkRequestDetailsColors
+                    .border,
           ),
         ),
         child: Row(
           children: [
             Expanded(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment:
+                    CrossAxisAlignment
+                        .start,
                 children: [
                   Text(
                     label,
-                    style: const TextStyle(
-                      color: _WalkRequestDetailsColors.grey,
+                    style:
+                        const TextStyle(
+                      color:
+                          _WalkRequestDetailsColors
+                              .grey,
                       fontSize: 11,
-                      fontWeight: FontWeight.w700,
+                      fontWeight:
+                          FontWeight
+                              .w700,
                     ),
                   ),
-                  const SizedBox(height: 3),
+                  const SizedBox(
+                    height: 3,
+                  ),
                   Text(
                     value,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: _WalkRequestDetailsColors.dark,
+                    maxLines: 1,
+                    overflow:
+                        TextOverflow
+                            .ellipsis,
+                    style:
+                        const TextStyle(
+                      color:
+                          _WalkRequestDetailsColors
+                              .dark,
                       fontSize: 12,
-                      fontWeight: FontWeight.w700,
+                      fontWeight:
+                          FontWeight
+                              .w700,
                     ),
                   ),
                 ],
@@ -909,7 +1712,9 @@ class _CopyRow extends StatelessWidget {
             const Icon(
               Icons.copy_rounded,
               size: 16,
-              color: _WalkRequestDetailsColors.blue,
+              color:
+                  _WalkRequestDetailsColors
+                      .blue,
             ),
           ],
         ),
@@ -918,7 +1723,12 @@ class _CopyRow extends StatelessWidget {
   }
 }
 
-class _DogAvatar extends StatelessWidget {
+// ============================================================
+// DOG AVATAR
+// ============================================================
+
+class _DogAvatar
+    extends StatelessWidget {
   const _DogAvatar({
     required this.photo,
   });
@@ -926,66 +1736,111 @@ class _DogAvatar extends StatelessWidget {
   final String photo;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     final hasPhoto =
-        photo != '—' && photo.trim().isNotEmpty;
+        photo != '—' &&
+            photo.trim().isNotEmpty;
 
     return Container(
       width: 58,
       height: 58,
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: _WalkRequestDetailsColors.orange.withValues(
+      clipBehavior:
+          Clip.antiAlias,
+      decoration:
+          BoxDecoration(
+        color:
+            _WalkRequestDetailsColors
+                .orange
+                .withValues(
           alpha: .10,
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius:
+            BorderRadius.circular(
+          16,
+        ),
       ),
       child: hasPhoto
           ? Image.network(
               photo,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) {
+              errorBuilder:
+                  (
+                _,
+                __,
+                ___,
+              ) {
                 return const Icon(
-                  Icons.pets_rounded,
-                  color: _WalkRequestDetailsColors.orange,
+                  Icons
+                      .pets_rounded,
+                  color:
+                      _WalkRequestDetailsColors
+                          .orange,
                 );
               },
             )
           : const Icon(
               Icons.pets_rounded,
-              color: _WalkRequestDetailsColors.orange,
+              color:
+                  _WalkRequestDetailsColors
+                      .orange,
             ),
     );
   }
 }
 
-class _EmptyWalker extends StatelessWidget {
+// ============================================================
+// EMPTY WALKER
+// ============================================================
+
+class _EmptyWalker
+    extends StatelessWidget {
   const _EmptyWalker();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: _WalkRequestDetailsColors.background,
-        borderRadius: BorderRadius.circular(12),
+      padding:
+          const EdgeInsets.all(14),
+      decoration:
+          BoxDecoration(
+        color:
+            _WalkRequestDetailsColors
+                .background,
+        borderRadius:
+            BorderRadius.circular(
+          12,
+        ),
         border: Border.all(
-          color: _WalkRequestDetailsColors.border,
+          color:
+              _WalkRequestDetailsColors
+                  .border,
         ),
       ),
       child: const Row(
         children: [
           Icon(
-            Icons.person_search_rounded,
-            color: _WalkRequestDetailsColors.grey,
+            Icons
+                .person_search_rounded,
+            color:
+                _WalkRequestDetailsColors
+                    .grey,
           ),
-          SizedBox(width: 10),
+          SizedBox(
+            width: 10,
+          ),
           Expanded(
             child: Text(
               'No walker assigned yet.',
               style: TextStyle(
-                color: _WalkRequestDetailsColors.grey,
-                fontWeight: FontWeight.w700,
+                color:
+                    _WalkRequestDetailsColors
+                        .grey,
+                fontWeight:
+                    FontWeight.w700,
               ),
             ),
           ),
@@ -995,7 +1850,12 @@ class _EmptyWalker extends StatelessWidget {
   }
 }
 
-class _InvoiceRow extends StatelessWidget {
+// ============================================================
+// INVOICE ROW
+// ============================================================
+
+class _InvoiceRow
+    extends StatelessWidget {
   const _InvoiceRow({
     required this.label,
     required this.value,
@@ -1005,30 +1865,49 @@ class _InvoiceRow extends StatelessWidget {
   final String value;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 9),
+      padding:
+          const EdgeInsets.symmetric(
+        vertical: 9,
+      ),
       child: Row(
         children: [
           Expanded(
             child: Text(
               label,
-              style: const TextStyle(
-                color: _WalkRequestDetailsColors.grey,
+              style:
+                  const TextStyle(
+                color:
+                    _WalkRequestDetailsColors
+                        .grey,
                 fontSize: 13,
-                fontWeight: FontWeight.w600,
+                fontWeight:
+                    FontWeight
+                        .w600,
               ),
             ),
           ),
           Flexible(
             child: Text(
               value,
-              textAlign: TextAlign.right,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: _WalkRequestDetailsColors.dark,
+              textAlign:
+                  TextAlign.right,
+              maxLines: 1,
+              overflow:
+                  TextOverflow
+                      .ellipsis,
+              style:
+                  const TextStyle(
+                color:
+                    _WalkRequestDetailsColors
+                        .dark,
                 fontSize: 13,
-                fontWeight: FontWeight.w800,
+                fontWeight:
+                    FontWeight
+                        .w800,
               ),
             ),
           ),
@@ -1038,7 +1917,12 @@ class _InvoiceRow extends StatelessWidget {
   }
 }
 
-class _StatusBadge extends StatelessWidget {
+// ============================================================
+// STATUS BADGE
+// ============================================================
+
+class _StatusBadge
+    extends StatelessWidget {
   const _StatusBadge({
     required this.status,
   });
@@ -1046,45 +1930,142 @@ class _StatusBadge extends StatelessWidget {
   final String status;
 
   @override
-  Widget build(BuildContext context) {
-    final value = status.toLowerCase();
+  Widget build(
+    BuildContext context,
+  ) {
+    final value =
+        status.toLowerCase();
 
     Color color;
 
     if (value == 'accepted' ||
         value == 'assigned' ||
+        value == 'active' ||
+        value == 'started' ||
+        value == 'in_progress' ||
         value == 'completed') {
-      color = _WalkRequestDetailsColors.green;
-    } else if (value == 'cancelled' ||
+      color =
+          _WalkRequestDetailsColors
+              .green;
+    } else if (value ==
+            'cancelled' ||
         value == 'canceled' ||
         value == 'rejected') {
-      color = _WalkRequestDetailsColors.danger;
+      color =
+          _WalkRequestDetailsColors
+              .danger;
     } else {
-      color = _WalkRequestDetailsColors.blue;
+      color =
+          _WalkRequestDetailsColors
+              .blue;
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(
+      padding:
+          const EdgeInsets.symmetric(
         horizontal: 11,
         vertical: 7,
       ),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: .10),
-        borderRadius: BorderRadius.circular(999),
+      decoration:
+          BoxDecoration(
+        color: color.withValues(
+          alpha: .10,
+        ),
+        borderRadius:
+            BorderRadius.circular(
+          999,
+        ),
       ),
       child: Text(
         status.toUpperCase(),
-        style: TextStyle(
+        maxLines: 1,
+        overflow:
+            TextOverflow.ellipsis,
+        style:
+            TextStyle(
           color: color,
           fontSize: 11,
-          fontWeight: FontWeight.w900,
+          fontWeight:
+              FontWeight.w900,
         ),
       ),
     );
   }
 }
 
-class _ActionsCard extends StatelessWidget {
+// ============================================================
+// NO LOCATION MAP
+// ============================================================
+
+class _NoLocationMap
+    extends StatelessWidget {
+  const _NoLocationMap();
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    return Container(
+      width: double.infinity,
+      decoration:
+          BoxDecoration(
+        color:
+            _WalkRequestDetailsColors
+                .background,
+        borderRadius:
+            BorderRadius.circular(
+          14,
+        ),
+        border: Border.all(
+          color:
+              _WalkRequestDetailsColors
+                  .border,
+        ),
+      ),
+      child: const Center(
+        child: Column(
+          mainAxisSize:
+              MainAxisSize.min,
+          children: [
+            Icon(
+              Icons
+                  .location_off_outlined,
+              size: 34,
+              color:
+                  _WalkRequestDetailsColors
+                      .grey,
+            ),
+            SizedBox(
+              height: 10,
+            ),
+            Text(
+              'Location coordinates not available',
+              textAlign:
+                  TextAlign.center,
+              style:
+                  TextStyle(
+                color:
+                    _WalkRequestDetailsColors
+                        .grey,
+                fontSize: 13,
+                fontWeight:
+                    FontWeight
+                        .w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================
+// ACTIONS CARD
+// ============================================================
+
+class _ActionsCard
+    extends StatelessWidget {
   const _ActionsCard({
     required this.isPending,
     required this.hasWalker,
@@ -1098,69 +2079,128 @@ class _ActionsCard extends StatelessWidget {
   final VoidCallback? onCancel;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: _WalkRequestDetailsColors.white,
-        borderRadius: BorderRadius.circular(18),
+      padding:
+          const EdgeInsets.all(18),
+      decoration:
+          BoxDecoration(
+        color:
+            _WalkRequestDetailsColors
+                .white,
+        borderRadius:
+            BorderRadius.circular(
+          18,
+        ),
         border: Border.all(
-          color: _WalkRequestDetailsColors.border,
+          color:
+              _WalkRequestDetailsColors
+                  .border,
         ),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment:
+            CrossAxisAlignment
+                .stretch,
         children: [
           const Text(
             'Actions',
-            style: TextStyle(
-              color: _WalkRequestDetailsColors.dark,
+            style:
+                TextStyle(
+              color:
+                  _WalkRequestDetailsColors
+                      .dark,
               fontSize: 15,
-              fontWeight: FontWeight.w900,
+              fontWeight:
+                  FontWeight.w900,
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(
+            height: 14,
+          ),
           if (onAssign != null)
             SizedBox(
               height: 46,
-              child: ElevatedButton.icon(
-                onPressed: onAssign,
+              child:
+                  ElevatedButton.icon(
+                onPressed:
+                    onAssign,
                 icon: Icon(
                   hasWalker
-                      ? Icons.swap_horiz_rounded
-                      : Icons.person_add_alt_1_rounded,
+                      ? Icons
+                          .swap_horiz_rounded
+                      : Icons
+                          .person_add_alt_1_rounded,
                 ),
                 label: Text(
-                  hasWalker ? 'Change Walker' : 'Assign Walker',
+                  hasWalker
+                      ? 'Change Walker'
+                      : 'Assign Walker',
                 ),
-                style: ElevatedButton.styleFrom(
+                style:
+                    ElevatedButton
+                        .styleFrom(
                   backgroundColor:
-                      _WalkRequestDetailsColors.blue,
-                  foregroundColor: Colors.white,
+                      _WalkRequestDetailsColors
+                          .blue,
+                  foregroundColor:
+                      Colors.white,
                   elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                  shape:
+                      RoundedRectangleBorder(
+                    borderRadius:
+                        BorderRadius
+                            .circular(
+                      12,
+                    ),
                   ),
                 ),
               ),
             ),
-          if (onAssign != null && onCancel != null)
-            const SizedBox(height: 10),
-          if (onCancel != null && isPending)
+          if (onAssign != null &&
+              onCancel != null &&
+              isPending)
+            const SizedBox(
+              height: 10,
+            ),
+          if (onCancel != null &&
+              isPending)
             SizedBox(
               height: 46,
-              child: OutlinedButton.icon(
-                onPressed: onCancel,
-                icon: const Icon(Icons.cancel_outlined),
-                label: const Text('Cancel Request'),
-                style: OutlinedButton.styleFrom(
+              child:
+                  OutlinedButton.icon(
+                onPressed:
+                    onCancel,
+                icon:
+                    const Icon(
+                  Icons
+                      .cancel_outlined,
+                ),
+                label:
+                    const Text(
+                  'Cancel Request',
+                ),
+                style:
+                    OutlinedButton
+                        .styleFrom(
                   foregroundColor:
-                      _WalkRequestDetailsColors.danger,
-                  side: const BorderSide(
-                    color: _WalkRequestDetailsColors.danger,
+                      _WalkRequestDetailsColors
+                          .danger,
+                  side:
+                      const BorderSide(
+                    color:
+                        _WalkRequestDetailsColors
+                            .danger,
                   ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                  shape:
+                      RoundedRectangleBorder(
+                    borderRadius:
+                        BorderRadius
+                            .circular(
+                      12,
+                    ),
                   ),
                 ),
               ),
