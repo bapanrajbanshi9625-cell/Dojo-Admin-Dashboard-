@@ -1,5 +1,6 @@
 // File: lib/features/walk_requests/screens/walk_request_details_screen.dart
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
