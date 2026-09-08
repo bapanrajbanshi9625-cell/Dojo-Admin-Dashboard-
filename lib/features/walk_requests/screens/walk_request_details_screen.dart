@@ -38,10 +38,8 @@ class WalkRequestDetailsScreen extends StatelessWidget {
   final WalkRequestOpenMapsCallback? onOpenMaps;
 
   static const Color orange = Color(0xFFD35435);
-  static const Color blue = Color(0xFF2563EB);
   static const Color background = Color(0xFFF8FAFC);
   static const Color dark = Color(0xFF0F172A);
-  static const Color grey = Color(0xFF64748B);
   static const Color border = Color(0xFFE2E8F0);
   static const Color white = Colors.white;
 
@@ -245,9 +243,6 @@ class WalkRequestDetailsScreen extends StatelessWidget {
 
                       const SizedBox(height: 16),
 
-                      // =====================================================
-                      // REQUEST SUMMARY
-                      // =====================================================
                       _RequestSummaryCard(
                         requestId: requestId,
                         ownerName: ownerName,
@@ -258,9 +253,6 @@ class WalkRequestDetailsScreen extends StatelessWidget {
 
                       const SizedBox(height: 16),
 
-                      // =====================================================
-                      // DESKTOP LAYOUT
-                      // =====================================================
                       if (isDesktop)
                         Row(
                           crossAxisAlignment:
@@ -379,10 +371,6 @@ class WalkRequestDetailsScreen extends StatelessWidget {
                             ),
                           ],
                         )
-
-                      // =====================================================
-                      // MOBILE LAYOUT
-                      // =====================================================
                       else
                         Column(
                           crossAxisAlignment:
@@ -488,9 +476,6 @@ class WalkRequestDetailsScreen extends StatelessWidget {
 
                       const SizedBox(height: 16),
 
-                      // =====================================================
-                      // ACTIONS
-                      // =====================================================
                       WalkRequestDetailsActions(
                         isPending: isPending,
                         hasWalker: hasWalker,
@@ -535,7 +520,6 @@ class _RequestSummaryCard extends StatelessWidget {
   final String status;
 
   static const Color orange = Color(0xFFD35435);
-  static const Color blue = Color(0xFF2563EB);
   static const Color dark = Color(0xFF0F172A);
   static const Color grey = Color(0xFF64748B);
   static const Color white = Colors.white;
@@ -588,29 +572,29 @@ class _RequestSummaryCard extends StatelessWidget {
 
           const SizedBox(height: 18),
 
-          _SummaryRow(
+          _SummaryItem(
             label: 'Request ID',
             value: requestId,
           ),
 
-          _SummaryRow(
+          _SummaryItem(
             label: 'Owner',
             value: ownerName,
           ),
 
-          _SummaryRow(
+          _SummaryItem(
             label: 'Dog',
             value: dogName,
           ),
 
-          _SummaryRow(
+          _SummaryItem(
             label: 'Walker',
             value: walkerName.isEmpty
                 ? 'Not assigned'
                 : walkerName,
           ),
 
-          _SummaryRow(
+          _SummaryItem(
             label: 'Status',
             value: status.toUpperCase(),
           ),
@@ -621,11 +605,11 @@ class _RequestSummaryCard extends StatelessWidget {
 }
 
 // ============================================================================
-// SUMMARY ROW
+// SUMMARY ITEM
 // ============================================================================
 
-class _SummaryRow extends StatelessWidget {
-  const _SummaryRow({
+class _SummaryItem extends StatelessWidget {
+  const _SummaryItem({
     required this.label,
     required this.value,
   });
@@ -664,9 +648,7 @@ class _SummaryRow extends StatelessWidget {
               ),
             ),
           ),
-
           const SizedBox(width: 12),
-
           Flexible(
             child: Text(
               value.isEmpty ? '—' : value,
