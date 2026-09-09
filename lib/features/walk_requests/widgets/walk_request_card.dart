@@ -1,6 +1,7 @@
 // File:
 // lib/features/walk_requests/widgets/walk_request_card.dart
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import 'walk_request_status_badge.dart';
@@ -71,9 +72,12 @@ class _WalkRequestCardState extends State<WalkRequestCard> {
       case 'active':
       case 'started':
       case 'in_progress':
+      case 'in-progress':
+      case 'live':
         return _WalkRequestCardColors.orange;
 
       case 'completed':
+      case 'complete':
         return _WalkRequestCardColors.green;
 
       case 'cancelled':
@@ -106,7 +110,31 @@ class _WalkRequestCardState extends State<WalkRequestCard> {
 
     return status == 'active' ||
         status == 'started' ||
-        status == 'in_progress';
+        status == 'in_progress' ||
+        status == 'in-progress' ||
+        status == 'live';
+  }
+
+  bool get isCompleted {
+    final status = _status();
+
+    return status == 'completed' ||
+        status == 'complete' ||
+        _firstDateTime([
+          'completedAt',
+          'completeAt',
+          'completionAt',
+          'endedAt',
+          'finishedAt',
+        ]) != null;
+  }
+
+  bool get isCancelled {
+    final status = _status();
+
+    return status == 'cancelled' ||
+        status == 'canceled' ||
+        status == 'rejected';
   }
 
   bool get hasWalker {
@@ -206,7 +234,241 @@ class _WalkRequestCardState extends State<WalkRequestCard> {
       'radiusKm',
     ]);
 
-    return value.isEmpty ? '—' : '$value km';
+    if (value.isEmpty) {
+      return '—';
+    }
+
+    final number = double.tryParse(value);
+
+    if (number != null) {
+      return '${number.toStringAsFixed(
+        number.truncateToDouble() == number ? 0 : 1,
+      )} km';
+    }
+
+    return '$value km';
+  }
+
+  DateTime? _firstDateTime(List<String> keys) {
+    for (final key in keys) {
+      final parsed = _parseDateTime(widget.data[key]);
+
+      if (parsed != null) {
+        return parsed;
+      }
+    }
+
+    return null;
+  }
+
+  DateTime? _parseDateTime(dynamic value) {
+    if (value == null) {
+      return null;
+    }
+
+    if (value is Timestamp) {
+      return value.toDate();
+    }
+
+    if (value is DateTime) {
+      return value;
+    }
+
+    if (value is String) {
+      return DateTime.tryParse(value);
+    }
+
+    return null;
+  }
+
+  DateTime? get requestTime {
+    return _firstDateTime([
+      'createdAt',
+      'requestedAt',
+      'requestCreatedAt',
+    ]);
+  }
+
+  DateTime? get acceptedTime {
+    return _firstDateTime([
+      'acceptedAt',
+      'assignedAt',
+    ]);
+  }
+
+  DateTime? get startedTime {
+    return _firstDateTime([
+      'startedAt',
+      'walkStartedAt',
+      'startTime',
+    ]);
+  }
+
+  DateTime? get reachedTime {
+    return _firstDateTime([
+      'reachedAt',
+      'pickupAt',
+      'pickedUpAt',
+    ]);
+  }
+
+  DateTime? get completedTime {
+    return _firstDateTime([
+      'completedAt',
+      'completeAt',
+      'completionAt',
+      'endedAt',
+      'finishedAt',
+    ]);
+  }
+
+  DateTime? get cancelledTime {
+    return _firstDateTime([
+      'cancelledAt',
+      'canceledAt',
+      'rejectedAt',
+    ]);
+  }
+
+  DateTime? get currentStatusTime {
+    if (isCompleted) {
+      return completedTime;
+    }
+
+    if (isCancelled) {
+      return cancelledTime;
+    }
+
+    if (isActive) {
+      return startedTime ?? acceptedTime;
+    }
+
+    if (isAccepted) {
+      return acceptedTime;
+    }
+
+    return requestTime;
+  }
+
+  String get currentStatusLabel {
+    if (isCompleted) {
+      return 'Completed';
+    }
+
+    if (isCancelled) {
+      return 'Cancelled';
+    }
+
+    if (isActive) {
+      return startedTime != null
+          ? 'Started'
+          : 'Accepted';
+    }
+
+    if (isAccepted) {
+      return 'Accepted';
+    }
+
+    return 'Requested';
+  }
+
+  String get currentStatusTimeText {
+    final value = currentStatusTime;
+
+    if (value == null) {
+      return 'Time not available';
+    }
+
+    return _formatDateTime(value);
+  }
+
+  double? _numberValue(List<String> keys) {
+    for (final key in keys) {
+      final value = widget.data[key];
+
+      if (value is num) {
+        return value.toDouble();
+      }
+
+      if (value is String) {
+        final parsed = double.tryParse(value);
+
+        if (parsed != null) {
+          return parsed;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  String get pickupDistance {
+    final km = _numberValue([
+      'arrivalDistanceKm',
+      'pickupDistanceKm',
+    ]);
+
+    if (km != null) {
+      return '${km.toStringAsFixed(2)} km';
+    }
+
+    final meters = _numberValue([
+      'arrivalDistanceMeters',
+      'pickupDistanceMeters',
+    ]);
+
+    if (meters != null) {
+      return '${meters.toStringAsFixed(0)} m';
+    }
+
+    return '—';
+  }
+
+  String get arrivalTime {
+    final minutes = _numberValue([
+      'arrivalDurationMinutes',
+      'pickupDurationMinutes',
+    ]);
+
+    if (minutes != null) {
+      return '${minutes.toStringAsFixed(0)} min';
+    }
+
+    return '—';
+  }
+
+  String get pickupStatus {
+    if (reachedTime != null) {
+      return 'Picked up';
+    }
+
+    if (isCompleted) {
+      return 'Completed';
+    }
+
+    if (isActive) {
+      return 'On the way';
+    }
+
+    if (isAccepted) {
+      return 'Coming';
+    }
+
+    return 'Waiting';
+  }
+
+  Color get pickupStatusColor {
+    if (reachedTime != null ||
+        isCompleted) {
+      return _WalkRequestCardColors.green;
+    }
+
+    if (isActive ||
+        isAccepted) {
+      return _WalkRequestCardColors.blue;
+    }
+
+    return _WalkRequestCardColors.grey;
   }
 
   String get dogInitial {
@@ -252,9 +514,13 @@ class _WalkRequestCardState extends State<WalkRequestCard> {
         });
       },
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
+        duration: const Duration(
+          milliseconds: 180,
+        ),
         curve: Curves.easeOut,
-        margin: const EdgeInsets.only(bottom: 14),
+        margin: const EdgeInsets.only(
+          bottom: 14,
+        ),
         transform: Matrix4.translationValues(
           0,
           _hovering ? -2 : 0,
@@ -262,10 +528,13 @@ class _WalkRequestCardState extends State<WalkRequestCard> {
         ),
         decoration: BoxDecoration(
           color: _WalkRequestCardColors.white,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius:
+              BorderRadius.circular(18),
           border: Border.all(
             color: _hovering
-                ? statusColor.withValues(alpha: .35)
+                ? statusColor.withValues(
+                    alpha: .35,
+                  )
                 : _WalkRequestCardColors.border,
           ),
           boxShadow: [
@@ -273,13 +542,15 @@ class _WalkRequestCardState extends State<WalkRequestCard> {
               color: Colors.black.withValues(
                 alpha: _hovering ? .08 : .035,
               ),
-              blurRadius: _hovering ? 22 : 12,
+              blurRadius:
+                  _hovering ? 22 : 12,
               offset: const Offset(0, 5),
             ),
           ],
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius:
+              BorderRadius.circular(18),
           child: Stack(
             children: [
               Positioned(
@@ -295,14 +566,17 @@ class _WalkRequestCardState extends State<WalkRequestCard> {
                 color: Colors.transparent,
                 child: InkWell(
                   onTap: widget.onTap,
-                  splashColor: statusColor.withValues(
+                  splashColor:
+                      statusColor.withValues(
                     alpha: .05,
                   ),
-                  highlightColor: statusColor.withValues(
+                  highlightColor:
+                      statusColor.withValues(
                     alpha: .025,
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(
+                    padding:
+                        const EdgeInsets.fromLTRB(
                       20,
                       18,
                       18,
@@ -314,11 +588,13 @@ class _WalkRequestCardState extends State<WalkRequestCard> {
                         constraints,
                       ) {
                         final compact =
-                            constraints.maxWidth < 620;
+                            constraints.maxWidth <
+                                620;
 
                         return Column(
                           crossAxisAlignment:
-                              CrossAxisAlignment.stretch,
+                              CrossAxisAlignment
+                                  .stretch,
                           children: [
                             _buildHeader(
                               context,
@@ -326,23 +602,52 @@ class _WalkRequestCardState extends State<WalkRequestCard> {
                               compact,
                             ),
 
-                            const SizedBox(height: 16),
+                            const SizedBox(
+                              height: 14,
+                            ),
+
+                            _buildStatusTime(
+                              statusColor,
+                            ),
+
+                            const SizedBox(
+                              height: 14,
+                            ),
 
                             _buildLocation(),
 
-                            const SizedBox(height: 14),
+                            const SizedBox(
+                              height: 14,
+                            ),
 
                             _buildInformation(),
 
                             if (hasWalker &&
-                                (isAccepted || isActive)) ...[
-                              const SizedBox(height: 14),
+                                (isAccepted ||
+                                    isActive ||
+                                    isCompleted)) ...[
+                              const SizedBox(
+                                height: 14,
+                              ),
                               _buildWalkerSection(),
                             ],
 
-                            const SizedBox(height: 16),
+                            if (isAccepted ||
+                                isActive ||
+                                isCompleted) ...[
+                              const SizedBox(
+                                height: 14,
+                              ),
+                              _buildPickupMetrics(
+                                compact,
+                              ),
+                            ],
 
-                            _buildActions(compact),
+                            const SizedBox(
+                              height: 16,
+                            ),
+
+                            _buildViewDetailsButton(),
                           ],
                         );
                       },
@@ -363,13 +668,15 @@ class _WalkRequestCardState extends State<WalkRequestCard> {
     bool compact,
   ) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
       children: [
         Container(
           width: 50,
           height: 50,
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
+            gradient:
+                const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
@@ -377,13 +684,16 @@ class _WalkRequestCardState extends State<WalkRequestCard> {
                 Color(0xFFD35435),
               ],
             ),
-            borderRadius: BorderRadius.circular(14),
+            borderRadius:
+                BorderRadius.circular(14),
             boxShadow: [
               BoxShadow(
-                color: _WalkRequestCardColors.orange
+                color: _WalkRequestCardColors
+                    .orange
                     .withValues(alpha: .18),
                 blurRadius: 12,
-                offset: const Offset(0, 5),
+                offset:
+                    const Offset(0, 5),
               ),
             ],
           ),
@@ -412,27 +722,29 @@ class _WalkRequestCardState extends State<WalkRequestCard> {
                     child: Text(
                       ownerName,
                       maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      overflow:
+                          TextOverflow.ellipsis,
                       style: const TextStyle(
                         color:
-                            _WalkRequestCardColors.dark,
+                            _WalkRequestCardColors
+                                .dark,
                         fontSize: 16,
-                        fontWeight: FontWeight.w900,
+                        fontWeight:
+                            FontWeight.w900,
                         letterSpacing: -.15,
                       ),
                     ),
                   ),
-
                   if (!compact) ...[
                     const SizedBox(width: 7),
-                    _OwnerBadge(),
+                    const _OwnerBadge(),
                   ],
                 ],
               ),
 
               if (compact) ...[
                 const SizedBox(height: 5),
-                _OwnerBadge(),
+                const _OwnerBadge(),
               ],
 
               const SizedBox(height: 5),
@@ -443,7 +755,8 @@ class _WalkRequestCardState extends State<WalkRequestCard> {
                     Icons.receipt_long_outlined,
                     size: 14,
                     color:
-                        _WalkRequestCardColors.grey,
+                        _WalkRequestCardColors
+                            .grey,
                   ),
                   const SizedBox(width: 5),
                   Expanded(
@@ -456,9 +769,11 @@ class _WalkRequestCardState extends State<WalkRequestCard> {
                           TextOverflow.ellipsis,
                       style: const TextStyle(
                         color:
-                            _WalkRequestCardColors.grey,
+                            _WalkRequestCardColors
+                                .grey,
                         fontSize: 11.5,
-                        fontWeight: FontWeight.w600,
+                        fontWeight:
+                            FontWeight.w600,
                       ),
                     ),
                   ),
@@ -482,8 +797,11 @@ class _WalkRequestCardState extends State<WalkRequestCard> {
 
             AnimatedContainer(
               duration:
-                  const Duration(milliseconds: 180),
-              padding: const EdgeInsets.all(3),
+                  const Duration(
+                milliseconds: 180,
+              ),
+              padding:
+                  const EdgeInsets.all(3),
               decoration: BoxDecoration(
                 color: _hovering
                     ? statusColor.withValues(
@@ -498,7 +816,8 @@ class _WalkRequestCardState extends State<WalkRequestCard> {
                 size: 20,
                 color: _hovering
                     ? statusColor
-                    : _WalkRequestCardColors.grey,
+                    : _WalkRequestCardColors
+                        .grey,
               ),
             ),
           ],
@@ -507,15 +826,129 @@ class _WalkRequestCardState extends State<WalkRequestCard> {
     );
   }
 
+  Widget _buildStatusTime(
+    Color statusColor,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 13,
+        vertical: 11,
+      ),
+      decoration: BoxDecoration(
+        color: statusColor.withValues(
+          alpha: .055,
+        ),
+        borderRadius:
+            BorderRadius.circular(12),
+        border: Border.all(
+          color: statusColor.withValues(
+            alpha: .13,
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: statusColor.withValues(
+                alpha: .10,
+              ),
+              borderRadius:
+                  BorderRadius.circular(9),
+            ),
+            child: Icon(
+              _statusTimeIcon(),
+              size: 17,
+              color: statusColor,
+            ),
+          ),
+
+          const SizedBox(width: 10),
+
+          Expanded(
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: [
+                Text(
+                  currentStatusLabel,
+                  style: TextStyle(
+                    color: statusColor,
+                    fontSize: 11,
+                    fontWeight:
+                        FontWeight.w900,
+                    letterSpacing: .2,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  currentStatusTimeText,
+                  style: const TextStyle(
+                    color:
+                        _WalkRequestCardColors
+                            .dark,
+                    fontSize: 12.5,
+                    fontWeight:
+                        FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          if (isCompleted)
+            const Icon(
+              Icons.check_circle_rounded,
+              color:
+                  _WalkRequestCardColors.green,
+              size: 20,
+            )
+          else if (isCancelled)
+            const Icon(
+              Icons.cancel_rounded,
+              color:
+                  _WalkRequestCardColors.danger,
+              size: 20,
+            ),
+        ],
+      ),
+    );
+  }
+
+  IconData _statusTimeIcon() {
+    if (isCompleted) {
+      return Icons.check_circle_outline_rounded;
+    }
+
+    if (isCancelled) {
+      return Icons.cancel_outlined;
+    }
+
+    if (isActive) {
+      return Icons.directions_walk_rounded;
+    }
+
+    if (isAccepted) {
+      return Icons.person_pin_circle_rounded;
+    }
+
+    return Icons.add_location_alt_rounded;
+  }
+
   Widget _buildLocation() {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
-        color: _WalkRequestCardColors.background,
-        borderRadius: BorderRadius.circular(13),
+        color:
+            _WalkRequestCardColors.background,
+        borderRadius:
+            BorderRadius.circular(13),
         border: Border.all(
-          color: _WalkRequestCardColors.border,
+          color:
+              _WalkRequestCardColors.border,
         ),
       ),
       child: Row(
@@ -526,15 +959,18 @@ class _WalkRequestCardState extends State<WalkRequestCard> {
             width: 35,
             height: 35,
             decoration: BoxDecoration(
-              color: _WalkRequestCardColors.orange
-                  .withValues(alpha: .10),
+              color:
+                  _WalkRequestCardColors.orange
+                      .withValues(alpha: .10),
               borderRadius:
                   BorderRadius.circular(10),
             ),
             child: const Icon(
               Icons.location_on_rounded,
               size: 18,
-              color: _WalkRequestCardColors.orange,
+              color:
+                  _WalkRequestCardColors
+                      .orange,
             ),
           ),
 
@@ -549,9 +985,11 @@ class _WalkRequestCardState extends State<WalkRequestCard> {
                   'PICKUP LOCATION',
                   style: TextStyle(
                     color:
-                        _WalkRequestCardColors.grey,
+                        _WalkRequestCardColors
+                            .grey,
                     fontSize: 9.5,
-                    fontWeight: FontWeight.w900,
+                    fontWeight:
+                        FontWeight.w900,
                     letterSpacing: .7,
                   ),
                 ),
@@ -561,12 +999,15 @@ class _WalkRequestCardState extends State<WalkRequestCard> {
                 Text(
                   address,
                   maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  overflow:
+                      TextOverflow.ellipsis,
                   style: const TextStyle(
                     color:
-                        _WalkRequestCardColors.dark,
+                        _WalkRequestCardColors
+                            .dark,
                     fontSize: 13,
-                    fontWeight: FontWeight.w600,
+                    fontWeight:
+                        FontWeight.w600,
                     height: 1.35,
                   ),
                 ),
@@ -588,18 +1029,16 @@ class _WalkRequestCardState extends State<WalkRequestCard> {
           label: dogName,
           emphasized: true,
         ),
-
         if (dogBreed.isNotEmpty)
           _InfoChip(
-            icon: Icons.category_outlined,
+            icon:
+                Icons.category_outlined,
             label: dogBreed,
           ),
-
         _InfoChip(
           icon: Icons.route_rounded,
           label: searchType,
         ),
-
         _InfoChip(
           icon: Icons.radar_rounded,
           label: radius,
@@ -612,12 +1051,15 @@ class _WalkRequestCardState extends State<WalkRequestCard> {
     return Container(
       padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
-        color: _WalkRequestCardColors.blue
-            .withValues(alpha: .035),
-        borderRadius: BorderRadius.circular(13),
+        color:
+            _WalkRequestCardColors.blue
+                .withValues(alpha: .035),
+        borderRadius:
+            BorderRadius.circular(13),
         border: Border.all(
-          color: _WalkRequestCardColors.blue
-              .withValues(alpha: .12),
+          color:
+              _WalkRequestCardColors.blue
+                  .withValues(alpha: .12),
         ),
       ),
       child: Row(
@@ -626,14 +1068,16 @@ class _WalkRequestCardState extends State<WalkRequestCard> {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: _WalkRequestCardColors.blue
-                  .withValues(alpha: .10),
+              color:
+                  _WalkRequestCardColors.blue
+                      .withValues(alpha: .10),
               shape: BoxShape.circle,
             ),
             child: const Icon(
               Icons.directions_walk_rounded,
               size: 20,
-              color: _WalkRequestCardColors.blue,
+              color:
+                  _WalkRequestCardColors.blue,
             ),
           ),
 
@@ -648,9 +1092,11 @@ class _WalkRequestCardState extends State<WalkRequestCard> {
                   'ASSIGNED WALKER',
                   style: TextStyle(
                     color:
-                        _WalkRequestCardColors.grey,
+                        _WalkRequestCardColors
+                            .grey,
                     fontSize: 9.5,
-                    fontWeight: FontWeight.w900,
+                    fontWeight:
+                        FontWeight.w900,
                     letterSpacing: .6,
                   ),
                 ),
@@ -662,12 +1108,15 @@ class _WalkRequestCardState extends State<WalkRequestCard> {
                       ? 'Walker assigned'
                       : walkerName,
                   maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  overflow:
+                      TextOverflow.ellipsis,
                   style: const TextStyle(
                     color:
-                        _WalkRequestCardColors.dark,
+                        _WalkRequestCardColors
+                            .dark,
                     fontSize: 13,
-                    fontWeight: FontWeight.w800,
+                    fontWeight:
+                        FontWeight.w800,
                   ),
                 ),
 
@@ -677,9 +1126,11 @@ class _WalkRequestCardState extends State<WalkRequestCard> {
                     walkerPhone,
                     style: const TextStyle(
                       color:
-                          _WalkRequestCardColors.grey,
+                          _WalkRequestCardColors
+                              .grey,
                       fontSize: 11,
-                      fontWeight: FontWeight.w600,
+                      fontWeight:
+                          FontWeight.w600,
                     ),
                   ),
                 ],
@@ -687,102 +1138,268 @@ class _WalkRequestCardState extends State<WalkRequestCard> {
             ),
           ),
 
-          const SizedBox(width: 8),
-
-          _SmallActionButton(
-            icon: Icons.swap_horiz_rounded,
-            label: 'Change',
-            onPressed: widget.onAssign,
-          ),
+          if (isActive)
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(
+                horizontal: 8,
+                vertical: 6,
+              ),
+              decoration: BoxDecoration(
+                color:
+                    _WalkRequestCardColors
+                        .green
+                        .withValues(alpha: .08),
+                borderRadius:
+                    BorderRadius.circular(20),
+              ),
+              child: const Row(
+                mainAxisSize:
+                    MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.circle,
+                    size: 7,
+                    color:
+                        _WalkRequestCardColors
+                            .green,
+                  ),
+                  SizedBox(width: 4),
+                  Text(
+                    'LIVE',
+                    style: TextStyle(
+                      color:
+                          _WalkRequestCardColors
+                              .green,
+                      fontSize: 9,
+                      fontWeight:
+                          FontWeight.w900,
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );
   }
 
-  Widget _buildActions(bool compact) {
-    if (compact) {
-      return Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.stretch,
+  Widget _buildPickupMetrics(
+    bool compact,
+  ) {
+    final items = [
+      _MetricData(
+        icon:
+            Icons.social_distance_rounded,
+        label: 'Pickup Distance',
+        value: pickupDistance,
+        color:
+            _WalkRequestCardColors.blue,
+      ),
+      _MetricData(
+        icon: Icons.timer_rounded,
+        label: 'Arrival Time',
+        value: arrivalTime,
+        color:
+            _WalkRequestCardColors.orange,
+      ),
+      _MetricData(
+        icon: Icons.location_on_rounded,
+        label: 'Pickup',
+        value: pickupStatus,
+        color: pickupStatusColor,
+      ),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (compact ||
+            constraints.maxWidth < 600) {
+          return Column(
+            children: items
+                .map(
+                  (item) => Padding(
+                    padding:
+                        const EdgeInsets.only(
+                      bottom: 8,
+                    ),
+                    child: _MetricItem(
+                      data: item,
+                    ),
+                  ),
+                )
+                .toList(),
+          );
+        }
+
+        return Row(
+          children: items
+              .map(
+                (item) => Expanded(
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.only(
+                      right: 7,
+                    ),
+                    child: _MetricItem(
+                      data: item,
+                    ),
+                  ),
+                ),
+              )
+              .toList(),
+        );
+      },
+    );
+  }
+
+  Widget _buildViewDetailsButton() {
+    return SizedBox(
+      height: 44,
+      child: ElevatedButton.icon(
+        onPressed: widget.onTap,
+        icon: const Icon(
+          Icons.visibility_rounded,
+          size: 17,
+        ),
+        label: const Text(
+          'View Details',
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor:
+              _WalkRequestCardColors.orange,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shadowColor:
+              Colors.transparent,
+          padding:
+              const EdgeInsets.symmetric(
+            horizontal: 14,
+          ),
+          shape:
+              RoundedRectangleBorder(
+            borderRadius:
+                BorderRadius.circular(11),
+          ),
+          textStyle:
+              const TextStyle(
+            fontSize: 12.5,
+            fontWeight:
+                FontWeight.w800,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================
+// METRIC DATA
+// ============================================================
+
+class _MetricData {
+  const _MetricData({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+}
+
+// ============================================================
+// METRIC ITEM
+// ============================================================
+
+class _MetricItem extends StatelessWidget {
+  const _MetricItem({
+    required this.data,
+  });
+
+  final _MetricData data;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding:
+          const EdgeInsets.all(11),
+      decoration: BoxDecoration(
+        color:
+            data.color.withValues(
+          alpha: .045,
+        ),
+        borderRadius:
+            BorderRadius.circular(12),
+        border: Border.all(
+          color:
+              _WalkRequestCardColors.border,
+        ),
+      ),
+      child: Row(
         children: [
-          _PrimaryActionButton(
-            icon: Icons.visibility_rounded,
-            label: 'View Details',
-            onPressed: widget.onTap,
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color:
+                  data.color.withValues(
+                alpha: .10,
+              ),
+              borderRadius:
+                  BorderRadius.circular(9),
+            ),
+            child: Icon(
+              data.icon,
+              size: 17,
+              color: data.color,
+            ),
           ),
 
-          if (isPending) ...[
-            const SizedBox(height: 8),
-            _SecondaryActionButton(
-              icon: Icons.person_add_alt_1_rounded,
-              label: 'Assign Walker',
-              onPressed: widget.onAssign,
-            ),
-          ],
+          const SizedBox(width: 9),
 
-          if (isAccepted) ...[
-            const SizedBox(height: 8),
-            _SecondaryActionButton(
-              icon: Icons.swap_horiz_rounded,
-              label: 'Change Walker',
-              onPressed: widget.onAssign,
-            ),
-          ],
-
-          if (isPending ||
-              isAccepted ||
-              isActive) ...[
-            const SizedBox(height: 5),
-            _CancelButton(
-              onPressed: widget.onCancel,
-            ),
-          ],
-        ],
-      );
-    }
-
-    return Row(
-      children: [
-        Expanded(
-          flex: 2,
-          child: _PrimaryActionButton(
-            icon: Icons.visibility_rounded,
-            label: 'View Details',
-            onPressed: widget.onTap,
-          ),
-        ),
-
-        if (isPending) ...[
-          const SizedBox(width: 8),
           Expanded(
-            flex: 2,
-            child: _SecondaryActionButton(
-              icon: Icons.person_add_alt_1_rounded,
-              label: 'Assign Walker',
-              onPressed: widget.onAssign,
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: [
+                Text(
+                  data.label,
+                  maxLines: 1,
+                  overflow:
+                      TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color:
+                        _WalkRequestCardColors
+                            .grey,
+                    fontSize: 9.5,
+                    fontWeight:
+                        FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  data.value,
+                  maxLines: 1,
+                  overflow:
+                      TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color:
+                        _WalkRequestCardColors
+                            .dark,
+                    fontSize: 12,
+                    fontWeight:
+                        FontWeight.w900,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
-
-        if (isAccepted) ...[
-          const SizedBox(width: 8),
-          Expanded(
-            flex: 2,
-            child: _SecondaryActionButton(
-              icon: Icons.swap_horiz_rounded,
-              label: 'Change Walker',
-              onPressed: widget.onAssign,
-            ),
-          ),
-        ],
-
-        const SizedBox(width: 8),
-
-        _CancelButton(
-          onPressed: widget.onCancel,
-          compact: true,
-        ),
-      ],
+      ),
     );
   }
 }
@@ -797,30 +1414,37 @@ class _OwnerBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
+      padding:
+          const EdgeInsets.symmetric(
         horizontal: 7,
         vertical: 3,
       ),
       decoration: BoxDecoration(
-        color: _WalkRequestCardColors.green
-            .withValues(alpha: .09),
-        borderRadius: BorderRadius.circular(20),
+        color:
+            _WalkRequestCardColors.green
+                .withValues(alpha: .09),
+        borderRadius:
+            BorderRadius.circular(20),
       ),
       child: const Row(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize:
+            MainAxisSize.min,
         children: [
           Icon(
             Icons.verified_rounded,
             size: 12,
-            color: _WalkRequestCardColors.green,
+            color:
+                _WalkRequestCardColors.green,
           ),
           SizedBox(width: 3),
           Text(
             'Owner',
             style: TextStyle(
-              color: _WalkRequestCardColors.green,
+              color:
+                  _WalkRequestCardColors.green,
               fontSize: 10,
-              fontWeight: FontWeight.w800,
+              fontWeight:
+                  FontWeight.w800,
             ),
           ),
         ],
@@ -847,279 +1471,66 @@ class _InfoChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: const BoxConstraints(
+      constraints:
+          const BoxConstraints(
         maxWidth: 220,
       ),
-      padding: const EdgeInsets.symmetric(
+      padding:
+          const EdgeInsets.symmetric(
         horizontal: 10,
         vertical: 8,
       ),
       decoration: BoxDecoration(
         color: emphasized
-            ? _WalkRequestCardColors.orange
+            ? _WalkRequestCardColors
+                .orange
                 .withValues(alpha: .08)
-            : _WalkRequestCardColors.background,
-        borderRadius: BorderRadius.circular(30),
+            : _WalkRequestCardColors
+                .background,
+        borderRadius:
+            BorderRadius.circular(30),
         border: Border.all(
           color: emphasized
-              ? _WalkRequestCardColors.orange
+              ? _WalkRequestCardColors
+                  .orange
                   .withValues(alpha: .14)
-              : _WalkRequestCardColors.border,
+              : _WalkRequestCardColors
+                  .border,
         ),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize:
+            MainAxisSize.min,
         children: [
           Icon(
             icon,
             size: 15,
             color: emphasized
-                ? _WalkRequestCardColors.orange
-                : _WalkRequestCardColors.grey,
+                ? _WalkRequestCardColors
+                    .orange
+                : _WalkRequestCardColors
+                    .grey,
           ),
-
           const SizedBox(width: 6),
-
           Flexible(
             child: Text(
               label,
               maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+              overflow:
+                  TextOverflow.ellipsis,
               style: TextStyle(
                 color: emphasized
-                    ? _WalkRequestCardColors.orange
-                    : _WalkRequestCardColors.dark,
+                    ? _WalkRequestCardColors
+                        .orange
+                    : _WalkRequestCardColors
+                        .dark,
                 fontSize: 11.5,
-                fontWeight: FontWeight.w700,
+                fontWeight:
+                    FontWeight.w700,
               ),
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-// ============================================================
-// PRIMARY ACTION
-// ============================================================
-
-class _PrimaryActionButton extends StatelessWidget {
-  const _PrimaryActionButton({
-    required this.icon,
-    required this.label,
-    required this.onPressed,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 44,
-      child: ElevatedButton.icon(
-        onPressed: onPressed,
-        icon: Icon(
-          icon,
-          size: 17,
-        ),
-        label: Text(label),
-        style: ElevatedButton.styleFrom(
-          backgroundColor:
-              _WalkRequestCardColors.orange,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          shadowColor: Colors.transparent,
-          padding: const EdgeInsets.symmetric(
-            horizontal: 14,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius:
-                BorderRadius.circular(11),
-          ),
-          textStyle: const TextStyle(
-            fontSize: 12.5,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ============================================================
-// SECONDARY ACTION
-// ============================================================
-
-class _SecondaryActionButton
-    extends StatelessWidget {
-  const _SecondaryActionButton({
-    required this.icon,
-    required this.label,
-    required this.onPressed,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 44,
-      child: OutlinedButton.icon(
-        onPressed: onPressed,
-        icon: Icon(
-          icon,
-          size: 17,
-        ),
-        label: Text(label),
-        style: OutlinedButton.styleFrom(
-          foregroundColor:
-              _WalkRequestCardColors.blue,
-          backgroundColor:
-              _WalkRequestCardColors.white,
-          side: const BorderSide(
-            color: _WalkRequestCardColors.border,
-          ),
-          padding: const EdgeInsets.symmetric(
-            horizontal: 14,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius:
-                BorderRadius.circular(11),
-          ),
-          textStyle: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ============================================================
-// SMALL ACTION
-// ============================================================
-
-class _SmallActionButton
-    extends StatelessWidget {
-  const _SmallActionButton({
-    required this.icon,
-    required this.label,
-    required this.onPressed,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return OutlinedButton.icon(
-      onPressed: onPressed,
-      icon: Icon(
-        icon,
-        size: 15,
-      ),
-      label: Text(label),
-      style: OutlinedButton.styleFrom(
-        foregroundColor:
-            _WalkRequestCardColors.blue,
-        backgroundColor:
-            _WalkRequestCardColors.white,
-        side: BorderSide(
-          color: _WalkRequestCardColors.blue
-              .withValues(alpha: .18),
-        ),
-        padding: const EdgeInsets.symmetric(
-          horizontal: 10,
-          vertical: 8,
-        ),
-        minimumSize: Size.zero,
-        tapTargetSize:
-            MaterialTapTargetSize.shrinkWrap,
-        shape: RoundedRectangleBorder(
-          borderRadius:
-              BorderRadius.circular(9),
-        ),
-        textStyle: const TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-    );
-  }
-}
-
-// ============================================================
-// CANCEL BUTTON
-// ============================================================
-
-class _CancelButton extends StatelessWidget {
-  const _CancelButton({
-    required this.onPressed,
-    this.compact = false,
-  });
-
-  final VoidCallback onPressed;
-  final bool compact;
-
-  @override
-  Widget build(BuildContext context) {
-    if (compact) {
-      return SizedBox(
-        height: 44,
-        child: TextButton.icon(
-          onPressed: onPressed,
-          icon: const Icon(
-            Icons.cancel_outlined,
-            size: 16,
-          ),
-          label: const Text('Cancel'),
-          style: TextButton.styleFrom(
-            foregroundColor:
-                _WalkRequestCardColors.danger,
-            padding: const EdgeInsets.symmetric(
-              horizontal: 12,
-            ),
-            shape: RoundedRectangleBorder(
-              borderRadius:
-                  BorderRadius.circular(10),
-            ),
-            textStyle: const TextStyle(
-              fontSize: 11.5,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ),
-      );
-    }
-
-    return SizedBox(
-      height: 40,
-      child: TextButton.icon(
-        onPressed: onPressed,
-        icon: const Icon(
-          Icons.cancel_outlined,
-          size: 17,
-        ),
-        label: const Text('Cancel Request'),
-        style: TextButton.styleFrom(
-          foregroundColor:
-              _WalkRequestCardColors.danger,
-          shape: RoundedRectangleBorder(
-            borderRadius:
-                BorderRadius.circular(10),
-          ),
-          textStyle: const TextStyle(
-            fontSize: 11.5,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
       ),
     );
   }
@@ -1159,4 +1570,29 @@ class _WalkRequestCardColors {
 
   static const Color border =
       Color(0xFFE2E8F0);
+}
+
+// ============================================================
+// DATE FORMAT
+// ============================================================
+
+String _formatDateTime(DateTime value) {
+  final local = value.toLocal();
+
+  final day =
+      local.day.toString().padLeft(2, '0');
+
+  final month =
+      local.month.toString().padLeft(2, '0');
+
+  final year =
+      local.year.toString();
+
+  final hour =
+      local.hour.toString().padLeft(2, '0');
+
+  final minute =
+      local.minute.toString().padLeft(2, '0');
+
+  return '$day/$month/$year • $hour:$minute';
 }
