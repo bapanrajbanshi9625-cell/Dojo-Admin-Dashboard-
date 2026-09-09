@@ -8,7 +8,6 @@ import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../utils/walk_request_details_helpers.dart';
-import '../widgets/walk_request_details_actions.dart';
 import '../widgets/walk_request_details_dog.dart';
 import '../widgets/walk_request_details_header.dart';
 import '../widgets/walk_request_details_information.dart';
@@ -55,6 +54,13 @@ class WalkRequestDetailsScreen extends StatelessWidget {
     ).trim();
 
     return value.isEmpty ? 'pending' : value;
+  }
+
+  bool _isCompleted(String status) {
+    final value = status.trim().toLowerCase();
+
+    return value == 'completed' ||
+        value == 'complete';
   }
 
   Future<void> _copyText(
@@ -191,6 +197,9 @@ class WalkRequestDetailsScreen extends StatelessWidget {
     final isPending =
         WalkRequestDetailsHelpers.isPending(data);
 
+    final isCompleted =
+        _isCompleted(status);
+
     final ownerLocation =
         WalkRequestDetailsHelpers.ownerLocation(data);
 
@@ -281,6 +290,11 @@ class WalkRequestDetailsScreen extends StatelessWidget {
                         walkerName: walkerName,
                         status: status,
                         data: data,
+                        isCompleted: isCompleted,
+                        isPending: isPending,
+                        hasWalker: hasWalker,
+                        onAssign: onAssign,
+                        onCancel: onCancel,
                       ),
 
                       const SizedBox(height: 16),
@@ -399,10 +413,6 @@ class WalkRequestDetailsScreen extends StatelessWidget {
                                       walkerId: walkerId,
                                       walkerUid: walkerUid,
                                       walkerName: walkerName,
-
-                                      // IMPORTANT:
-                                      // WalkRequestDetailsMap expects
-                                      // ValueChanged<LatLng>?
                                       onOpenMaps:
                                           _mapOpenCallback(),
                                     ),
@@ -490,9 +500,6 @@ class WalkRequestDetailsScreen extends StatelessWidget {
                                 walkerId: walkerId,
                                 walkerUid: walkerUid,
                                 walkerName: walkerName,
-
-                                // IMPORTANT:
-                                // This receives LatLng.
                                 onOpenMaps:
                                     _mapOpenCallback(),
                               ),
@@ -510,15 +517,6 @@ class WalkRequestDetailsScreen extends StatelessWidget {
                             ),
                           ],
                         ),
-
-                      const SizedBox(height: 16),
-
-                      WalkRequestDetailsActions(
-                        isPending: isPending,
-                        hasWalker: hasWalker,
-                        onAssign: onAssign,
-                        onCancel: onCancel,
-                      ),
 
                       const SizedBox(height: 24),
 
@@ -549,6 +547,11 @@ class _RequestSummaryCard extends StatelessWidget {
     required this.walkerName,
     required this.status,
     required this.data,
+    required this.isCompleted,
+    required this.isPending,
+    required this.hasWalker,
+    this.onAssign,
+    this.onCancel,
   });
 
   final String requestId;
@@ -557,6 +560,13 @@ class _RequestSummaryCard extends StatelessWidget {
   final String walkerName;
   final String status;
   final Map<String, dynamic> data;
+
+  final bool isCompleted;
+  final bool isPending;
+  final bool hasWalker;
+
+  final VoidCallback? onAssign;
+  final VoidCallback? onCancel;
 
   static const Color orange = Color(0xFFD35435);
   static const Color dark = Color(0xFF0F172A);
@@ -634,6 +644,8 @@ class _RequestSummaryCard extends StatelessWidget {
             CrossAxisAlignment.stretch,
         children: [
           Row(
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
             children: [
               Container(
                 width: 40,
@@ -649,30 +661,101 @@ class _RequestSummaryCard extends StatelessWidget {
                   color: orange,
                 ),
               ),
+
               const SizedBox(width: 12),
-              const Expanded(
-                child: Text(
-                  'Request Summary',
-                  style: TextStyle(
-                    color: dark,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w900,
-                  ),
+
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Request Summary',
+                      style: TextStyle(
+                        color: dark,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            requestId,
+                            maxLines: 1,
+                            overflow:
+                                TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: grey,
+                              fontSize: 13,
+                              fontWeight:
+                                  FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        const Icon(
+                          Icons.copy_rounded,
+                          size: 15,
+                          color: grey,
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
-              _StatusBadge(
-                status: status,
-                color: _statusColor(),
+
+              const SizedBox(width: 10),
+
+              Column(
+                crossAxisAlignment:
+                    CrossAxisAlignment.end,
+                children: [
+                  _StatusBadge(
+                    status: status,
+                    color: _statusColor(),
+                  ),
+
+                  if (!isCompleted &&
+                      (onCancel != null ||
+                          (hasWalker &&
+                              onAssign != null))) ...[
+                    const SizedBox(height: 10),
+
+                    Row(
+                      mainAxisSize:
+                          MainAxisSize.min,
+                      children: [
+                        if (onCancel != null)
+                          _HeaderActionButton(
+                            label: 'Cancel',
+                            icon:
+                                Icons.close_rounded,
+                            color: red,
+                            onPressed: onCancel!,
+                          ),
+
+                        if (hasWalker &&
+                            onAssign != null) ...[
+                          const SizedBox(width: 7),
+                          _HeaderActionButton(
+                            label: 'Change Walker',
+                            icon:
+                                Icons.swap_horiz_rounded,
+                            color: blue,
+                            onPressed: onAssign!,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ],
               ),
             ],
           ),
 
           const SizedBox(height: 18),
-
-          _SummaryItem(
-            label: 'Request ID',
-            value: requestId,
-          ),
 
           _SummaryItem(
             label: 'Owner',
@@ -711,6 +794,69 @@ class _RequestSummaryCard extends StatelessWidget {
             value: _formatDateTime(completedAt),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// HEADER ACTION BUTTON
+// ============================================================================
+
+class _HeaderActionButton extends StatelessWidget {
+  const _HeaderActionButton({
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.onPressed,
+  });
+
+  final String label;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onPressed;
+
+  static const Color white = Colors.white;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: color.withValues(alpha: 0.08),
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 10,
+            vertical: 8,
+          ),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: color.withValues(alpha: 0.20),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 15,
+                color: color,
+              ),
+              const SizedBox(width: 5),
+              Text(
+                label,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
