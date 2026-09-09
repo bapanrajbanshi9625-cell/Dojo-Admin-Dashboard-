@@ -158,8 +158,6 @@ class WalkRequestDetailsScreen extends StatelessWidget {
 
     final status = _status();
 
-    final createdAt =
-        WalkRequestDetailsHelpers.createdAt(data);
 
     final hasWalker =
         WalkRequestDetailsHelpers.hasWalker(data);
@@ -238,7 +236,11 @@ class WalkRequestDetailsScreen extends StatelessWidget {
                       WalkRequestDetailsHeader(
                         requestId: requestId,
                         status: status,
-                        createdAt: createdAt,
+                        onCopy: () => _copyText(
+                          context,
+                          requestId,
+                          'Request ID',
+                        ),
                       ),
 
                       const SizedBox(height: 16),
