@@ -869,7 +869,9 @@ class _WalkTimelineCard extends StatelessWidget {
             icon: Icons.flag_rounded,
             title: 'Walk Completed',
             value: isCompleted
-                ? _formatDateTime(completed)
+                ? (completed != null
+                    ? _formatDateTime(completed)
+                    : 'Completed')
                 : 'Not completed',
             color: green,
             completed: isCompleted,
@@ -942,10 +944,8 @@ class _TimelineRow extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 value,
-                style: TextStyle(
-                  color: value == 'Not completed'
-                      ? grey
-                      : grey,
+                style: const TextStyle(
+                  color: grey,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
@@ -1075,15 +1075,15 @@ class _PickupMetricsCard extends StatelessWidget {
         crossAxisAlignment:
             CrossAxisAlignment.stretch,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.route_rounded,
                 color: orange,
                 size: 21,
               ),
-              SizedBox(width: 10),
-              Expanded(
+              const SizedBox(width: 10),
+              const Expanded(
                 child: Text(
                   'Pickup & Walker Metrics',
                   style: TextStyle(
@@ -1093,8 +1093,8 @@ class _PickupMetricsCard extends StatelessWidget {
                   ),
                 ),
               ),
-              if (true)
-                _LiveIndicator(),
+              if (hasWalkerLocation)
+                const _LiveIndicator(),
             ],
           ),
 
