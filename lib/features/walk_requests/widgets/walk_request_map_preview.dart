@@ -57,7 +57,6 @@ class _WalkRequestMapPreviewState
   >? _requestSubscription;
 
   LatLng? _walkerLocation;
-
   DateTime? _locationUpdatedAt;
 
   bool _loadingWalker = false;
@@ -84,6 +83,11 @@ class _WalkRequestMapPreviewState
       _locationUpdatedAt = null;
 
       _startRequestListener();
+    } else if (oldWidget.walkerLocation !=
+        widget.walkerLocation) {
+      if (widget.walkerLocation != null) {
+        _walkerLocation = widget.walkerLocation;
+      }
     }
   }
 
@@ -101,15 +105,19 @@ class _WalkRequestMapPreviewState
     final requestId = widget.requestId.trim();
 
     if (requestId.isEmpty) {
-      setState(() {
-        _loadingWalker = false;
-      });
+      if (mounted) {
+        setState(() {
+          _loadingWalker = false;
+        });
+      }
       return;
     }
 
-    setState(() {
-      _loadingWalker = true;
-    });
+    if (mounted) {
+      setState(() {
+        _loadingWalker = true;
+      });
+    }
 
     _requestSubscription = _firestore
         .collection('walk_request')
@@ -139,8 +147,14 @@ class _WalkRequestMapPreviewState
         );
 
         setState(() {
-          _walkerLocation = location;
-          _locationUpdatedAt = updatedAt;
+          if (location != null) {
+            _walkerLocation = location;
+          }
+
+          if (updatedAt != null) {
+            _locationUpdatedAt = updatedAt;
+          }
+
           _loadingWalker = false;
         });
       },
@@ -149,7 +163,7 @@ class _WalkRequestMapPreviewState
           return;
         }
 
-        // Keep the initial location if Firestore
+        // Keep the initial/live location if Firestore
         // temporarily fails.
         setState(() {
           _loadingWalker = false;
@@ -351,6 +365,7 @@ class _WalkRequestMapPreviewState
       backgroundColor: Colors.transparent,
       builder: (_) {
         return _LocationMapSheet(
+          requestId: widget.requestId,
           ownerLocation: ownerLocation,
           walkerLocation: walkerLocation,
           walkerName: widget.walkerName,
@@ -387,8 +402,7 @@ class _WalkRequestMapPreviewState
           BoxShadow(
             blurRadius: 18,
             offset: const Offset(0, 6),
-            color:
-                Colors.black.withValues(alpha: 0.06),
+            color: Colors.black.withValues(alpha: 0.06),
           ),
         ],
       ),
@@ -475,8 +489,7 @@ class _WalkRequestMapPreviewState
                   Icon(
                     hasWalkerLocation
                         ? Icons.my_location_rounded
-                        : Icons
-                            .location_searching_rounded,
+                        : Icons.location_searching_rounded,
                     size: 18,
                     color: hasWalkerLocation
                         ? Colors.green.shade700
@@ -561,12 +574,14 @@ class _WalkRequestMapPreviewState
 
 class _LocationMapSheet extends StatefulWidget {
   const _LocationMapSheet({
+    required this.requestId,
     required this.ownerLocation,
     required this.walkerLocation,
     this.walkerName,
     this.locationUpdatedAt,
   });
 
+  final String requestId;
   final LatLng ownerLocation;
   final LatLng? walkerLocation;
   final String? walkerName;
@@ -579,6 +594,16 @@ class _LocationMapSheet extends StatefulWidget {
 
 class _LocationMapSheetState
     extends State<_LocationMapSheet> {
+  final FirebaseFirestore _firestore =
+      FirebaseFirestore.instance;
+
+  StreamSubscription<
+      DocumentSnapshot<Map<String, dynamic>>
+  >? _requestSubscription;
+
+  LatLng? _walkerLocation;
+  DateTime? _locationUpdatedAt;
+
   List<LatLng> _routePoints = [];
 
   double? _distanceKm;
@@ -591,9 +616,255 @@ class _LocationMapSheetState
   void initState() {
     super.initState();
 
-    if (widget.walkerLocation != null) {
+    _walkerLocation = widget.walkerLocation;
+    _locationUpdatedAt = widget.locationUpdatedAt;
+
+    _startLiveLocationListener();
+
+    if (_walkerLocation != null) {
       _loadRoute();
     }
+  }
+
+  @override
+  void dispose() {
+    _requestSubscription?.cancel();
+    super.dispose();
+  }
+
+  // ==========================================================
+  // LIVE WALKER LOCATION LISTENER
+  // ==========================================================
+
+  void _startLiveLocationListener() {
+    final requestId = widget.requestId.trim();
+
+    if (requestId.isEmpty) {
+      return;
+    }
+
+    _requestSubscription = _firestore
+        .collection('walk_request')
+        .doc(requestId)
+        .snapshots()
+        .listen(
+      (snapshot) {
+        if (!mounted) {
+          return;
+        }
+
+        final data = snapshot.data();
+
+        if (data == null) {
+          return;
+        }
+
+        final newLocation =
+            _extractWalkerLocation(data);
+
+        final newUpdatedAt =
+            _extractDateTime(
+          data['locationUpdatedAt'],
+        );
+
+        if (newLocation == null) {
+          if (newUpdatedAt != null) {
+            setState(() {
+              _locationUpdatedAt = newUpdatedAt;
+            });
+          }
+          return;
+        }
+
+        final bool locationChanged =
+            _walkerLocation == null ||
+            _walkerLocation!.latitude !=
+                newLocation.latitude ||
+            _walkerLocation!.longitude !=
+                newLocation.longitude;
+
+        setState(() {
+          _walkerLocation = newLocation;
+
+          if (newUpdatedAt != null) {
+            _locationUpdatedAt = newUpdatedAt;
+          }
+        });
+
+        if (locationChanged) {
+          _loadRoute();
+        }
+      },
+      onError: (_) {
+        // Keep the last known walker location.
+      },
+    );
+  }
+
+  // ==========================================================
+  // WALKER LOCATION EXTRACTION
+  // ==========================================================
+
+  LatLng? _extractWalkerLocation(
+    Map<String, dynamic> data,
+  ) {
+    final candidates = <dynamic>[
+      data['walkerLocation'],
+      data['walker_location'],
+      data['currentWalkerLocation'],
+      data['current_walker_location'],
+    ];
+
+    for (final value in candidates) {
+      final location = _parseLocation(value);
+
+      if (location != null) {
+        return location;
+      }
+    }
+
+    final latitude =
+        _toDouble(data['walkerLatitude']);
+
+    final longitude =
+        _toDouble(data['walkerLongitude']);
+
+    if (latitude != null && longitude != null) {
+      return _safeLatLng(
+        latitude,
+        longitude,
+      );
+    }
+
+    final lat =
+        _toDouble(data['walkerLat']);
+
+    final lng =
+        _toDouble(data['walkerLng']);
+
+    if (lat != null && lng != null) {
+      return _safeLatLng(
+        lat,
+        lng,
+      );
+    }
+
+    return null;
+  }
+
+  LatLng? _parseLocation(
+    dynamic value,
+  ) {
+    if (value == null) {
+      return null;
+    }
+
+    if (value is GeoPoint) {
+      return _safeLatLng(
+        value.latitude,
+        value.longitude,
+      );
+    }
+
+    if (value is LatLng) {
+      return value;
+    }
+
+    if (value is Map) {
+      final map =
+          Map<String, dynamic>.from(value);
+
+      final latitude =
+          _toDouble(
+        map['latitude'] ??
+            map['lat'],
+      );
+
+      final longitude =
+          _toDouble(
+        map['longitude'] ??
+            map['lng'] ??
+            map['lon'],
+      );
+
+      if (latitude != null &&
+          longitude != null) {
+        return _safeLatLng(
+          latitude,
+          longitude,
+        );
+      }
+    }
+
+    if (value is List &&
+        value.length >= 2) {
+      final latitude =
+          _toDouble(value[0]);
+
+      final longitude =
+          _toDouble(value[1]);
+
+      if (latitude != null &&
+          longitude != null) {
+        return _safeLatLng(
+          latitude,
+          longitude,
+        );
+      }
+    }
+
+    return null;
+  }
+
+  LatLng? _safeLatLng(
+    double latitude,
+    double longitude,
+  ) {
+    if (latitude < -90 ||
+        latitude > 90 ||
+        longitude < -180 ||
+        longitude > 180) {
+      return null;
+    }
+
+    return LatLng(
+      latitude,
+      longitude,
+    );
+  }
+
+  double? _toDouble(
+    dynamic value,
+  ) {
+    if (value == null) {
+      return null;
+    }
+
+    if (value is num) {
+      return value.toDouble();
+    }
+
+    return double.tryParse(
+      value.toString().trim(),
+    );
+  }
+
+  DateTime? _extractDateTime(
+    dynamic value,
+  ) {
+    if (value is Timestamp) {
+      return value.toDate();
+    }
+
+    if (value is DateTime) {
+      return value;
+    }
+
+    if (value is String) {
+      return DateTime.tryParse(value);
+    }
+
+    return null;
   }
 
   // ==========================================================
@@ -601,10 +872,18 @@ class _LocationMapSheetState
   // ==========================================================
 
   Future<void> _loadRoute() async {
-    final walker =
-        widget.walkerLocation;
+    final walker = _walkerLocation;
 
     if (walker == null) {
+      if (mounted) {
+        setState(() {
+          _routePoints = [];
+          _distanceKm = null;
+          _durationMinutes = null;
+          _routeLoading = false;
+          _routeError = null;
+        });
+      }
       return;
     }
 
@@ -743,7 +1022,7 @@ class _LocationMapSheetState
 
   LatLng _mapCenter() {
     final walker =
-        widget.walkerLocation;
+        _walkerLocation;
 
     if (walker == null) {
       return widget.ownerLocation;
@@ -760,14 +1039,14 @@ class _LocationMapSheetState
   }
 
   double _initialZoom() {
-    if (widget.walkerLocation == null) {
+    if (_walkerLocation == null) {
       return 15;
     }
 
     final double distance =
         const Distance().as(
       LengthUnit.Kilometer,
-      widget.walkerLocation!,
+      _walkerLocation!,
       widget.ownerLocation,
     );
 
@@ -855,7 +1134,7 @@ class _LocationMapSheetState
 
   String _locationUpdatedText() {
     final updated =
-        widget.locationUpdatedAt;
+        _locationUpdatedAt;
 
     if (updated == null) {
       return '';
@@ -892,7 +1171,7 @@ class _LocationMapSheetState
   @override
   Widget build(BuildContext context) {
     final bool hasWalker =
-        widget.walkerLocation != null;
+        _walkerLocation != null;
 
     return DraggableScrollableSheet(
       initialChildSize: 0.90,
@@ -1083,13 +1362,11 @@ class _LocationMapSheetState
                                       const _OwnerMarker(),
                                 ),
 
-                                if (widget
-                                        .walkerLocation !=
+                                if (_walkerLocation !=
                                     null)
                                   Marker(
                                     point:
-                                        widget
-                                            .walkerLocation!,
+                                        _walkerLocation!,
                                     width: 70,
                                     height: 84,
                                     child:
@@ -1199,8 +1476,8 @@ class _LocationMapSheetState
                                 .trim()
                             : 'Walker',
                         subtitle:
-                            '${widget.walkerLocation!.latitude.toStringAsFixed(5)}, '
-                            '${widget.walkerLocation!.longitude.toStringAsFixed(5)}',
+                            '${_walkerLocation!.latitude.toStringAsFixed(5)}, '
+                            '${_walkerLocation!.longitude.toStringAsFixed(5)}',
                         trailing:
                             'Live',
                       ),
