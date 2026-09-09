@@ -1,3 +1,6 @@
+// File:
+// lib/features/walk_requests/widgets/walk_request_map_preview.dart
+
 import 'dart:async';
 import 'dart:convert';
 
@@ -11,20 +14,33 @@ import 'package:url_launcher/url_launcher.dart';
 class WalkRequestMapPreview extends StatefulWidget {
   const WalkRequestMapPreview({
     super.key,
+    required this.requestId,
     required this.ownerLocation,
+    this.walkerLocation,
     this.walkerId,
     this.walkerUid,
     this.walkerName,
     this.onOpenMaps,
   });
 
+  /// Firestore document id:
+  /// walk_request/{requestId}
+  final String requestId;
+
+  /// Owner pickup location.
   final LatLng ownerLocation;
+
+  /// Initial walker location.
+  ///
+  /// Live updates are received from:
+  /// walk_request/{requestId}.walkerLocation
+  final LatLng? walkerLocation;
 
   final String? walkerId;
   final String? walkerUid;
   final String? walkerName;
 
-  final VoidCallback? onOpenMaps;
+  final ValueChanged<LatLng>? onOpenMaps;
 
   @override
   State<WalkRequestMapPreview> createState() =>
@@ -36,46 +52,58 @@ class _WalkRequestMapPreviewState
   final FirebaseFirestore _firestore =
       FirebaseFirestore.instance;
 
-  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
-      _walkerSubscription;
+  StreamSubscription<
+      DocumentSnapshot<Map<String, dynamic>>
+  >? _requestSubscription;
 
   LatLng? _walkerLocation;
 
+  DateTime? _locationUpdatedAt;
+
   bool _loadingWalker = false;
-  bool _routeLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _startWalkerListener();
+
+    _walkerLocation = widget.walkerLocation;
+
+    _startRequestListener();
+  }
+
+  @override
+  void didUpdateWidget(
+    covariant WalkRequestMapPreview oldWidget,
+  ) {
+    super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.requestId != widget.requestId) {
+      _requestSubscription?.cancel();
+
+      _walkerLocation = widget.walkerLocation;
+      _locationUpdatedAt = null;
+
+      _startRequestListener();
+    }
   }
 
   @override
   void dispose() {
-    _walkerSubscription?.cancel();
+    _requestSubscription?.cancel();
     super.dispose();
   }
 
   // ==========================================================
-  // WALKER LIVE LOCATION
+  // LIVE WALK REQUEST LISTENER
   // ==========================================================
 
-  void _startWalkerListener() {
-    final String walkerId =
-        widget.walkerId?.trim() ?? '';
+  void _startRequestListener() {
+    final requestId = widget.requestId.trim();
 
-    final String walkerUid =
-        widget.walkerUid?.trim() ?? '';
-
-    String? documentId;
-
-    if (walkerId.isNotEmpty) {
-      documentId = walkerId;
-    } else if (walkerUid.isNotEmpty) {
-      documentId = walkerUid;
-    }
-
-    if (documentId == null) {
+    if (requestId.isEmpty) {
+      setState(() {
+        _loadingWalker = false;
+      });
       return;
     }
 
@@ -83,22 +111,36 @@ class _WalkRequestMapPreviewState
       _loadingWalker = true;
     });
 
-    _walkerSubscription = _firestore
-        .collection('walkers')
-        .doc(documentId)
+    _requestSubscription = _firestore
+        .collection('walk_request')
+        .doc(requestId)
         .snapshots()
         .listen(
       (snapshot) {
-        final data = snapshot.data();
-
-        final location = _extractWalkerLocation(data);
-
         if (!mounted) {
           return;
         }
 
+        final data = snapshot.data();
+
+        if (data == null) {
+          setState(() {
+            _loadingWalker = false;
+          });
+          return;
+        }
+
+        final location =
+            _extractWalkerLocation(data);
+
+        final updatedAt =
+            _extractDateTime(
+          data['locationUpdatedAt'],
+        );
+
         setState(() {
           _walkerLocation = location;
+          _locationUpdatedAt = updatedAt;
           _loadingWalker = false;
         });
       },
@@ -107,8 +149,9 @@ class _WalkRequestMapPreviewState
           return;
         }
 
+        // Keep the initial location if Firestore
+        // temporarily fails.
         setState(() {
-          _walkerLocation = null;
           _loadingWalker = false;
         });
       },
@@ -116,27 +159,20 @@ class _WalkRequestMapPreviewState
   }
 
   // ==========================================================
-  // LOCATION EXTRACTION
+  // WALKER LOCATION EXTRACTION
   // ==========================================================
 
   LatLng? _extractWalkerLocation(
-    Map<String, dynamic>? data,
+    Map<String, dynamic> data,
   ) {
-    if (data == null) {
-      return null;
-    }
-
-    const possibleFields = [
-      'currentLocation',
-      'current_location',
-      'walkerLocation',
-      'walker_location',
-      'location',
+    final candidates = <dynamic>[
+      data['walkerLocation'],
+      data['walker_location'],
+      data['currentWalkerLocation'],
+      data['current_walker_location'],
     ];
 
-    for (final field in possibleFields) {
-      final value = data[field];
-
+    for (final value in candidates) {
       final location = _parseLocation(value);
 
       if (location != null) {
@@ -144,74 +180,148 @@ class _WalkRequestMapPreviewState
       }
     }
 
-    final directLocation = _parseLatLngMap(data);
+    final latitude =
+        _toDouble(data['walkerLatitude']);
 
-    if (directLocation != null) {
-      return directLocation;
+    final longitude =
+        _toDouble(data['walkerLongitude']);
+
+    if (latitude != null && longitude != null) {
+      return _safeLatLng(
+        latitude,
+        longitude,
+      );
+    }
+
+    final lat =
+        _toDouble(data['walkerLat']);
+
+    final lng =
+        _toDouble(data['walkerLng']);
+
+    if (lat != null && lng != null) {
+      return _safeLatLng(
+        lat,
+        lng,
+      );
     }
 
     return null;
   }
 
-  LatLng? _parseLocation(dynamic value) {
+  LatLng? _parseLocation(
+    dynamic value,
+  ) {
+    if (value == null) {
+      return null;
+    }
+
     if (value is GeoPoint) {
-      return LatLng(
+      return _safeLatLng(
         value.latitude,
         value.longitude,
       );
     }
 
-    if (value is Map<String, dynamic>) {
-      return _parseLatLngMap(value);
+    if (value is LatLng) {
+      return value;
     }
 
     if (value is Map) {
-      return _parseLatLngMap(
-        Map<String, dynamic>.from(value),
+      final map =
+          Map<String, dynamic>.from(value);
+
+      final latitude =
+          _toDouble(
+        map['latitude'] ??
+            map['lat'],
       );
+
+      final longitude =
+          _toDouble(
+        map['longitude'] ??
+            map['lng'] ??
+            map['lon'],
+      );
+
+      if (latitude != null &&
+          longitude != null) {
+        return _safeLatLng(
+          latitude,
+          longitude,
+        );
+      }
+    }
+
+    if (value is List &&
+        value.length >= 2) {
+      final latitude =
+          _toDouble(value[0]);
+
+      final longitude =
+          _toDouble(value[1]);
+
+      if (latitude != null &&
+          longitude != null) {
+        return _safeLatLng(
+          latitude,
+          longitude,
+        );
+      }
     }
 
     return null;
   }
 
-  LatLng? _parseLatLngMap(
-    Map<String, dynamic> map,
+  LatLng? _safeLatLng(
+    double latitude,
+    double longitude,
   ) {
-    final dynamic latitude =
-        map['latitude'] ??
-        map['lat'] ??
-        map['currentLatitude'] ??
-        map['currentLat'];
-
-    final dynamic longitude =
-        map['longitude'] ??
-        map['lng'] ??
-        map['lon'] ??
-        map['currentLongitude'] ??
-        map['currentLng'];
-
-    if (latitude == null || longitude == null) {
+    if (latitude < -90 ||
+        latitude > 90 ||
+        longitude < -180 ||
+        longitude > 180) {
       return null;
     }
 
-    final double? lat =
-        double.tryParse(latitude.toString());
+    return LatLng(
+      latitude,
+      longitude,
+    );
+  }
 
-    final double? lng =
-        double.tryParse(longitude.toString());
-
-    if (lat == null || lng == null) {
+  double? _toDouble(
+    dynamic value,
+  ) {
+    if (value == null) {
       return null;
     }
 
-    if (lat < -90 ||
-        lat > 90 ||
-        lng < -180 ||
-        lng > 180) {
-      return null;
+    if (value is num) {
+      return value.toDouble();
     }
 
-    return LatLng(lat, lng);
+    return double.tryParse(
+      value.toString().trim(),
+    );
+  }
+
+  DateTime? _extractDateTime(
+    dynamic value,
+  ) {
+    if (value is Timestamp) {
+      return value.toDate();
+    }
+
+    if (value is DateTime) {
+      return value;
+    }
+
+    if (value is String) {
+      return DateTime.tryParse(value);
+    }
+
+    return null;
   }
 
   // ==========================================================
@@ -244,6 +354,7 @@ class _WalkRequestMapPreviewState
           ownerLocation: ownerLocation,
           walkerLocation: walkerLocation,
           walkerName: widget.walkerName,
+          locationUpdatedAt: _locationUpdatedAt,
         );
       },
     );
@@ -257,7 +368,11 @@ class _WalkRequestMapPreviewState
   Widget build(BuildContext context) {
     final bool hasWalker =
         widget.walkerId?.trim().isNotEmpty == true ||
-        widget.walkerUid?.trim().isNotEmpty == true;
+        widget.walkerUid?.trim().isNotEmpty == true ||
+        widget.walkerName?.trim().isNotEmpty == true;
+
+    final bool hasWalkerLocation =
+        _walkerLocation != null;
 
     return Container(
       width: double.infinity,
@@ -272,12 +387,14 @@ class _WalkRequestMapPreviewState
           BoxShadow(
             blurRadius: 18,
             offset: const Offset(0, 6),
-            color: Colors.black.withValues(alpha: 0.06),
+            color:
+                Colors.black.withValues(alpha: 0.06),
           ),
         ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
           // ----------------------------------------------------
           // HEADER
@@ -289,8 +406,10 @@ class _WalkRequestMapPreviewState
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: Colors.blue.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(12),
+                  color:
+                      Colors.blue.withValues(alpha: 0.10),
+                  borderRadius:
+                      BorderRadius.circular(12),
                 ),
                 child: const Icon(
                   Icons.map_rounded,
@@ -307,7 +426,8 @@ class _WalkRequestMapPreviewState
                       'Location & Route',
                       style: TextStyle(
                         fontSize: 16,
-                        fontWeight: FontWeight.w800,
+                        fontWeight:
+                            FontWeight.w800,
                       ),
                     ),
                     const SizedBox(height: 3),
@@ -317,7 +437,8 @@ class _WalkRequestMapPreviewState
                           : 'Owner pickup location',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey.shade600,
+                        color:
+                            Colors.grey.shade600,
                       ),
                     ),
                   ],
@@ -335,24 +456,29 @@ class _WalkRequestMapPreviewState
           if (hasWalker)
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(
+              padding:
+                  const EdgeInsets.symmetric(
                 horizontal: 12,
                 vertical: 10,
               ),
               decoration: BoxDecoration(
-                color: _walkerLocation != null
-                    ? Colors.green.withValues(alpha: 0.08)
-                    : Colors.orange.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(12),
+                color: hasWalkerLocation
+                    ? Colors.green
+                        .withValues(alpha: 0.08)
+                    : Colors.orange
+                        .withValues(alpha: 0.08),
+                borderRadius:
+                    BorderRadius.circular(12),
               ),
               child: Row(
                 children: [
                   Icon(
-                    _walkerLocation != null
+                    hasWalkerLocation
                         ? Icons.my_location_rounded
-                        : Icons.location_searching_rounded,
+                        : Icons
+                            .location_searching_rounded,
                     size: 18,
-                    color: _walkerLocation != null
+                    color: hasWalkerLocation
                         ? Colors.green.shade700
                         : Colors.orange.shade700,
                   ),
@@ -361,23 +487,28 @@ class _WalkRequestMapPreviewState
                     child: Text(
                       _loadingWalker
                           ? 'Getting walker location...'
-                          : _walkerLocation != null
-                              ? 'Walker location is live'
+                          : hasWalkerLocation
+                              ? _locationUpdatedAt !=
+                                      null
+                                  ? 'Walker location is live'
+                                  : 'Walker location available'
                               : 'Walker current location unavailable',
                       style: TextStyle(
                         fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: _walkerLocation != null
+                        fontWeight:
+                            FontWeight.w600,
+                        color: hasWalkerLocation
                             ? Colors.green.shade700
                             : Colors.orange.shade700,
                       ),
                     ),
                   ),
-                  if (_walkerLocation != null)
+                  if (hasWalkerLocation)
                     Container(
                       width: 8,
                       height: 8,
-                      decoration: const BoxDecoration(
+                      decoration:
+                          const BoxDecoration(
                         color: Colors.green,
                         shape: BoxShape.circle,
                       ),
@@ -400,17 +531,20 @@ class _WalkRequestMapPreviewState
                 Icons.location_on_rounded,
               ),
               label: Text(
-                _walkerLocation != null
+                hasWalkerLocation
                     ? 'View Walker Route & Pickup'
                     : 'View Pickup Location',
               ),
               style: FilledButton.styleFrom(
-                minimumSize: const Size(
+                minimumSize:
+                    const Size(
                   double.infinity,
                   48,
                 ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(13),
+                shape:
+                    RoundedRectangleBorder(
+                  borderRadius:
+                      BorderRadius.circular(13),
                 ),
               ),
             ),
@@ -430,11 +564,13 @@ class _LocationMapSheet extends StatefulWidget {
     required this.ownerLocation,
     required this.walkerLocation,
     this.walkerName,
+    this.locationUpdatedAt,
   });
 
   final LatLng ownerLocation;
   final LatLng? walkerLocation;
   final String? walkerName;
+  final DateTime? locationUpdatedAt;
 
   @override
   State<_LocationMapSheet> createState() =>
@@ -465,7 +601,8 @@ class _LocationMapSheetState
   // ==========================================================
 
   Future<void> _loadRoute() async {
-    final walker = widget.walkerLocation;
+    final walker =
+        widget.walkerLocation;
 
     if (walker == null) {
       return;
@@ -482,8 +619,10 @@ class _LocationMapSheetState
 
     try {
       final String url =
-          'https://router.project-osrm.org/route/v1/driving/'
-          '${walker.longitude},${walker.latitude};'
+          'https://router.project-osrm.org/'
+          'route/v1/driving/'
+          '${walker.longitude},'
+          '${walker.latitude};'
           '${widget.ownerLocation.longitude},'
           '${widget.ownerLocation.latitude}'
           '?overview=full&geometries=geojson&steps=false';
@@ -497,7 +636,8 @@ class _LocationMapSheetState
 
       if (response.statusCode != 200) {
         throw Exception(
-          'Route server returned ${response.statusCode}',
+          'Route server returned '
+          '${response.statusCode}',
         );
       }
 
@@ -507,8 +647,11 @@ class _LocationMapSheetState
       final List<dynamic>? routes =
           json['routes'] as List<dynamic>?;
 
-      if (routes == null || routes.isEmpty) {
-        throw Exception('No route found');
+      if (routes == null ||
+          routes.isEmpty) {
+        throw Exception(
+          'No route found',
+        );
       }
 
       final Map<String, dynamic> route =
@@ -517,29 +660,37 @@ class _LocationMapSheetState
       );
 
       final double? distanceMeters =
-          (route['distance'] as num?)?.toDouble();
+          (route['distance'] as num?)
+              ?.toDouble();
 
       final double? durationSeconds =
-          (route['duration'] as num?)?.toDouble();
+          (route['duration'] as num?)
+              ?.toDouble();
 
       final geometry =
-          route['geometry'] as Map<String, dynamic>?;
+          route['geometry']
+              as Map<String, dynamic>?;
 
       final coordinates =
-          geometry?['coordinates'] as List<dynamic>?;
+          geometry?['coordinates']
+              as List<dynamic>?;
 
       final List<LatLng> points = [];
 
       if (coordinates != null) {
         for (final item in coordinates) {
-          if (item is List && item.length >= 2) {
+          if (item is List &&
+              item.length >= 2) {
             final double? lng =
-                (item[0] as num?)?.toDouble();
+                (item[0] as num?)
+                    ?.toDouble();
 
             final double? lat =
-                (item[1] as num?)?.toDouble();
+                (item[1] as num?)
+                    ?.toDouble();
 
-            if (lat != null && lng != null) {
+            if (lat != null &&
+                lng != null) {
               points.add(
                 LatLng(lat, lng),
               );
@@ -549,7 +700,9 @@ class _LocationMapSheetState
       }
 
       if (points.isEmpty) {
-        throw Exception('Route geometry unavailable');
+        throw Exception(
+          'Route geometry unavailable',
+        );
       }
 
       if (!mounted) {
@@ -559,13 +712,15 @@ class _LocationMapSheetState
       setState(() {
         _routePoints = points;
 
-        _distanceKm = distanceMeters != null
-            ? distanceMeters / 1000
-            : null;
+        _distanceKm =
+            distanceMeters != null
+                ? distanceMeters / 1000
+                : null;
 
-        _durationMinutes = durationSeconds != null
-            ? durationSeconds / 60
-            : null;
+        _durationMinutes =
+            durationSeconds != null
+                ? durationSeconds / 60
+                : null;
 
         _routeLoading = false;
       });
@@ -587,7 +742,8 @@ class _LocationMapSheetState
   // ==========================================================
 
   LatLng _mapCenter() {
-    final walker = widget.walkerLocation;
+    final walker =
+        widget.walkerLocation;
 
     if (walker == null) {
       return widget.ownerLocation;
@@ -653,7 +809,8 @@ class _LocationMapSheetState
 
     await launchUrl(
       uri,
-      mode: LaunchMode.externalApplication,
+      mode:
+          LaunchMode.externalApplication,
     );
   }
 
@@ -686,13 +843,46 @@ class _LocationMapSheetState
     }
 
     final int hours = minutes ~/ 60;
-    final int remaining = minutes % 60;
+    final int remaining =
+        minutes % 60;
 
     if (remaining == 0) {
       return '$hours hr';
     }
 
     return '$hours hr $remaining min';
+  }
+
+  String _locationUpdatedText() {
+    final updated =
+        widget.locationUpdatedAt;
+
+    if (updated == null) {
+      return '';
+    }
+
+    final day =
+        updated.day
+            .toString()
+            .padLeft(2, '0');
+
+    final month =
+        updated.month
+            .toString()
+            .padLeft(2, '0');
+
+    final hour =
+        updated.hour
+            .toString()
+            .padLeft(2, '0');
+
+    final minute =
+        updated.minute
+            .toString()
+            .padLeft(2, '0');
+
+    return 'Updated $day/$month/${updated.year} '
+        '$hour:$minute';
   }
 
   // ==========================================================
@@ -714,25 +904,28 @@ class _LocationMapSheetState
         scrollController,
       ) {
         return Container(
-          decoration: const BoxDecoration(
+          decoration:
+              const BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.vertical(
+            borderRadius:
+                BorderRadius.vertical(
               top: Radius.circular(26),
             ),
           ),
           child: Column(
             children: [
+              const SizedBox(height: 9),
+
               // ------------------------------------------------
               // HANDLE
               // ------------------------------------------------
-
-              const SizedBox(height: 9),
 
               Container(
                 width: 42,
                 height: 5,
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
+                  color:
+                      Colors.grey.shade300,
                   borderRadius:
                       BorderRadius.circular(10),
                 ),
@@ -754,9 +947,12 @@ class _LocationMapSheetState
                     Container(
                       width: 42,
                       height: 42,
-                      decoration: BoxDecoration(
+                      decoration:
+                          BoxDecoration(
                         color: Colors.blue
-                            .withValues(alpha: 0.10),
+                            .withValues(
+                          alpha: 0.10,
+                        ),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
@@ -768,7 +964,8 @@ class _LocationMapSheetState
                     Expanded(
                       child: Column(
                         crossAxisAlignment:
-                            CrossAxisAlignment.start,
+                            CrossAxisAlignment
+                                .start,
                         children: [
                           const Text(
                             'Locations',
@@ -778,15 +975,18 @@ class _LocationMapSheetState
                                   FontWeight.w800,
                             ),
                           ),
-                          const SizedBox(height: 2),
+                          const SizedBox(
+                            height: 2,
+                          ),
                           Text(
                             hasWalker
                                 ? 'Walker → Owner pickup route'
                                 : 'Owner pickup location',
                             style: TextStyle(
                               fontSize: 12,
-                              color:
-                                  Colors.grey.shade600,
+                              color: Colors
+                                  .grey
+                                  .shade600,
                             ),
                           ),
                         ],
@@ -794,7 +994,9 @@ class _LocationMapSheetState
                     ),
                     IconButton(
                       onPressed: () =>
-                          Navigator.of(context).pop(),
+                          Navigator.of(
+                        context,
+                      ).pop(),
                       icon: const Icon(
                         Icons.close_rounded,
                       ),
@@ -817,11 +1019,14 @@ class _LocationMapSheetState
                   ),
                   child: ClipRRect(
                     borderRadius:
-                        BorderRadius.circular(22),
+                        BorderRadius.circular(
+                      22,
+                    ),
                     child: Stack(
                       children: [
                         FlutterMap(
-                          options: MapOptions(
+                          options:
+                              MapOptions(
                             initialCenter:
                                 _mapCenter(),
                             initialZoom:
@@ -840,20 +1045,24 @@ class _LocationMapSheetState
                             // ROUTE
                             // ----------------------------------
 
-                            if (_routePoints.length >= 2)
+                            if (_routePoints
+                                    .length >=
+                                2)
                               PolylineLayer(
                                 polylines: [
                                   Polyline(
                                     points:
                                         _routePoints,
                                     strokeWidth: 9,
-                                    color: Colors.white,
+                                    color:
+                                        Colors.white,
                                   ),
                                   Polyline(
                                     points:
                                         _routePoints,
                                     strokeWidth: 5,
-                                    color: Colors.blue,
+                                    color:
+                                        Colors.blue,
                                   ),
                                 ],
                               ),
@@ -866,18 +1075,21 @@ class _LocationMapSheetState
                               markers: [
                                 Marker(
                                   point:
-                                      widget.ownerLocation,
+                                      widget
+                                          .ownerLocation,
                                   width: 74,
                                   height: 88,
                                   child:
                                       const _OwnerMarker(),
                                 ),
 
-                                if (widget.walkerLocation !=
+                                if (widget
+                                        .walkerLocation !=
                                     null)
                                   Marker(
                                     point:
-                                        widget.walkerLocation!,
+                                        widget
+                                            .walkerLocation!,
                                     width: 70,
                                     height: 84,
                                     child:
@@ -904,14 +1116,18 @@ class _LocationMapSheetState
                           top: 12,
                           left: 12,
                           right: 12,
-                          child: _RouteInfoCard(
-                            hasWalker: hasWalker,
-                            loading: _routeLoading,
+                          child:
+                              _RouteInfoCard(
+                            hasWalker:
+                                hasWalker,
+                            loading:
+                                _routeLoading,
                             distance:
                                 _distanceText(),
                             duration:
                                 _durationText(),
-                            error: _routeError,
+                            error:
+                                _routeError,
                           ),
                         ),
 
@@ -922,8 +1138,10 @@ class _LocationMapSheetState
                         Positioned(
                           left: 14,
                           bottom: 14,
-                          child: _MapLegend(
-                            hasWalker: hasWalker,
+                          child:
+                              _MapLegend(
+                            hasWalker:
+                                hasWalker,
                           ),
                         ),
                       ],
@@ -937,8 +1155,10 @@ class _LocationMapSheetState
               // ------------------------------------------------
 
               SingleChildScrollView(
-                controller: scrollController,
-                padding: const EdgeInsets.fromLTRB(
+                controller:
+                    scrollController,
+                padding:
+                    const EdgeInsets.fromLTRB(
                   18,
                   14,
                   18,
@@ -947,63 +1167,105 @@ class _LocationMapSheetState
                 child: Column(
                   children: [
                     _LocationInfoRow(
-                      icon: Icons.home_rounded,
-                      iconColor: Colors.red,
-                      title: 'Owner Pickup',
+                      icon:
+                          Icons.home_rounded,
+                      iconColor:
+                          Colors.red,
+                      title:
+                          'Owner Pickup',
                       subtitle:
                           '${widget.ownerLocation.latitude.toStringAsFixed(5)}, '
                           '${widget.ownerLocation.longitude.toStringAsFixed(5)}',
-                      trailing: 'Pickup',
+                      trailing:
+                          'Pickup',
                     ),
 
                     if (hasWalker) ...[
-                      const SizedBox(height: 8),
+                      const SizedBox(
+                        height: 8,
+                      ),
                       _LocationInfoRow(
-                        icon:
-                            Icons.directions_walk_rounded,
-                        iconColor: Colors.green,
-                        title: widget.walkerName
+                        icon: Icons
+                            .directions_walk_rounded,
+                        iconColor:
+                            Colors.green,
+                        title: widget
+                                    .walkerName
                                     ?.trim()
                                     .isNotEmpty ==
                                 true
-                            ? widget.walkerName!.trim()
+                            ? widget
+                                .walkerName!
+                                .trim()
                             : 'Walker',
                         subtitle:
                             '${widget.walkerLocation!.latitude.toStringAsFixed(5)}, '
                             '${widget.walkerLocation!.longitude.toStringAsFixed(5)}',
-                        trailing: 'Live',
+                        trailing:
+                            'Live',
                       ),
                     ],
 
-                    if (_routePoints.length >= 2) ...[
-                      const SizedBox(height: 8),
+                    if (_locationUpdatedText()
+                        .isNotEmpty) ...[
+                      const SizedBox(
+                        height: 8,
+                      ),
                       _LocationInfoRow(
-                        icon:
-                            Icons.alt_route_rounded,
-                        iconColor: Colors.blue,
-                        title: 'Walker Route',
+                        icon: Icons
+                            .update_rounded,
+                        iconColor:
+                            Colors.green,
+                        title:
+                            'Location Update',
+                        subtitle:
+                            _locationUpdatedText(),
+                        trailing:
+                            'Live',
+                      ),
+                    ],
+
+                    if (_routePoints.length >=
+                        2) ...[
+                      const SizedBox(
+                        height: 8,
+                      ),
+                      _LocationInfoRow(
+                        icon: Icons
+                            .alt_route_rounded,
+                        iconColor:
+                            Colors.blue,
+                        title:
+                            'Walker Route',
                         subtitle:
                             '${_distanceText()}'
                             '${_durationText().isNotEmpty ? ' • ${_durationText()}' : ''}',
-                        trailing: 'Road Route',
+                        trailing:
+                            'Road Route',
                       ),
                     ],
 
-                    const SizedBox(height: 14),
+                    const SizedBox(
+                      height: 14,
+                    ),
 
                     SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
+                      width:
+                          double.infinity,
+                      child:
+                          OutlinedButton.icon(
                         onPressed:
                             _openOpenStreetMap,
                         icon: const Icon(
                           Icons.map_outlined,
                         ),
-                        label: const Text(
+                        label:
+                            const Text(
                           'Open in OpenStreetMap',
                         ),
                         style:
-                            OutlinedButton.styleFrom(
+                            OutlinedButton
+                                .styleFrom(
                           minimumSize:
                               const Size(
                             double.infinity,
@@ -1012,7 +1274,8 @@ class _LocationMapSheetState
                           shape:
                               RoundedRectangleBorder(
                             borderRadius:
-                                BorderRadius.circular(
+                                BorderRadius
+                                    .circular(
                               13,
                             ),
                           ),
@@ -1034,18 +1297,23 @@ class _LocationMapSheetState
 // OWNER MARKER
 // ============================================================================
 
-class _OwnerMarker extends StatelessWidget {
+class _OwnerMarker
+    extends StatelessWidget {
   const _OwnerMarker();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Column(
-      mainAxisSize: MainAxisSize.min,
+      mainAxisSize:
+          MainAxisSize.min,
       children: [
         Container(
           width: 48,
           height: 48,
-          decoration: BoxDecoration(
+          decoration:
+              BoxDecoration(
             color: Colors.red,
             shape: BoxShape.circle,
             border: Border.all(
@@ -1055,9 +1323,12 @@ class _OwnerMarker extends StatelessWidget {
             boxShadow: [
               BoxShadow(
                 blurRadius: 10,
-                offset: const Offset(0, 4),
-                color:
-                    Colors.black.withValues(alpha: 0.20),
+                offset:
+                    const Offset(0, 4),
+                color: Colors.black
+                    .withValues(
+                  alpha: 0.20,
+                ),
               ),
             ],
           ),
@@ -1070,7 +1341,8 @@ class _OwnerMarker extends StatelessWidget {
         Container(
           width: 10,
           height: 10,
-          decoration: BoxDecoration(
+          decoration:
+              BoxDecoration(
             color: Colors.red,
             shape: BoxShape.circle,
             border: Border.all(
@@ -1081,19 +1353,23 @@ class _OwnerMarker extends StatelessWidget {
         ),
         const SizedBox(height: 2),
         Container(
-          padding: const EdgeInsets.symmetric(
+          padding:
+              const EdgeInsets.symmetric(
             horizontal: 7,
             vertical: 3,
           ),
-          decoration: BoxDecoration(
+          decoration:
+              BoxDecoration(
             color: Colors.white,
             borderRadius:
                 BorderRadius.circular(7),
             boxShadow: [
               BoxShadow(
                 blurRadius: 6,
-                color:
-                    Colors.black.withValues(alpha: 0.12),
+                color: Colors.black
+                    .withValues(
+                  alpha: 0.12,
+                ),
               ),
             ],
           ),
@@ -1101,7 +1377,8 @@ class _OwnerMarker extends StatelessWidget {
             'Pickup',
             style: TextStyle(
               fontSize: 9,
-              fontWeight: FontWeight.w800,
+              fontWeight:
+                  FontWeight.w800,
             ),
           ),
         ),
@@ -1114,18 +1391,23 @@ class _OwnerMarker extends StatelessWidget {
 // WALKER MARKER
 // ============================================================================
 
-class _WalkerMarker extends StatelessWidget {
+class _WalkerMarker
+    extends StatelessWidget {
   const _WalkerMarker();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Column(
-      mainAxisSize: MainAxisSize.min,
+      mainAxisSize:
+          MainAxisSize.min,
       children: [
         Container(
           width: 46,
           height: 46,
-          decoration: BoxDecoration(
+          decoration:
+              BoxDecoration(
             color: Colors.green,
             shape: BoxShape.circle,
             border: Border.all(
@@ -1135,9 +1417,12 @@ class _WalkerMarker extends StatelessWidget {
             boxShadow: [
               BoxShadow(
                 blurRadius: 10,
-                offset: const Offset(0, 4),
-                color:
-                    Colors.black.withValues(alpha: 0.20),
+                offset:
+                    const Offset(0, 4),
+                color: Colors.black
+                    .withValues(
+                  alpha: 0.20,
+                ),
               ),
             ],
           ),
@@ -1150,7 +1435,8 @@ class _WalkerMarker extends StatelessWidget {
         Container(
           width: 10,
           height: 10,
-          decoration: BoxDecoration(
+          decoration:
+              BoxDecoration(
             color: Colors.green,
             shape: BoxShape.circle,
             border: Border.all(
@@ -1161,19 +1447,23 @@ class _WalkerMarker extends StatelessWidget {
         ),
         const SizedBox(height: 2),
         Container(
-          padding: const EdgeInsets.symmetric(
+          padding:
+              const EdgeInsets.symmetric(
             horizontal: 7,
             vertical: 3,
           ),
-          decoration: BoxDecoration(
+          decoration:
+              BoxDecoration(
             color: Colors.white,
             borderRadius:
                 BorderRadius.circular(7),
             boxShadow: [
               BoxShadow(
                 blurRadius: 6,
-                color:
-                    Colors.black.withValues(alpha: 0.12),
+                color: Colors.black
+                    .withValues(
+                  alpha: 0.12,
+                ),
               ),
             ],
           ),
@@ -1181,7 +1471,8 @@ class _WalkerMarker extends StatelessWidget {
             'Walker',
             style: TextStyle(
               fontSize: 9,
-              fontWeight: FontWeight.w800,
+              fontWeight:
+                  FontWeight.w800,
             ),
           ),
         ),
@@ -1194,7 +1485,8 @@ class _WalkerMarker extends StatelessWidget {
 // ROUTE INFO CARD
 // ============================================================================
 
-class _RouteInfoCard extends StatelessWidget {
+class _RouteInfoCard
+    extends StatelessWidget {
   const _RouteInfoCard({
     required this.hasWalker,
     required this.loading,
@@ -1210,13 +1502,16 @@ class _RouteInfoCard extends StatelessWidget {
   final String? error;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     String title;
     String subtitle;
 
     if (!hasWalker) {
       title = 'Pickup location';
-      subtitle = 'Walker location not available';
+      subtitle =
+          'Walker location not available';
     } else if (loading) {
       title = 'Finding road route...';
       subtitle = 'Please wait';
@@ -1234,19 +1529,25 @@ class _RouteInfoCard extends StatelessWidget {
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(
+      padding:
+          const EdgeInsets.symmetric(
         horizontal: 13,
         vertical: 11,
       ),
-      decoration: BoxDecoration(
+      decoration:
+          BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
+        borderRadius:
+            BorderRadius.circular(15),
         boxShadow: [
           BoxShadow(
             blurRadius: 16,
-            offset: const Offset(0, 5),
-            color:
-                Colors.black.withValues(alpha: 0.14),
+            offset:
+                const Offset(0, 5),
+            color: Colors.black
+                .withValues(
+              alpha: 0.14,
+            ),
           ),
         ],
       ),
@@ -1255,10 +1556,17 @@ class _RouteInfoCard extends StatelessWidget {
           Container(
             width: 38,
             height: 38,
-            decoration: BoxDecoration(
+            decoration:
+                BoxDecoration(
               color: hasWalker
-                  ? Colors.blue.withValues(alpha: 0.10)
-                  : Colors.red.withValues(alpha: 0.10),
+                  ? Colors.blue
+                      .withValues(
+                    alpha: 0.10,
+                  )
+                  : Colors.red
+                      .withValues(
+                    alpha: 0.10,
+                  ),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -1266,8 +1574,9 @@ class _RouteInfoCard extends StatelessWidget {
                   ? Icons.route_rounded
                   : Icons.location_on_rounded,
               size: 20,
-              color:
-                  hasWalker ? Colors.blue : Colors.red,
+              color: hasWalker
+                  ? Colors.blue
+                  : Colors.red,
             ),
           ),
           const SizedBox(width: 10),
@@ -1278,12 +1587,16 @@ class _RouteInfoCard extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style:
+                      const TextStyle(
                     fontSize: 14,
-                    fontWeight: FontWeight.w800,
+                    fontWeight:
+                        FontWeight.w800,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(
+                  height: 2,
+                ),
                 Text(
                   subtitle,
                   maxLines: 1,
@@ -1291,8 +1604,9 @@ class _RouteInfoCard extends StatelessWidget {
                       TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 10,
-                    color:
-                        Colors.grey.shade600,
+                    color: Colors
+                        .grey
+                        .shade600,
                   ),
                 ),
               ],
@@ -1308,7 +1622,8 @@ class _RouteInfoCard extends StatelessWidget {
 // MAP LEGEND
 // ============================================================================
 
-class _MapLegend extends StatelessWidget {
+class _MapLegend
+    extends StatelessWidget {
   const _MapLegend({
     required this.hasWalker,
   });
@@ -1316,20 +1631,27 @@ class _MapLegend extends StatelessWidget {
   final bool hasWalker;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Container(
-      padding: const EdgeInsets.symmetric(
+      padding:
+          const EdgeInsets.symmetric(
         horizontal: 10,
         vertical: 8,
       ),
-      decoration: BoxDecoration(
+      decoration:
+          BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius:
+            BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
             blurRadius: 12,
-            color:
-                Colors.black.withValues(alpha: 0.12),
+            color: Colors.black
+                .withValues(
+              alpha: 0.12,
+            ),
           ),
         ],
       ),
@@ -1346,13 +1668,15 @@ class _MapLegend extends StatelessWidget {
             const SizedBox(height: 5),
             const _LegendItem(
               color: Colors.green,
-              icon: Icons.directions_walk_rounded,
+              icon: Icons
+                  .directions_walk_rounded,
               text: 'Walker',
             ),
             const SizedBox(height: 5),
             const _LegendItem(
               color: Colors.blue,
-              icon: Icons.route_rounded,
+              icon:
+                  Icons.route_rounded,
               text: 'Road Route',
             ),
           ],
@@ -1362,7 +1686,8 @@ class _MapLegend extends StatelessWidget {
   }
 }
 
-class _LegendItem extends StatelessWidget {
+class _LegendItem
+    extends StatelessWidget {
   const _LegendItem({
     required this.color,
     required this.icon,
@@ -1374,9 +1699,12 @@ class _LegendItem extends StatelessWidget {
   final String text;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Row(
-      mainAxisSize: MainAxisSize.min,
+      mainAxisSize:
+          MainAxisSize.min,
       children: [
         Icon(
           icon,
@@ -1386,9 +1714,11 @@ class _LegendItem extends StatelessWidget {
         const SizedBox(width: 5),
         Text(
           text,
-          style: const TextStyle(
+          style:
+              const TextStyle(
             fontSize: 10,
-            fontWeight: FontWeight.w700,
+            fontWeight:
+                FontWeight.w700,
           ),
         ),
       ],
@@ -1400,7 +1730,8 @@ class _LegendItem extends StatelessWidget {
 // LOCATION INFO ROW
 // ============================================================================
 
-class _LocationInfoRow extends StatelessWidget {
+class _LocationInfoRow
+    extends StatelessWidget {
   const _LocationInfoRow({
     required this.icon,
     required this.iconColor,
@@ -1416,15 +1747,21 @@ class _LocationInfoRow extends StatelessWidget {
   final String trailing;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
+      padding:
+          const EdgeInsets.all(12),
+      decoration:
+          BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius:
+            BorderRadius.circular(14),
         border: Border.all(
-          color: Colors.grey.shade200,
+          color:
+              Colors.grey.shade200,
         ),
       ),
       child: Row(
@@ -1432,9 +1769,12 @@ class _LocationInfoRow extends StatelessWidget {
           Container(
             width: 40,
             height: 40,
-            decoration: BoxDecoration(
+            decoration:
+                BoxDecoration(
               color:
-                  iconColor.withValues(alpha: 0.10),
+                  iconColor.withValues(
+                alpha: 0.10,
+              ),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -1454,12 +1794,16 @@ class _LocationInfoRow extends StatelessWidget {
                   maxLines: 1,
                   overflow:
                       TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style:
+                      const TextStyle(
                     fontSize: 13,
-                    fontWeight: FontWeight.w800,
+                    fontWeight:
+                        FontWeight.w800,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(
+                  height: 2,
+                ),
                 Text(
                   subtitle,
                   maxLines: 1,
@@ -1467,8 +1811,9 @@ class _LocationInfoRow extends StatelessWidget {
                       TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 10,
-                    color:
-                        Colors.grey.shade600,
+                    color: Colors
+                        .grey
+                        .shade600,
                   ),
                 ),
               ],
@@ -1479,7 +1824,8 @@ class _LocationInfoRow extends StatelessWidget {
             trailing,
             style: TextStyle(
               fontSize: 10,
-              fontWeight: FontWeight.w800,
+              fontWeight:
+                  FontWeight.w800,
               color: iconColor,
             ),
           ),
