@@ -41,7 +41,6 @@ class WalkRequestDetailsScreen extends StatelessWidget {
   static const Color orange = Color(0xFFD35435);
   static const Color background = Color(0xFFF8FAFC);
   static const Color dark = Color(0xFF0F172A);
-  static const Color grey = Color(0xFF64748B);
   static const Color green = Color(0xFF16A34A);
   static const Color blue = Color(0xFF2563EB);
   static const Color red = Color(0xFFDC2626);
@@ -53,9 +52,9 @@ class WalkRequestDetailsScreen extends StatelessWidget {
     final value = WalkRequestDetailsHelpers.value(
       data,
       'status',
-    );
+    ).trim();
 
-    return value.trim().isEmpty ? 'pending' : value;
+    return value.isEmpty ? 'pending' : value;
   }
 
   Future<void> _copyText(
@@ -128,6 +127,28 @@ class WalkRequestDetailsScreen extends StatelessWidget {
 
   void _openMaps(LatLng location) {
     onOpenMaps?.call(location);
+  }
+
+  VoidCallback? _ownerMapsCallback(
+    LatLng? location,
+  ) {
+    if (location == null || onOpenMaps == null) {
+      return null;
+    }
+
+    return () {
+      _openMaps(location);
+    };
+  }
+
+  ValueChanged<LatLng>? _mapOpenCallback() {
+    if (onOpenMaps == null) {
+      return null;
+    }
+
+    return (location) {
+      _openMaps(location);
+    };
   }
 
   @override
@@ -320,14 +341,9 @@ class WalkRequestDetailsScreen extends StatelessWidget {
                                     hasLocation:
                                         ownerLocation != null,
                                     onOpenMaps:
-                                        ownerLocation != null &&
-                                                onOpenMaps != null
-                                            ? () {
-                                                _openMaps(
-                                                  ownerLocation,
-                                                );
-                                              }
-                                            : null,
+                                        _ownerMapsCallback(
+                                      ownerLocation,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -373,6 +389,7 @@ class WalkRequestDetailsScreen extends StatelessWidget {
 
                                   if (ownerLocation != null) ...[
                                     const SizedBox(height: 16),
+
                                     WalkRequestDetailsMap(
                                       requestId: requestId,
                                       ownerLocation:
@@ -382,14 +399,12 @@ class WalkRequestDetailsScreen extends StatelessWidget {
                                       walkerId: walkerId,
                                       walkerUid: walkerUid,
                                       walkerName: walkerName,
+
+                                      // IMPORTANT:
+                                      // WalkRequestDetailsMap expects
+                                      // ValueChanged<LatLng>?
                                       onOpenMaps:
-                                          onOpenMaps != null
-                                              ? () {
-                                                  _openMaps(
-                                                    ownerLocation,
-                                                  );
-                                                }
-                                              : null,
+                                          _mapOpenCallback(),
                                     ),
                                   ],
                                 ],
@@ -458,18 +473,14 @@ class WalkRequestDetailsScreen extends StatelessWidget {
                               hasLocation:
                                   ownerLocation != null,
                               onOpenMaps:
-                                  ownerLocation != null &&
-                                          onOpenMaps != null
-                                      ? () {
-                                          _openMaps(
-                                            ownerLocation,
-                                          );
-                                        }
-                                      : null,
+                                  _ownerMapsCallback(
+                                ownerLocation,
+                              ),
                             ),
 
                             if (ownerLocation != null) ...[
                               const SizedBox(height: 16),
+
                               WalkRequestDetailsMap(
                                 requestId: requestId,
                                 ownerLocation:
@@ -479,14 +490,11 @@ class WalkRequestDetailsScreen extends StatelessWidget {
                                 walkerId: walkerId,
                                 walkerUid: walkerUid,
                                 walkerName: walkerName,
+
+                                // IMPORTANT:
+                                // This receives LatLng.
                                 onOpenMaps:
-                                    onOpenMaps != null
-                                        ? () {
-                                            _openMaps(
-                                              ownerLocation,
-                                            );
-                                          }
-                                        : null,
+                                    _mapOpenCallback(),
                               ),
                             ],
 
@@ -601,8 +609,7 @@ class _RequestSummaryCard extends StatelessWidget {
     final reachedAt =
         WalkRequestDetailsHelpers.reachedAt(data);
 
-    final completedAt =
-        _firstDateTime(
+    final completedAt = _firstDateTime(
       data,
       const [
         'completedAt',
@@ -843,7 +850,7 @@ class _WalkTimelineCard extends StatelessWidget {
             completed: requested != null,
           ),
 
-          _TimelineConnector(),
+          const _TimelineConnector(),
 
           _TimelineRow(
             icon: Icons.person_pin_circle_rounded,
@@ -853,7 +860,7 @@ class _WalkTimelineCard extends StatelessWidget {
             completed: accepted != null,
           ),
 
-          _TimelineConnector(),
+          const _TimelineConnector(),
 
           _TimelineRow(
             icon: Icons.directions_walk_rounded,
@@ -863,7 +870,7 @@ class _WalkTimelineCard extends StatelessWidget {
             completed: reached != null,
           ),
 
-          _TimelineConnector(),
+          const _TimelineConnector(),
 
           _TimelineRow(
             icon: Icons.flag_rounded,
@@ -1007,8 +1014,7 @@ class _PickupMetricsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final distanceKm =
-        _numberValue(
+    final distanceKm = _numberValue(
       data,
       const [
         'arrivalDistanceKm',
@@ -1016,8 +1022,7 @@ class _PickupMetricsCard extends StatelessWidget {
       ],
     );
 
-    final distanceMeters =
-        _numberValue(
+    final distanceMeters = _numberValue(
       data,
       const [
         'arrivalDistanceMeters',
@@ -1025,8 +1030,7 @@ class _PickupMetricsCard extends StatelessWidget {
       ],
     );
 
-    final durationMinutes =
-        _numberValue(
+    final durationMinutes = _numberValue(
       data,
       const [
         'arrivalDurationMinutes',
@@ -1468,9 +1472,7 @@ DateTime? _firstDateTime(
   List<String> keys,
 ) {
   for (final key in keys) {
-    final value = data[key];
-
-    final parsed = _parseDateTime(value);
+    final parsed = _parseDateTime(data[key]);
 
     if (parsed != null) {
       return parsed;
@@ -1536,7 +1538,8 @@ String _formatDateTime(DateTime? value) {
   final month =
       local.month.toString().padLeft(2, '0');
 
-  final year = local.year.toString();
+  final year =
+      local.year.toString();
 
   final hour =
       local.hour.toString().padLeft(2, '0');
