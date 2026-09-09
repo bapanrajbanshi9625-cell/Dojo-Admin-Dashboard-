@@ -1023,7 +1023,7 @@ class _AdminShellState extends State<AdminShell> {
             child: InkWell(
               borderRadius:
                   BorderRadius.circular(10),
-              onTap: toggleMenu,
+              onTap: openMenu,
               child: Container(
                 width: 40,
                 height: 40,
