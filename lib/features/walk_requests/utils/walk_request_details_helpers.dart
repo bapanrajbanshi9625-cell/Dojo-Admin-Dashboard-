@@ -12,13 +12,13 @@ class WalkRequestDetailsHelpers {
     String key, [
     String fallback = '—',
   ]) {
-    final value = data[key];
+    final raw = data[key];
 
-    if (value == null) {
+    if (raw == null) {
       return fallback;
     }
 
-    final text = value.toString().trim();
+    final text = raw.toString().trim();
 
     if (text.isEmpty || text == 'null') {
       return fallback;
@@ -33,13 +33,13 @@ class WalkRequestDetailsHelpers {
     String fallback = '—',
   ]) {
     for (final key in keys) {
-      final value = data[key];
+      final raw = data[key];
 
-      if (value == null) {
+      if (raw == null) {
         continue;
       }
 
-      final text = value.toString().trim();
+      final text = raw.toString().trim();
 
       if (text.isNotEmpty && text != 'null') {
         return text;
@@ -48,6 +48,10 @@ class WalkRequestDetailsHelpers {
 
     return fallback;
   }
+
+  // ==========================================================
+  // OWNER
+  // ==========================================================
 
   static String ownerName(
     Map<String, dynamic> data,
@@ -91,6 +95,10 @@ class WalkRequestDetailsHelpers {
     );
   }
 
+  // ==========================================================
+  // WALKER
+  // ==========================================================
+
   static String walkerName(
     Map<String, dynamic> data,
   ) {
@@ -110,8 +118,19 @@ class WalkRequestDetailsHelpers {
       data,
       const [
         'walkerId',
+      ],
+    );
+  }
+
+  static String walkerUid(
+    Map<String, dynamic> data,
+  ) {
+    return firstAvailable(
+      data,
+      const [
         'walkerUid',
         'walkerAuthUid',
+        'acceptedByUid',
       ],
     );
   }
@@ -126,11 +145,13 @@ class WalkRequestDetailsHelpers {
         'walkerMobile',
         'walkerPhoneNumber',
         'walkerMobileNumber',
-        'phone',
-        'mobile',
       ],
     );
   }
+
+  // ==========================================================
+  // DOG
+  // ==========================================================
 
   static String dogName(
     Map<String, dynamic> data,
@@ -172,6 +193,10 @@ class WalkRequestDetailsHelpers {
     );
   }
 
+  // ==========================================================
+  // REQUEST
+  // ==========================================================
+
   static String address(
     Map<String, dynamic> data,
   ) {
@@ -182,6 +207,7 @@ class WalkRequestDetailsHelpers {
         'pickupAddress',
         'location',
       ],
+      'Pickup address unavailable',
     );
   }
 
@@ -198,70 +224,227 @@ class WalkRequestDetailsHelpers {
   static String radius(
     Map<String, dynamic> data,
   ) {
-    final radius = data['searchRadiusKm'];
+    final raw = data['searchRadiusKm'];
 
-    if (radius == null) {
+    if (raw == null) {
       return '—';
     }
 
-    return '$radius km';
+    final number = toDouble(raw);
+
+    if (number == null) {
+      return raw.toString();
+    }
+
+    return '${number.toStringAsFixed(1)} km';
+  }
+
+  // ==========================================================
+  // DATE / TIME
+  // ==========================================================
+
+  static DateTime? dateTime(
+    dynamic raw,
+  ) {
+    if (raw == null) {
+      return null;
+    }
+
+    if (raw is Timestamp) {
+      return raw.toDate();
+    }
+
+    if (raw is DateTime) {
+      return raw;
+    }
+
+    if (raw is String) {
+      return DateTime.tryParse(raw);
+    }
+
+    return null;
   }
 
   static String createdAt(
     Map<String, dynamic> data,
   ) {
-    final value = data['createdAt'];
+    final date = dateTime(data['createdAt']);
 
-    if (value == null) {
+    if (date == null) {
       return '—';
     }
 
-    if (value is Timestamp) {
-      return formatDate(value.toDate());
+    return formatDateTime(date);
+  }
+
+  static String acceptedAt(
+    Map<String, dynamic> data,
+  ) {
+    final date = dateTime(data['acceptedAt']);
+
+    if (date == null) {
+      return '—';
     }
 
-    if (value is DateTime) {
-      return formatDate(value);
+    return formatDateTime(date);
+  }
+
+  static String reachedAt(
+    Map<String, dynamic> data,
+  ) {
+    final date = dateTime(data['reachedAt']);
+
+    if (date == null) {
+      return '—';
     }
 
-    return value.toString();
+    return formatDateTime(date);
+  }
+
+  static String locationUpdatedAt(
+    Map<String, dynamic> data,
+  ) {
+    final date = dateTime(
+      data['locationUpdatedAt'],
+    );
+
+    if (date == null) {
+      return '—';
+    }
+
+    return formatDateTime(date);
+  }
+
+  static String updatedAt(
+    Map<String, dynamic> data,
+  ) {
+    final date = dateTime(
+      data['updatedAt'],
+    );
+
+    if (date == null) {
+      return '—';
+    }
+
+    return formatDateTime(date);
   }
 
   static String formatDate(
     DateTime date,
   ) {
-    final day = date.day.toString().padLeft(2, '0');
-    final month = date.month.toString().padLeft(2, '0');
-    final hour = date.hour.toString().padLeft(2, '0');
-    final minute = date.minute.toString().padLeft(2, '0');
+    final day =
+        date.day.toString().padLeft(2, '0');
 
-    return '$day/$month/${date.year} $hour:$minute';
+    final month =
+        date.month.toString().padLeft(2, '0');
+
+    return '$day/$month/${date.year}';
   }
 
-  static bool hasWalker(
+  static String formatTime(
+    DateTime date,
+  ) {
+    final hour =
+        date.hour.toString().padLeft(2, '0');
+
+    final minute =
+        date.minute.toString().padLeft(2, '0');
+
+    return '$hour:$minute';
+  }
+
+  static String formatDateTime(
+    DateTime date,
+  ) {
+    return '${formatDate(date)} ${formatTime(date)}';
+  }
+
+  // ==========================================================
+  // STATUS
+  // ==========================================================
+
+  static String status(
     Map<String, dynamic> data,
   ) {
-    final name = walkerName(data);
-    final id = walkerId(data);
-
-    return name != '—' ||
-        id != '—' ||
-        data['walkerId'] != null;
+    return value(
+      data,
+      'status',
+      'pending',
+    ).trim().toLowerCase();
   }
 
   static bool isPending(
     Map<String, dynamic> data,
   ) {
-    final status = value(
-      data,
-      'status',
-      'pending',
-    ).toLowerCase();
+    final current = status(data);
 
-    return status == 'pending' ||
-        status == 'searching' ||
-        status == 'requested';
+    return current == 'pending' ||
+        current == 'searching' ||
+        current == 'requested';
   }
+
+  static bool isAccepted(
+    Map<String, dynamic> data,
+  ) {
+    final current = status(data);
+
+    return current == 'accepted' ||
+        current == 'assigned';
+  }
+
+  static bool isActive(
+    Map<String, dynamic> data,
+  ) {
+    final current = status(data);
+
+    return current == 'active' ||
+        current == 'started' ||
+        current == 'in_progress' ||
+        current == 'in-progress' ||
+        current == 'live';
+  }
+
+  static bool isCompleted(
+    Map<String, dynamic> data,
+  ) {
+    final current = status(data);
+
+    return current == 'completed' ||
+        current == 'complete';
+  }
+
+  static bool isCancelled(
+    Map<String, dynamic> data,
+  ) {
+    final current = status(data);
+
+    return current == 'cancelled' ||
+        current == 'canceled' ||
+        current == 'rejected';
+  }
+
+  static bool isFinished(
+    Map<String, dynamic> data,
+  ) {
+    return isCompleted(data) ||
+        isCancelled(data);
+  }
+
+  // ==========================================================
+  // WALKER
+  // ==========================================================
+
+  static bool hasWalker(
+    Map<String, dynamic> data,
+  ) {
+    return walkerName(data) != '—' ||
+        walkerId(data) != '—' ||
+        walkerUid(data) != '—';
+  }
+
+  // ==========================================================
+  // OWNER LOCATION
+  // ==========================================================
 
   static LatLng? ownerLocation(
     Map<String, dynamic> data,
@@ -269,8 +452,8 @@ class WalkRequestDetailsHelpers {
     final candidates = <dynamic>[
       data['ownerLocation'],
       data['pickupLocation'],
-      data['location'],
-      data['currentLocation'],
+      data['owner_location'],
+      data['pickup_location'],
     ];
 
     for (final candidate in candidates) {
@@ -281,28 +464,61 @@ class WalkRequestDetailsHelpers {
       }
     }
 
-    final latitude = toDouble(data['latitude']);
-    final longitude = toDouble(data['longitude']);
-
-    if (latitude != null && longitude != null) {
-      return LatLng(latitude, longitude);
-    }
-
-    final lat = toDouble(data['lat']);
-    final lng = toDouble(data['lng']);
-
-    if (lat != null && lng != null) {
-      return LatLng(lat, lng);
-    }
-
-    final lon = toDouble(data['lon']);
-
-    if (lat != null && lon != null) {
-      return LatLng(lat, lon);
-    }
-
-    return null;
+    return _latLngFromFields(
+      data,
+      latitudeKeys: const [
+        'ownerLatitude',
+        'pickupLatitude',
+      ],
+      longitudeKeys: const [
+        'ownerLongitude',
+        'pickupLongitude',
+      ],
+    );
   }
+
+  // ==========================================================
+  // WALKER LOCATION
+  // ==========================================================
+
+  static LatLng? walkerLocation(
+    Map<String, dynamic> data,
+  ) {
+    final candidates = <dynamic>[
+      data['walkerLocation'],
+      data['walker_location'],
+      data['currentWalkerLocation'],
+      data['current_walker_location'],
+    ];
+
+    for (final candidate in candidates) {
+      final location = parseLocation(candidate);
+
+      if (location != null) {
+        return location;
+      }
+    }
+
+    return _latLngFromFields(
+      data,
+      latitudeKeys: const [
+        'walkerLatitude',
+        'walkerLat',
+        'currentWalkerLatitude',
+        'currentWalkerLat',
+      ],
+      longitudeKeys: const [
+        'walkerLongitude',
+        'walkerLng',
+        'currentWalkerLongitude',
+        'currentWalkerLng',
+      ],
+    );
+  }
+
+  // ==========================================================
+  // LOCATION PARSER
+  // ==========================================================
 
   static LatLng? parseLocation(
     dynamic value,
@@ -323,30 +539,44 @@ class WalkRequestDetailsHelpers {
     }
 
     if (value is Map) {
+      final map =
+          Map<String, dynamic>.from(value);
+
       final latitude = toDouble(
-        value['latitude'] ?? value['lat'],
+        map['latitude'] ??
+            map['lat'] ??
+            map['currentLatitude'] ??
+            map['currentLat'],
       );
 
       final longitude = toDouble(
-        value['longitude'] ??
-            value['lng'] ??
-            value['lon'],
+        map['longitude'] ??
+            map['lng'] ??
+            map['lon'] ??
+            map['currentLongitude'] ??
+            map['currentLng'],
       );
 
-      if (latitude != null && longitude != null) {
-        return LatLng(
+      if (latitude != null &&
+          longitude != null) {
+        return _safeLatLng(
           latitude,
           longitude,
         );
       }
     }
 
-    if (value is List && value.length >= 2) {
-      final latitude = toDouble(value[0]);
-      final longitude = toDouble(value[1]);
+    if (value is List &&
+        value.length >= 2) {
+      final latitude =
+          toDouble(value[0]);
 
-      if (latitude != null && longitude != null) {
-        return LatLng(
+      final longitude =
+          toDouble(value[1]);
+
+      if (latitude != null &&
+          longitude != null) {
+        return _safeLatLng(
           latitude,
           longitude,
         );
@@ -355,6 +585,66 @@ class WalkRequestDetailsHelpers {
 
     return null;
   }
+
+  static LatLng? _latLngFromFields(
+    Map<String, dynamic> data, {
+    required List<String> latitudeKeys,
+    required List<String> longitudeKeys,
+  }) {
+    dynamic latitudeValue;
+    dynamic longitudeValue;
+
+    for (final key in latitudeKeys) {
+      if (data[key] != null) {
+        latitudeValue = data[key];
+        break;
+      }
+    }
+
+    for (final key in longitudeKeys) {
+      if (data[key] != null) {
+        longitudeValue = data[key];
+        break;
+      }
+    }
+
+    final latitude =
+        toDouble(latitudeValue);
+
+    final longitude =
+        toDouble(longitudeValue);
+
+    if (latitude == null ||
+        longitude == null) {
+      return null;
+    }
+
+    return _safeLatLng(
+      latitude,
+      longitude,
+    );
+  }
+
+  static LatLng? _safeLatLng(
+    double latitude,
+    double longitude,
+  ) {
+    if (latitude < -90 ||
+        latitude > 90 ||
+        longitude < -180 ||
+        longitude > 180) {
+      return null;
+    }
+
+    return LatLng(
+      latitude,
+      longitude,
+    );
+  }
+
+  // ==========================================================
+  // NUMBER
+  // ==========================================================
 
   static double? toDouble(
     dynamic value,
@@ -368,7 +658,7 @@ class WalkRequestDetailsHelpers {
     }
 
     return double.tryParse(
-      value.toString(),
+      value.toString().trim(),
     );
   }
 }
