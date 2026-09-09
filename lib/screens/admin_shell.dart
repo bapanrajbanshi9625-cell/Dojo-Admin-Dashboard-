@@ -339,6 +339,8 @@ class _AdminShellState extends State<AdminShell> {
   // ===========================================================
   // DESKTOP LAYOUT
   // ===========================================================
+  // DO NOT CHANGE THIS SECTION
+  // ===========================================================
 
   Widget desktopLayout() {
     final double sidebarWidth =
@@ -406,7 +408,6 @@ class _AdminShellState extends State<AdminShell> {
                     _sectionLabel('OVERVIEW'),
 
                   _desktopMenuItem(0),
-
                   _desktopMenuItem(1),
 
                   if (!sidebarCollapsed)
@@ -486,7 +487,6 @@ class _AdminShellState extends State<AdminShell> {
               size: 23,
             ),
           ),
-
           if (!sidebarCollapsed) ...[
             const SizedBox(width: 11),
             const Column(
@@ -589,7 +589,6 @@ class _AdminShellState extends State<AdminShell> {
                         ? dojoOrange
                         : dojoGrey,
                   ),
-
                   if (!sidebarCollapsed) ...[
                     const SizedBox(width: 12),
                     Expanded(
@@ -977,21 +976,186 @@ class _AdminShellState extends State<AdminShell> {
   // ===========================================================
   // MOBILE LAYOUT
   // ===========================================================
+  // ONLY MOBILE MENU BEHAVIOR IS CHANGED
+  // ===========================================================
 
   Widget mobileLayout() {
+    final double screenWidth =
+        MediaQuery.of(context).size.width;
+
+    final double drawerWidth =
+        screenWidth < 360
+            ? screenWidth * 0.88
+            : 320;
+
     return Scaffold(
       backgroundColor: dojoBackground,
       body: SafeArea(
-        child: Column(
+        child: Stack(
           children: [
-            _mobileTopBar(),
+            // =================================================
+            // MOBILE MAIN CONTENT
+            // =================================================
 
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: currentScreen(),
-              ),
+            Column(
+              children: [
+                _mobileTopBar(),
+
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: currentScreen(),
+                  ),
+                ),
+              ],
             ),
+
+            // =================================================
+            // MOBILE DRAWER
+            // =================================================
+
+            if (menuOpen) ...[
+              Positioned.fill(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: closeMenu,
+                  child: Container(
+                    color: Colors.black.withValues(
+                      alpha: 0.28,
+                    ),
+                  ),
+                ),
+              ),
+
+              Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
+                width: drawerWidth,
+                child: Material(
+                  color: Colors.white,
+                  elevation: 20,
+                  child: ClipRRect(
+                    borderRadius:
+                        const BorderRadius.only(
+                      topRight: Radius.circular(24),
+                      bottomRight:
+                          Radius.circular(24),
+                    ),
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 10),
+
+                        Container(
+                          width: 42,
+                          height: 4,
+                          decoration:
+                              BoxDecoration(
+                            color: dojoBorder,
+                            borderRadius:
+                                BorderRadius.circular(
+                              10,
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        Padding(
+                          padding:
+                              const EdgeInsets.symmetric(
+                            horizontal: 20,
+                          ),
+                          child: Row(
+                            children: [
+                              const Expanded(
+                                child: Text(
+                                  'Admin Menu',
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight:
+                                        FontWeight.w800,
+                                    color: dojoDark,
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                onPressed: closeMenu,
+                                icon: const Icon(
+                                  Icons.close_rounded,
+                                  color: dojoDark,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 6),
+
+                        Expanded(
+                          child: ListView(
+                            padding:
+                                const EdgeInsets.fromLTRB(
+                              12,
+                              4,
+                              12,
+                              20,
+                            ),
+                            children: [
+                              _mobileSection(
+                                'OVERVIEW',
+                              ),
+
+                              _mobileMenuItem(0),
+                              _mobileMenuItem(1),
+
+                              _mobileSection(
+                                'OPERATIONS',
+                              ),
+
+                              _mobileMenuItem(2),
+                              _mobileMenuItem(3),
+                              _mobileMenuItem(4),
+                              _mobileMenuItem(5),
+                              _mobileMenuItem(6),
+
+                              _mobileSection(
+                                'FINANCE',
+                              ),
+
+                              _mobileMenuItem(7),
+                              _mobileMenuItem(8),
+                              _mobileMenuItem(9),
+
+                              _mobileSection(
+                                'TRUST & SAFETY',
+                              ),
+
+                              _mobileMenuItem(10),
+                              _mobileMenuItem(11),
+                              _mobileMenuItem(12),
+
+                              _mobileSection(
+                                'SYSTEM',
+                              ),
+
+                              _mobileMenuItem(13),
+                              _mobileMenuItem(14),
+                              _mobileMenuItem(15),
+                              _mobileMenuItem(16),
+
+                              const SizedBox(height: 14),
+
+                              _mobileAccountCard(),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -1023,7 +1187,7 @@ class _AdminShellState extends State<AdminShell> {
             child: InkWell(
               borderRadius:
                   BorderRadius.circular(10),
-              onTap: openMenu,
+              onTap: toggleMenu,
               child: Container(
                 width: 40,
                 height: 40,
@@ -1146,137 +1310,6 @@ class _AdminShellState extends State<AdminShell> {
   }
 
   // ===========================================================
-  // MOBILE MENU
-  // ===========================================================
-
-  void _openMobileMenu() {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (BuildContext sheetContext) {
-        return DraggableScrollableSheet(
-          initialChildSize: 0.86,
-          minChildSize: 0.55,
-          maxChildSize: 0.95,
-          expand: false,
-          builder: (
-            BuildContext context,
-            ScrollController controller,
-          ) {
-            return Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(
-                  top: Radius.circular(24),
-                ),
-              ),
-              child: Column(
-                children: [
-                  const SizedBox(height: 10),
-
-                  Container(
-                    width: 42,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: dojoBorder,
-                      borderRadius:
-                          BorderRadius.circular(10),
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  Padding(
-                    padding:
-                        const EdgeInsets.symmetric(
-                      horizontal: 20,
-                    ),
-                    child: Row(
-                      children: [
-                        const Expanded(
-                          child: Text(
-                            'Admin Menu',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight:
-                                  FontWeight.w800,
-                              color: dojoDark,
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          onPressed: () {
-                            Navigator.pop(
-                              context,
-                            );
-                          },
-                          icon: const Icon(
-                            Icons.close_rounded,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 6),
-
-                  Expanded(
-                    child: ListView(
-                      controller: controller,
-                      padding:
-                          const EdgeInsets.fromLTRB(
-                        12,
-                        4,
-                        12,
-                        20,
-                      ),
-                      children: [
-                        _mobileSection('OVERVIEW'),
-                        _mobileMenuItem(0),
-                        _mobileMenuItem(1),
-
-                        _mobileSection('OPERATIONS'),
-                        _mobileMenuItem(2),
-                        _mobileMenuItem(3),
-                        _mobileMenuItem(4),
-                        _mobileMenuItem(5),
-                        _mobileMenuItem(6),
-
-                        _mobileSection('FINANCE'),
-                        _mobileMenuItem(7),
-                        _mobileMenuItem(8),
-                        _mobileMenuItem(9),
-
-                        _mobileSection(
-                          'TRUST & SAFETY',
-                        ),
-                        _mobileMenuItem(10),
-                        _mobileMenuItem(11),
-                        _mobileMenuItem(12),
-
-                        _mobileSection('SYSTEM'),
-                        _mobileMenuItem(13),
-                        _mobileMenuItem(14),
-                        _mobileMenuItem(15),
-                        _mobileMenuItem(16),
-
-                        const SizedBox(height: 14),
-
-                        _mobileAccountCard(),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  // ===========================================================
   // MOBILE SECTION
   // ===========================================================
 
@@ -1356,8 +1389,6 @@ class _AdminShellState extends State<AdminShell> {
               ),
         onTap: () {
           selectPage(index);
-
-          Navigator.of(context).pop();
         },
       ),
     );
@@ -1414,7 +1445,7 @@ class _AdminShellState extends State<AdminShell> {
           IconButton(
             tooltip: 'Account',
             onPressed: () {
-              Navigator.pop(context);
+              closeMenu();
               _showProfileMenu();
             },
             icon: const Icon(
@@ -1705,12 +1736,12 @@ class _AdminShellState extends State<AdminShell> {
   }
 
   // ===========================================================
-  // KEEP MOBILE MENU METHOD COMPATIBLE
+  // MOBILE / DESKTOP MENU COMPATIBILITY
   // ===========================================================
 
   void openMenu() {
     if (MediaQuery.of(context).size.width < 800) {
-      _openMobileMenu();
+      toggleMenu();
     } else {
       setState(() {
         sidebarCollapsed = false;
