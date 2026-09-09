@@ -7,6 +7,10 @@ import 'package:latlong2/latlong.dart';
 class WalkRequestDetailsHelpers {
   const WalkRequestDetailsHelpers._();
 
+  // ==========================================================
+  // GENERIC VALUE HELPERS
+  // ==========================================================
+
   static String value(
     Map<String, dynamic> data,
     String key, [
@@ -243,6 +247,8 @@ class WalkRequestDetailsHelpers {
   // DATE / TIME
   // ==========================================================
 
+  /// Converts Firestore Timestamp, DateTime, String or numeric
+  /// timestamp into DateTime.
   static DateTime? dateTime(
     dynamic raw,
   ) {
@@ -259,96 +265,117 @@ class WalkRequestDetailsHelpers {
     }
 
     if (raw is String) {
-      return DateTime.tryParse(raw);
+      return DateTime.tryParse(
+        raw.trim(),
+      );
+    }
+
+    if (raw is num) {
+      final number = raw.toInt();
+
+      // Small numeric timestamps are treated as seconds.
+      // Larger values are treated as milliseconds.
+      if (number.abs() < 100000000000) {
+        return DateTime.fromMillisecondsSinceEpoch(
+          number * 1000,
+        );
+      }
+
+      return DateTime.fromMillisecondsSinceEpoch(
+        number,
+      );
     }
 
     return null;
   }
 
-  static String createdAt(
+  /// Returns the raw DateTime of request creation.
+  static DateTime? createdAt(
     Map<String, dynamic> data,
   ) {
-    final date = dateTime(data['createdAt']);
-
-    if (date == null) {
-      return '—';
-    }
-
-    return formatDateTime(date);
+    return dateTime(
+      data['createdAt'],
+    );
   }
 
-  static String acceptedAt(
+  /// Returns the raw DateTime of walker acceptance.
+  static DateTime? acceptedAt(
     Map<String, dynamic> data,
   ) {
-    final date = dateTime(data['acceptedAt']);
-
-    if (date == null) {
-      return '—';
-    }
-
-    return formatDateTime(date);
+    return dateTime(
+      data['acceptedAt'],
+    );
   }
 
-  static String reachedAt(
+  /// Returns the raw DateTime when walker reached pickup.
+  static DateTime? reachedAt(
     Map<String, dynamic> data,
   ) {
-    final date = dateTime(data['reachedAt']);
-
-    if (date == null) {
-      return '—';
-    }
-
-    return formatDateTime(date);
+    return dateTime(
+      data['reachedAt'],
+    );
   }
 
-  static String locationUpdatedAt(
+  /// Returns the raw DateTime of the latest walker location update.
+  static DateTime? locationUpdatedAt(
     Map<String, dynamic> data,
   ) {
-    final date = dateTime(
+    return dateTime(
       data['locationUpdatedAt'],
     );
-
-    if (date == null) {
-      return '—';
-    }
-
-    return formatDateTime(date);
   }
 
-  static String updatedAt(
+  /// Returns the raw DateTime of the latest request update.
+  static DateTime? updatedAt(
     Map<String, dynamic> data,
   ) {
-    final date = dateTime(
+    return dateTime(
       data['updatedAt'],
     );
+  }
 
-    if (date == null) {
-      return '—';
+  /// Finds the first valid DateTime from the supplied keys.
+  static DateTime? firstDateTime(
+    Map<String, dynamic> data,
+    List<String> keys,
+  ) {
+    for (final key in keys) {
+      final parsed = dateTime(
+        data[key],
+      );
+
+      if (parsed != null) {
+        return parsed;
+      }
     }
 
-    return formatDateTime(date);
+    return null;
   }
 
   static String formatDate(
     DateTime date,
   ) {
+    final local = date.toLocal();
+
     final day =
-        date.day.toString().padLeft(2, '0');
+        local.day.toString().padLeft(2, '0');
 
     final month =
-        date.month.toString().padLeft(2, '0');
+        local.month.toString().padLeft(2, '0');
 
-    return '$day/$month/${date.year}';
+    return '$day/$month/${local.year}';
   }
 
   static String formatTime(
     DateTime date,
   ) {
+    final local = date.toLocal();
+
     final hour =
-        date.hour.toString().padLeft(2, '0');
+        local.hour.toString().padLeft(2, '0');
 
     final minute =
-        date.minute.toString().padLeft(2, '0');
+        local.minute.toString().padLeft(2, '0');
 
     return '$hour:$minute';
   }
@@ -431,7 +458,7 @@ class WalkRequestDetailsHelpers {
   }
 
   // ==========================================================
-  // WALKER
+  // WALKER ASSIGNMENT
   // ==========================================================
 
   static bool hasWalker(
@@ -457,7 +484,9 @@ class WalkRequestDetailsHelpers {
     ];
 
     for (final candidate in candidates) {
-      final location = parseLocation(candidate);
+      final location = parseLocation(
+        candidate,
+      );
 
       if (location != null) {
         return location;
@@ -478,7 +507,7 @@ class WalkRequestDetailsHelpers {
   }
 
   // ==========================================================
-  // WALKER LOCATION
+  // WALKER LIVE LOCATION
   // ==========================================================
 
   static LatLng? walkerLocation(
@@ -492,7 +521,9 @@ class WalkRequestDetailsHelpers {
     ];
 
     for (final candidate in candidates) {
-      final location = parseLocation(candidate);
+      final location = parseLocation(
+        candidate,
+      );
 
       if (location != null) {
         return location;
@@ -527,17 +558,23 @@ class WalkRequestDetailsHelpers {
       return null;
     }
 
+    // Firestore GeoPoint.
     if (value is GeoPoint) {
-      return LatLng(
+      return _safeLatLng(
         value.latitude,
         value.longitude,
       );
     }
 
+    // Already parsed LatLng.
     if (value is LatLng) {
-      return value;
+      return _safeLatLng(
+        value.latitude,
+        value.longitude,
+      );
     }
 
+    // Map-based location.
     if (value is Map) {
       final map =
           Map<String, dynamic>.from(value);
@@ -566,6 +603,7 @@ class WalkRequestDetailsHelpers {
       }
     }
 
+    // [latitude, longitude]
     if (value is List &&
         value.length >= 2) {
       final latitude =
@@ -657,8 +695,16 @@ class WalkRequestDetailsHelpers {
       return value.toDouble();
     }
 
+    final text = value
+        .toString()
+        .trim();
+
+    if (text.isEmpty) {
+      return null;
+    }
+
     return double.tryParse(
-      value.toString().trim(),
+      text,
     );
   }
 }
