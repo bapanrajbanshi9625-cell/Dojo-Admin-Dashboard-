@@ -9,137 +9,105 @@ import 'walk_request_map_preview.dart';
 class WalkRequestDetailsMap extends StatelessWidget {
   const WalkRequestDetailsMap({
     super.key,
+    required this.requestId,
     required this.ownerLocation,
+    this.walkerLocation,
     this.walkerId,
     this.walkerUid,
     this.walkerName,
     this.onOpenMaps,
   });
 
-  final LatLng? ownerLocation;
+  /// Firestore document id from walk_request/{requestId}
+  final String requestId;
+
+  /// Owner pickup location.
+  final LatLng ownerLocation;
+
+  /// Walker's current/live location.
+  ///
+  /// This is the latest value already available in the
+  /// walk_request document. The preview also listens to the
+  /// request document for live updates.
+  final LatLng? walkerLocation;
+
   final String? walkerId;
   final String? walkerUid;
   final String? walkerName;
-  final VoidCallback? onOpenMaps;
+
+  final ValueChanged<LatLng>? onOpenMaps;
 
   @override
   Widget build(BuildContext context) {
-    return _Card(
-      title: 'Map',
-      icon: Icons.map_rounded,
-      child: SizedBox(
-        height: 360,
-        child: ownerLocation != null
-            ? WalkRequestMapPreview(
-                ownerLocation: ownerLocation!,
-                walkerId: walkerId,
-                walkerUid: walkerUid,
-                walkerName: walkerName,
-                onOpenMaps: onOpenMaps,
-              )
-            : const _NoLocationMap(),
-      ),
-    );
-  }
-}
-
-class _Card extends StatelessWidget {
-  const _Card({
-    required this.title,
-    required this.icon,
-    required this.child,
-  });
-
-  final String title;
-  final IconData icon;
-  final Widget child;
-
-  static const Color blue = Color(0xFF2563EB);
-  static const Color dark = Color(0xFF0F172A);
-  static const Color white = Colors.white;
-  static const Color border = Color(0xFFE2E8F0);
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: white,
+    return Card(
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: border,
+        side: const BorderSide(
+          color: Color(0xFFE2E8F0),
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Icon(
-                icon,
-                size: 19,
-                color: blue,
-              ),
-              const SizedBox(width: 9),
-              Text(
-                title,
-                style: const TextStyle(
-                  color: dark,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w900,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF1EC),
+                    borderRadius: BorderRadius.circular(11),
+                  ),
+                  child: const Icon(
+                    Icons.map_outlined,
+                    color: Color(0xFFD35435),
+                    size: 21,
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          child,
-        ],
-      ),
-    );
-  }
-}
-
-class _NoLocationMap extends StatelessWidget {
-  const _NoLocationMap();
-
-  static const Color grey = Color(0xFF64748B);
-  static const Color background = Color(0xFFF8FAFC);
-  static const Color border = Color(0xFFE2E8F0);
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: border,
-        ),
-      ),
-      child: const Center(
-        child: Padding(
-          padding: EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.location_off_outlined,
-                size: 34,
-                color: grey,
-              ),
-              SizedBox(height: 10),
-              Text(
-                'Location coordinates not available',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: grey,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
+                const SizedBox(width: 11),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Live Location',
+                        style: TextStyle(
+                          color: Color(0xFF0F172A),
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'Owner pickup & walker location',
+                        style: TextStyle(
+                          color: Color(0xFF64748B),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
+            const SizedBox(height: 14),
+
+            WalkRequestMapPreview(
+              requestId: requestId,
+              ownerLocation: ownerLocation,
+              walkerLocation: walkerLocation,
+              walkerId: walkerId,
+              walkerUid: walkerUid,
+              walkerName: walkerName,
+              onOpenMaps: onOpenMaps,
+            ),
+          ],
         ),
       ),
     );
