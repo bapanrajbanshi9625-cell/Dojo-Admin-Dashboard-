@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import 'live_walk_details_screen.dart';
 
@@ -40,8 +41,7 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
   // FIRESTORE CONNECTION
   // ==========================================================
 
-  Stream<QuerySnapshot<Map<String, dynamic>>>
-      get _liveWalkStream {
+  Stream<QuerySnapshot<Map<String, dynamic>>> get _liveWalkStream {
     return _firestore
         .collection('liveWalkSessions')
         .snapshots();
@@ -61,8 +61,7 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
   Widget build(BuildContext context) {
     return Container(
       color: dojoBackground,
-      child: StreamBuilder<
-          QuerySnapshot<Map<String, dynamic>>>(
+      child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: _liveWalkStream,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
@@ -107,6 +106,24 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
           ),
         )
         .toList();
+
+    // ========================================================
+    // FINAL SORTING
+    // DATE + TIME
+    // LATEST → OLDEST
+    // ========================================================
+
+    walks.sort((a, b) {
+      final aTime =
+          a.startedAt ??
+          DateTime.fromMillisecondsSinceEpoch(0);
+
+      final bTime =
+          b.startedAt ??
+          DateTime.fromMillisecondsSinceEpoch(0);
+
+      return bTime.compareTo(aTime);
+    });
 
     final filtered = _filterWalks(walks);
 
@@ -394,7 +411,7 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
       ),
       decoration: InputDecoration(
         hintText:
-            'Search walk, owner, walker or dog...',
+            'Search session, owner, walker or dog...',
         hintStyle: const TextStyle(
           color: dojoGrey,
           fontSize: 12,
@@ -593,7 +610,7 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
           walk.documentId
               .toLowerCase()
               .contains(query) ||
-          walk.id
+          walk.sessionId
               .toLowerCase()
               .contains(query) ||
           walk.ownerId
@@ -613,13 +630,15 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
               .contains(query) ||
           walk.dogName
               .toLowerCase()
+              .contains(query) ||
+          walk.source
+              .toLowerCase()
               .contains(query);
 
       final matchesFilter =
           selectedFilter == 'All' ||
           (selectedFilter == 'With Route' &&
-              walk.routeCoordinates
-                  .isNotEmpty) ||
+              walk.routeCoordinates.isNotEmpty) ||
           (selectedFilter == 'Events' &&
               walk.events.isNotEmpty);
 
@@ -643,18 +662,12 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
       children: walks.map((walk) {
         return Padding(
           padding:
-              const EdgeInsets.only(bottom: 12),
+              const EdgeInsets.only(bottom: 10),
           child: _LiveWalkCard(
             walk: walk,
             onView: () {
               _showLiveDetails(walk);
             },
-            liveBadge: _liveBadge(),
-            mainInfo: _mainInfo(walk),
-            infoItem: _infoItem,
-            miniStat: _miniStat,
-            viewButton: _viewButton(walk),
-            liveAvatar: _liveAvatar(),
           ),
         );
       }).toList(),
@@ -662,312 +675,7 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
   }
 
   // ==========================================================
-  // LIVE AVATAR
-  // ==========================================================
-
-  Widget _liveAvatar() {
-    return Container(
-      width: 56,
-      height: 56,
-      decoration: BoxDecoration(
-        color: dojoOrange.withValues(
-          alpha: 0.10,
-        ),
-        borderRadius:
-            BorderRadius.circular(15),
-        border: Border.all(
-          color: dojoOrange.withValues(
-            alpha: 0.12,
-          ),
-        ),
-      ),
-      child: const Icon(
-        Icons.directions_walk_rounded,
-        color: dojoOrange,
-        size: 28,
-      ),
-    );
-  }
-
-  // ==========================================================
-  // MAIN INFO
-  // ==========================================================
-
-  Widget _mainInfo(
-    LiveWalkSessionData walk,
-  ) {
-    return Column(
-      crossAxisAlignment:
-          CrossAxisAlignment.start,
-      children: [
-        Text(
-          walk.id.isEmpty
-              ? walk.documentId
-              : walk.id,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w900,
-            color: dojoDark,
-          ),
-        ),
-        const SizedBox(height: 5),
-        Text(
-          walk.dogName.isEmpty
-              ? 'Dog'
-              : walk.dogName,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w800,
-            color: dojoDark,
-          ),
-        ),
-        if (walk.dogBreed.isNotEmpty)
-          Text(
-            walk.dogBreed,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 10,
-              color: dojoGrey,
-            ),
-          ),
-        const SizedBox(height: 3),
-        Text(
-          '${walk.ownerId} • ${walk.walkerId}',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            fontSize: 10,
-            color: dojoGrey,
-          ),
-        ),
-        if (walk.walkerName.isNotEmpty)
-          Text(
-            'Walker: ${walk.walkerName}',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 10,
-              color: dojoGrey,
-            ),
-          ),
-      ],
-    );
-  }
-
-  // ==========================================================
-  // LIVE BADGE
-  // ==========================================================
-
-  Widget _liveBadge() {
-    return Container(
-      padding:
-          const EdgeInsets.symmetric(
-        horizontal: 8,
-        vertical: 5,
-      ),
-      decoration: BoxDecoration(
-        color: const Color(0xFFEAF8EF),
-        borderRadius:
-            BorderRadius.circular(8),
-        border: Border.all(
-          color: dojoGreen.withValues(
-            alpha: 0.13,
-          ),
-        ),
-      ),
-      child: const Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.circle,
-            size: 7,
-            color: dojoGreen,
-          ),
-          SizedBox(width: 5),
-          Text(
-            'LIVE',
-            style: TextStyle(
-              color: dojoGreen,
-              fontSize: 9,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ==========================================================
-  // INFO ITEM
-  // ==========================================================
-
-  Widget _infoItem(
-    IconData icon,
-    String label,
-    String value,
-  ) {
-    return Container(
-      padding:
-          const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 9,
-      ),
-      margin:
-          const EdgeInsets.only(right: 8),
-      decoration: BoxDecoration(
-        color: dojoBackground,
-        borderRadius:
-            BorderRadius.circular(10),
-        border: Border.all(
-          color: dojoBorder,
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            icon,
-            size: 18,
-            color: dojoBlue,
-          ),
-          const SizedBox(width: 7),
-          Flexible(
-            child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow:
-                      TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 9,
-                    color: dojoGrey,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  value,
-                  maxLines: 1,
-                  overflow:
-                      TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight:
-                        FontWeight.w800,
-                    color: dojoDark,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ==========================================================
-  // MINI STAT
-  // ==========================================================
-
-  Widget _miniStat(
-    IconData icon,
-    String label,
-    String value,
-  ) {
-    return Container(
-      padding:
-          const EdgeInsets.symmetric(
-        horizontal: 9,
-        vertical: 8,
-      ),
-      margin:
-          const EdgeInsets.only(right: 7),
-      decoration: BoxDecoration(
-        color: dojoBackground,
-        borderRadius:
-            BorderRadius.circular(9),
-        border: Border.all(
-          color: dojoBorder,
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            icon,
-            size: 16,
-            color: dojoBlue,
-          ),
-          const SizedBox(width: 5),
-          Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 8,
-                  color: dojoGrey,
-                ),
-              ),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight:
-                      FontWeight.w800,
-                  color: dojoDark,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ==========================================================
-  // VIEW BUTTON
-  // ==========================================================
-
-  Widget _viewButton(
-    LiveWalkSessionData walk,
-  ) {
-    return FilledButton.icon(
-      onPressed: () {
-        _showLiveDetails(walk);
-      },
-      icon: const Icon(
-        Icons.visibility_outlined,
-        size: 17,
-      ),
-      label: const Text(
-        'View Live',
-      ),
-      style: FilledButton.styleFrom(
-        backgroundColor: dojoOrange,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        padding:
-            const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 11,
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius:
-              BorderRadius.circular(10),
-        ),
-      ),
-    );
-  }
-
-  // ==========================================================
-  // FULL SCREEN LIVE DETAILS
+  // DETAILS
   // ==========================================================
 
   void _showLiveDetails(
@@ -1099,33 +807,10 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
 class _LiveWalkCard extends StatefulWidget {
   final LiveWalkSessionData walk;
   final VoidCallback onView;
-  final Widget liveBadge;
-  final Widget mainInfo;
-
-  final Widget Function(
-    IconData,
-    String,
-    String,
-  ) infoItem;
-
-  final Widget Function(
-    IconData,
-    String,
-    String,
-  ) miniStat;
-
-  final Widget viewButton;
-  final Widget liveAvatar;
 
   const _LiveWalkCard({
     required this.walk,
     required this.onView,
-    required this.liveBadge,
-    required this.mainInfo,
-    required this.infoItem,
-    required this.miniStat,
-    required this.viewButton,
-    required this.liveAvatar,
   });
 
   @override
@@ -1155,11 +840,15 @@ class _LiveWalkCardState
             0.0,
             hovered ? -2.0 : 0.0,
           ),
-        padding: const EdgeInsets.all(17),
+        padding:
+            const EdgeInsets.symmetric(
+          horizontal: 17,
+          vertical: 13,
+        ),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius:
-              BorderRadius.circular(17),
+              BorderRadius.circular(15),
           border: Border.all(
             color: hovered
                 ? dojoBlue.withValues(
@@ -1170,16 +859,16 @@ class _LiveWalkCardState
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(
-                alpha: hovered ? 0.065 : 0.03,
+                alpha: hovered ? 0.055 : 0.025,
               ),
-              blurRadius: hovered ? 18 : 10,
-              offset: const Offset(0, 5),
+              blurRadius: hovered ? 16 : 9,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
         child: LayoutBuilder(
           builder: (context, constraints) {
-            if (constraints.maxWidth < 650) {
+            if (constraints.maxWidth < 700) {
               return _mobile();
             }
 
@@ -1191,43 +880,82 @@ class _LiveWalkCardState
   }
 
   // ==========================================================
-  // DESKTOP CARD
+  // DESKTOP
   // ==========================================================
 
   Widget _desktop() {
     return Row(
+      crossAxisAlignment:
+          CrossAxisAlignment.center,
       children: [
-        widget.liveAvatar,
-        const SizedBox(width: 14),
-        Expanded(
-          flex: 3,
-          child: widget.mainInfo,
+        SizedBox(
+          width: 145,
+          child: _dateTime(),
         ),
+
+        const SizedBox(width: 16),
+
         Expanded(
-          child: widget.infoItem(
-            Icons.timer_outlined,
-            'Duration',
-            _formatDuration(
-              widget.walk.elapsedSeconds,
-            ),
+          flex: 2,
+          child: _personInfo(
+            label: 'Dog',
+            value: widget.walk.dogName.isEmpty
+                ? 'Dog'
+                : widget.walk.dogName,
+            icon: Icons.pets_rounded,
           ),
         ),
+
         Expanded(
-          child: widget.infoItem(
-            Icons.route_outlined,
-            'Distance',
-            '${widget.walk.distanceKm.toStringAsFixed(1)} km',
+          flex: 2,
+          child: _personInfo(
+            label: 'Owner',
+            value: widget.walk.ownerName.isEmpty
+                ? '-'
+                : widget.walk.ownerName,
+            icon: Icons.person_outline_rounded,
           ),
         ),
-        widget.liveBadge,
+
+        Expanded(
+          flex: 2,
+          child: _personInfo(
+            label: 'Walker',
+            value: widget.walk.walkerName.isEmpty
+                ? '-'
+                : widget.walk.walkerName,
+            icon: Icons.directions_walk_rounded,
+          ),
+        ),
+
         const SizedBox(width: 12),
-        widget.viewButton,
+
+        Expanded(
+          flex: 2,
+          child: _sessionInfo(),
+        ),
+
+        const SizedBox(width: 10),
+
+        _sourceBadge(
+          widget.walk.source,
+        ),
+
+        const SizedBox(width: 10),
+
+        _statusBadge(
+          widget.walk.status,
+        ),
+
+        const SizedBox(width: 10),
+
+        _viewButton(),
       ],
     );
   }
 
   // ==========================================================
-  // MOBILE CARD
+  // MOBILE
   // ==========================================================
 
   Widget _mobile() {
@@ -1236,68 +964,461 @@ class _LiveWalkCardState
           CrossAxisAlignment.start,
       children: [
         Row(
-          children: [
-            widget.liveAvatar,
-            const SizedBox(width: 12),
-            Expanded(
-              child: widget.mainInfo,
-            ),
-            widget.liveBadge,
-          ],
-        ),
-        const SizedBox(height: 15),
-        Row(
+          crossAxisAlignment:
+              CrossAxisAlignment.start,
           children: [
             Expanded(
-              child: widget.infoItem(
-                Icons.timer_outlined,
-                'Duration',
-                _formatDuration(
-                  widget.walk.elapsedSeconds,
-                ),
-              ),
+              child: _dateTime(),
             ),
-            Expanded(
-              child: widget.infoItem(
-                Icons.route_outlined,
-                'Distance',
-                '${widget.walk.distanceKm.toStringAsFixed(1)} km',
-              ),
+            const SizedBox(width: 8),
+            _sourceBadge(
+              widget.walk.source,
+            ),
+            const SizedBox(width: 7),
+            _statusBadge(
+              widget.walk.status,
             ),
           ],
         ),
+
         const SizedBox(height: 12),
+
         Row(
           children: [
             Expanded(
-              child: widget.miniStat(
-                Icons.water_drop_outlined,
-                'Pee',
-                '${widget.walk.peeCount}',
+              child: _personInfo(
+                label: 'Dog',
+                value:
+                    widget.walk.dogName.isEmpty
+                        ? 'Dog'
+                        : widget.walk.dogName,
+                icon: Icons.pets_rounded,
               ),
             ),
+            const SizedBox(width: 10),
             Expanded(
-              child: widget.miniStat(
-                Icons.pets,
-                'Poop',
-                '${widget.walk.poopCount}',
-              ),
-            ),
-            Expanded(
-              child: widget.miniStat(
-                Icons.alt_route,
-                'Route',
-                '${widget.walk.routeCoordinates.length}',
+              child: _personInfo(
+                label: 'Owner',
+                value:
+                    widget.walk.ownerName.isEmpty
+                        ? '-'
+                        : widget.walk.ownerName,
+                icon:
+                    Icons.person_outline_rounded,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 14),
-        SizedBox(
-          width: double.infinity,
-          child: widget.viewButton,
+
+        const SizedBox(height: 9),
+
+        _personInfo(
+          label: 'Walker',
+          value:
+              widget.walk.walkerName.isEmpty
+                  ? '-'
+                  : widget.walk.walkerName,
+          icon:
+              Icons.directions_walk_rounded,
+        ),
+
+        const SizedBox(height: 10),
+
+        Row(
+          crossAxisAlignment:
+              CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: _sessionInfo(),
+            ),
+            const SizedBox(width: 10),
+            _viewButton(),
+          ],
         ),
       ],
+    );
+  }
+
+  // ==========================================================
+  // DATE + TIME
+  // ==========================================================
+
+  Widget _dateTime() {
+    final date = widget.walk.startedAt;
+
+    if (date == null) {
+      return const Text(
+        'Date/Time unavailable',
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: dojoGrey,
+        ),
+      );
+    }
+
+    final localDate = date.toLocal();
+
+    return Column(
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
+      children: [
+        Text(
+          DateFormat(
+            'dd MMM yyyy',
+          ).format(localDate),
+          maxLines: 1,
+          overflow:
+              TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w900,
+            color: dojoDark,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Row(
+          children: [
+            const Icon(
+              Icons.schedule_rounded,
+              size: 13,
+              color: dojoGrey,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              DateFormat(
+                'hh:mm a',
+              ).format(localDate),
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: dojoGrey,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  // ==========================================================
+  // PERSON INFO
+  // ==========================================================
+
+  Widget _personInfo({
+    required String label,
+    required String value,
+    required IconData icon,
+  }) {
+    return Row(
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: dojoBackground,
+            borderRadius:
+                BorderRadius.circular(9),
+            border: Border.all(
+              color: dojoBorder,
+            ),
+          ),
+          child: Icon(
+            icon,
+            size: 16,
+            color: dojoBlue,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                maxLines: 1,
+                overflow:
+                    TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 9,
+                  color: dojoGrey,
+                  fontWeight:
+                      FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                maxLines: 1,
+                overflow:
+                    TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: dojoDark,
+                  fontWeight:
+                      FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ==========================================================
+  // SESSION INFO
+  // ==========================================================
+
+  Widget _sessionInfo() {
+    return Column(
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Live Session ID',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 9,
+            color: dojoGrey,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          widget.walk.documentId,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 11,
+            color: dojoDark,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ==========================================================
+  // SOURCE BADGE
+  // ==========================================================
+
+  Widget _sourceBadge(String source) {
+    final normalized =
+        source.toLowerCase().trim();
+
+    final isQr =
+        normalized == 'qr' ||
+        normalized == 'qr_walk' ||
+        normalized == 'qrcode';
+
+    final label = isQr ? 'QR' : 'INSTA';
+
+    final color =
+        isQr ? dojoOrange : dojoBlue;
+
+    final background =
+        isQr
+            ? const Color(0xFFFFF3EE)
+            : const Color(0xFFEFF6FF);
+
+    return Container(
+      padding:
+          const EdgeInsets.symmetric(
+        horizontal: 9,
+        vertical: 6,
+      ),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius:
+            BorderRadius.circular(8),
+        border: Border.all(
+          color:
+              color.withValues(
+            alpha: 0.16,
+          ),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isQr
+                ? Icons.qr_code_rounded
+                : Icons.wifi_tethering_rounded,
+            size: 13,
+            color: color,
+          ),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 9,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.2,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================================
+  // STATUS BADGE
+  // ==========================================================
+
+  Widget _statusBadge(String status) {
+    final normalized =
+        status.toLowerCase().trim();
+
+    Color background;
+    Color foreground;
+    String label;
+
+    switch (normalized) {
+      case 'active':
+      case 'in_progress':
+      case 'started':
+      case 'live':
+        background =
+            const Color(0xFFEAF8EF);
+        foreground = dojoGreen;
+        label = 'LIVE';
+        break;
+
+      case 'paused':
+        background =
+            const Color(0xFFFFF7E6);
+        foreground =
+            const Color(0xFFD97706);
+        label = 'PAUSED';
+        break;
+
+      case 'completed':
+      case 'complete':
+      case 'finished':
+        background =
+            const Color(0xFFEFF6FF);
+        foreground = dojoBlue;
+        label = 'COMPLETED';
+        break;
+
+      case 'cancelled':
+      case 'canceled':
+        background =
+            const Color(0xFFFEF2F2);
+        foreground = dojoRed;
+        label = 'CANCELLED';
+        break;
+
+      case 'pending':
+        background =
+            const Color(0xFFF5F3FF);
+        foreground =
+            const Color(0xFF7C3AED);
+        label = 'PENDING';
+        break;
+
+      default:
+        background = dojoBackground;
+        foreground = dojoGrey;
+        label = _titleCase(status);
+        break;
+    }
+
+    return Container(
+      padding:
+          const EdgeInsets.symmetric(
+        horizontal: 9,
+        vertical: 6,
+      ),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius:
+            BorderRadius.circular(8),
+        border: Border.all(
+          color:
+              foreground.withValues(
+            alpha: 0.14,
+          ),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.circle,
+            size: 6,
+            color: foreground,
+          ),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(
+              color: foreground,
+              fontSize: 9,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.2,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================================
+  // VIEW BUTTON
+  // ==========================================================
+
+  Widget _viewButton() {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: widget.onView,
+          borderRadius:
+              BorderRadius.circular(11),
+          child: Padding(
+            padding: const EdgeInsets.all(4),
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 9,
+              ),
+              decoration: BoxDecoration(
+                color: dojoBlue,
+                borderRadius:
+                    BorderRadius.circular(9),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.visibility_outlined,
+                    size: 16,
+                    color: Colors.white,
+                  ),
+                  SizedBox(width: 6),
+                  Text(
+                    'View Live',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight:
+                          FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -1447,7 +1568,7 @@ class _SummaryCardState
 
 class LiveWalkSessionData {
   final String documentId;
-  final String id;
+  final String sessionId;
 
   final String ownerId;
   final String ownerName;
@@ -1473,9 +1594,14 @@ class LiveWalkSessionData {
 
   final List<Map<String, dynamic>> events;
 
+  final String status;
+  final String source;
+
+  final DateTime? startedAt;
+
   const LiveWalkSessionData({
     required this.documentId,
-    required this.id,
+    required this.sessionId,
     required this.ownerId,
     required this.ownerName,
     required this.walkerId,
@@ -1491,6 +1617,9 @@ class LiveWalkSessionData {
     required this.locationLng,
     required this.routeCoordinates,
     required this.events,
+    required this.status,
+    required this.source,
+    required this.startedAt,
   });
 
   // ==========================================================
@@ -1508,16 +1637,19 @@ class LiveWalkSessionData {
     return LiveWalkSessionData(
       documentId: documentId,
 
-      id: _string(data, 'walkId') ??
+      sessionId:
           _string(data, 'sessionId') ??
-          _string(data, 'id') ??
-          documentId,
+              documentId,
 
       ownerId:
           _string(data, 'ownerId') ?? '-',
 
       ownerName:
-          _string(data, 'ownerName') ?? '',
+          _string(data, 'ownerName') ??
+              _string(data, 'customerName') ??
+              _string(data, 'userName') ??
+              _string(data, 'clientName') ??
+              '',
 
       walkerId:
           _string(data, 'walkerId') ??
@@ -1526,51 +1658,112 @@ class LiveWalkSessionData {
 
       walkerUid:
           _string(data, 'walkerUid') ??
+              _string(data, 'walkerUID') ??
               _string(data, 'walkeruid') ??
               '-',
 
       walkerName:
-          _string(data, 'walkerName') ?? '',
+          _string(data, 'walkerName') ??
+              _string(data, 'walkerFullName') ??
+              _string(data, 'walkerDisplayName') ??
+              '',
 
       dogName:
-          _string(data, 'dogName') ?? 'Dog',
+          _string(data, 'dogName') ??
+              _string(data, 'petName') ??
+              'Dog',
 
       dogBreed:
           _string(data, 'dogBreed') ?? '',
 
       distanceKm:
-          _double(data['distanceKm']) ?? 0,
+          _double(data['distanceKm']) ??
+              _double(data['distance']) ??
+              _double(data['totalDistanceKm']) ??
+              _double(data['totalDistance']) ??
+              0,
 
       elapsedSeconds:
           _int(data['elapsedSeconds']) ??
               _int(data['durationSeconds']) ??
+              _int(data['totalSeconds']) ??
+              _durationMinutesToSeconds(
+                data['durationMinutes'],
+              ) ??
               0,
 
       peeCount:
-          _int(data['peeCount']) ?? 0,
+          _int(data['peeCount']) ??
+              _int(data['peecount']) ??
+              _int(data['pee']) ??
+              _int(data['pCount']) ??
+              _int(data['p']) ??
+              0,
 
       poopCount:
-          _int(data['poopCount']) ?? 0,
+          _int(data['poopCount']) ??
+              _int(data['poopcount']) ??
+              _int(data['poop']) ??
+              _int(data['pooCount']) ??
+              0,
 
       locationLat:
           _double(location?['lat']) ??
+              _double(location?['latitude']) ??
               _double(data['currentLat']),
 
       locationLng:
           _double(location?['lng']) ??
+              _double(location?['longitude']) ??
               _double(data['currentLng']),
 
       routeCoordinates:
-          _list(data['routeCoordinates']),
+          _list(data['routeCoordinates']).isNotEmpty
+              ? _list(data['routeCoordinates'])
+              : _list(data['route']),
 
       events:
-          _list(data['events']),
+          _list(data['events']).isNotEmpty
+              ? _list(data['events'])
+              : _list(data['walkEvents']),
+
+      status:
+          _string(data, 'status') ??
+              _string(data, 'walkStatus') ??
+              'live',
+
+      // ======================================================
+      // SOURCE
+      // QR / INSTA
+      // ======================================================
+
+      source:
+          _string(data, 'source') ??
+              '',
+
+      // ======================================================
+      // DATE/TIME
+      // ======================================================
+
+      startedAt:
+          _firstDateTime(
+        data,
+        [
+          'startedAt',
+          'startTime',
+          'sessionStartedAt',
+          'startTimestamp',
+          'createdAt',
+          'timestamp',
+          'updatedAt',
+        ],
+      ),
     );
   }
 }
 
 // ============================================================
-// HELPERS
+// STRING
 // ============================================================
 
 String? _string(
@@ -1625,6 +1818,22 @@ int? _int(dynamic value) {
 }
 
 // ============================================================
+// DURATION MINUTES
+// ============================================================
+
+int? _durationMinutesToSeconds(
+  dynamic value,
+) {
+  final minutes = _double(value);
+
+  if (minutes == null) {
+    return null;
+  }
+
+  return (minutes * 60).round();
+}
+
+// ============================================================
 // MAP
 // ============================================================
 
@@ -1657,6 +1866,96 @@ List<Map<String, dynamic>> _list(
 }
 
 // ============================================================
+// DATE/TIME
+// ============================================================
+
+DateTime? _firstDateTime(
+  Map<String, dynamic> data,
+  List<String> keys,
+) {
+  for (final key in keys) {
+    final value = data[key];
+
+    final parsed = _dateTimeFrom(value);
+
+    if (parsed != null) {
+      return parsed;
+    }
+  }
+
+  return null;
+}
+
+DateTime? _dateTimeFrom(
+  dynamic value,
+) {
+  if (value == null) {
+    return null;
+  }
+
+  if (value is Timestamp) {
+    return value.toDate();
+  }
+
+  if (value is DateTime) {
+    return value;
+  }
+
+  if (value is int) {
+    final millis =
+        value > 100000000000
+            ? value
+            : value * 1000;
+
+    return DateTime.fromMillisecondsSinceEpoch(
+      millis,
+    );
+  }
+
+  if (value is double) {
+    final millis =
+        value > 100000000000
+            ? value.toInt()
+            : (value * 1000).toInt();
+
+    return DateTime.fromMillisecondsSinceEpoch(
+      millis,
+    );
+  }
+
+  if (value is String) {
+    final parsed =
+        DateTime.tryParse(value);
+
+    return parsed?.toLocal();
+  }
+
+  return null;
+}
+
+// ============================================================
+// TITLE CASE
+// ============================================================
+
+String _titleCase(String value) {
+  final text = value.trim();
+
+  if (text.isEmpty) {
+    return 'UNKNOWN';
+  }
+
+  return text
+      .replaceAll('_', ' ')
+      .split(' ')
+      .where((part) => part.isNotEmpty)
+      .map(
+        (part) =>
+            '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}',
+      )
+      .join(' ');
+}
+
+// ============================================================
 // DURATION
 // ============================================================
 
@@ -1680,3 +1979,7 @@ String _formatDuration(int seconds) {
 
   return '${secs}s';
 }
+
+// ============================================================
+// END
+// ============================================================
