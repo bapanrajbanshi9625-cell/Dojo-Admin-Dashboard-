@@ -62,8 +62,20 @@ class _DashboardScreenState extends State<DashboardScreen>
     return _firestore.collection('walkers').snapshots();
   }
 
-  Stream<QuerySnapshot<Map<String, dynamic>>> get _activeWalksStream {
+  // ------------------------------------------------------------
+  // LIVE WALK STREAM
+  // ------------------------------------------------------------
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> get _liveWalksStream {
     return _firestore.collection('liveWalkSessions').snapshots();
+  }
+
+  // ------------------------------------------------------------
+  // ACCEPT WALK STREAM
+  // ------------------------------------------------------------
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> get _acceptWalksStream {
+    return _firestore.collection('walk_request').snapshots();
   }
 
   Stream<QuerySnapshot<Map<String, dynamic>>> get _historyStream {
@@ -230,7 +242,8 @@ class _DashboardScreenState extends State<DashboardScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           DashboardLiveMap(
-            activeWalksStream: _activeWalksStream,
+            liveWalksStream: _liveWalksStream,
+            acceptWalksStream: _acceptWalksStream,
           ),
           const SizedBox(height: 18),
           _statsGrid(),
@@ -275,10 +288,10 @@ class _DashboardScreenState extends State<DashboardScreen>
                 final walkerCount = walkerSnapshot.data?.docs.length ?? 0;
 
                 return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                  stream: _activeWalksStream,
-                  builder: (context, activeSnapshot) {
-                    final activeCount = _activeWalkCount(
-                      activeSnapshot.data?.docs,
+                  stream: _liveWalksStream,
+                  builder: (context, liveSnapshot) {
+                    final liveCount = _activeWalkCount(
+                      liveSnapshot.data?.docs,
                     );
 
                     return StreamBuilder<
@@ -316,7 +329,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                             ),
                             _buildPremiumStatCard(
                               title: 'Walk Requests',
-                              value: '$activeCount',
+                              value: '$liveCount',
                               subtitle: 'Currently running',
                               icon: Icons.directions_walk_outlined,
                               iconColor: primaryOrange,
@@ -645,7 +658,7 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   Widget _activeWalkPanel() {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: _activeWalksStream,
+      stream: _acceptWalksStream,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return DataPanel(
@@ -1291,7 +1304,7 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   Widget _liveWalksTab(bool isMobile) {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: _activeWalksStream,
+      stream: _liveWalksStream,
       builder: (context, snapshot) {
         final docs = snapshot.data?.docs ?? [];
 
@@ -1302,7 +1315,8 @@ class _DashboardScreenState extends State<DashboardScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               DashboardLiveMap(
-                activeWalksStream: _activeWalksStream,
+                liveWalksStream: _liveWalksStream,
+                acceptWalksStream: _acceptWalksStream,
               ),
               const SizedBox(height: 18),
               DataPanel(
@@ -1396,7 +1410,7 @@ class _DashboardScreenState extends State<DashboardScreen>
 
     final status =
         _readString(data, 'status') ??
-            'active';
+            'live';
 
     return Material(
       color: Colors.transparent,
