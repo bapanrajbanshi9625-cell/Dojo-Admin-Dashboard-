@@ -63,7 +63,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   Stream<QuerySnapshot<Map<String, dynamic>>> get _activeWalksStream {
-    return _firestore.collection('active_walks').snapshots();
+    return _firestore.collection('liveWalkSessions').snapshots();
   }
 
   Stream<QuerySnapshot<Map<String, dynamic>>> get _historyStream {
