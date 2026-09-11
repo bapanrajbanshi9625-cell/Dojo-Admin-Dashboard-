@@ -107,12 +107,7 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
         )
         .toList();
 
-    // ========================================================
-    // FINAL SORTING
-    // DATE + TIME
-    // LATEST → OLDEST
-    // ========================================================
-
+    // Latest → oldest.
     walks.sort((a, b) {
       final aTime =
           a.startedAt ??
@@ -180,8 +175,7 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
             ],
           ),
           child: Row(
-            crossAxisAlignment:
-                CrossAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Container(
                 width: compact ? 46 : 52,
@@ -190,8 +184,7 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
                   color: dojoOrange.withValues(
                     alpha: 0.10,
                   ),
-                  borderRadius:
-                      BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(14),
                 ),
                 child: const Icon(
                   Icons.directions_walk_rounded,
@@ -202,8 +195,7 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
               const SizedBox(width: 14),
               const Expanded(
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'Live Walks',
@@ -305,8 +297,7 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
         return GridView.count(
           crossAxisCount: columns,
           shrinkWrap: true,
-          physics:
-              const NeverScrollableScrollPhysics(),
+          physics: const NeverScrollableScrollPhysics(),
           crossAxisSpacing: 14,
           mainAxisSpacing: 14,
           childAspectRatio:
@@ -411,7 +402,7 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
       ),
       decoration: InputDecoration(
         hintText:
-            'Search session, owner, walker or dog...',
+            'Search request, session, owner, walker or dog...',
         hintStyle: const TextStyle(
           color: dojoGrey,
           fontSize: 12,
@@ -444,22 +435,19 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
           vertical: 14,
         ),
         border: OutlineInputBorder(
-          borderRadius:
-              BorderRadius.circular(11),
+          borderRadius: BorderRadius.circular(11),
           borderSide: const BorderSide(
             color: dojoBorder,
           ),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius:
-              BorderRadius.circular(11),
+          borderRadius: BorderRadius.circular(11),
           borderSide: const BorderSide(
             color: dojoBorder,
           ),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius:
-              BorderRadius.circular(11),
+          borderRadius: BorderRadius.circular(11),
           borderSide: const BorderSide(
             color: dojoBlue,
             width: 1.4,
@@ -486,14 +474,12 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
   }
 
   Widget _filterButton(String title) {
-    final selected =
-        selectedFilter == title;
+    final selected = selectedFilter == title;
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius:
-            BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(10),
         onTap: () {
           setState(() {
             selectedFilter = title;
@@ -511,8 +497,7 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
             color: selected
                 ? dojoBlue
                 : dojoBackground,
-            borderRadius:
-                BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(10),
             border: Border.all(
               color: selected
                   ? dojoBlue
@@ -525,8 +510,7 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
                         alpha: 0.15,
                       ),
                       blurRadius: 8,
-                      offset:
-                          const Offset(0, 3),
+                      offset: const Offset(0, 3),
                     ),
                   ]
                 : null,
@@ -577,8 +561,7 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
             color: dojoBlue.withValues(
               alpha: 0.09,
             ),
-            borderRadius:
-                BorderRadius.circular(7),
+            borderRadius: BorderRadius.circular(7),
           ),
           child: Text(
             '$total${total != all ? ' / $all' : ''}',
@@ -605,35 +588,27 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
         .toLowerCase();
 
     return walks.where((walk) {
+      final searchable = [
+        walk.documentId,
+        walk.requestId,
+        walk.sessionId,
+        walk.walkId,
+        walk.ownerId,
+        walk.ownerAuthUid,
+        walk.ownerName,
+        walk.walkerId,
+        walk.walkerUid,
+        walk.walkerName,
+        walk.dogName,
+        walk.dogBreed,
+        walk.source,
+      ];
+
       final matchesSearch =
           query.isEmpty ||
-          walk.documentId
-              .toLowerCase()
-              .contains(query) ||
-          walk.sessionId
-              .toLowerCase()
-              .contains(query) ||
-          walk.ownerId
-              .toLowerCase()
-              .contains(query) ||
-          walk.ownerName
-              .toLowerCase()
-              .contains(query) ||
-          walk.walkerId
-              .toLowerCase()
-              .contains(query) ||
-          walk.walkerUid
-              .toLowerCase()
-              .contains(query) ||
-          walk.walkerName
-              .toLowerCase()
-              .contains(query) ||
-          walk.dogName
-              .toLowerCase()
-              .contains(query) ||
-          walk.source
-              .toLowerCase()
-              .contains(query);
+          searchable.any(
+            (value) => value.toLowerCase().contains(query),
+          );
 
       final matchesFilter =
           selectedFilter == 'All' ||
@@ -642,8 +617,7 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
           (selectedFilter == 'Events' &&
               walk.events.isNotEmpty);
 
-      return matchesSearch &&
-          matchesFilter;
+      return matchesSearch && matchesFilter;
     }).toList();
   }
 
@@ -700,8 +674,7 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
       height: 300,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius:
-            BorderRadius.circular(17),
+        borderRadius: BorderRadius.circular(17),
         border: Border.all(
           color: dojoBorder,
         ),
@@ -751,8 +724,7 @@ class _LiveWalkScreenState extends State<LiveWalkScreen> {
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius:
-              BorderRadius.circular(17),
+          borderRadius: BorderRadius.circular(17),
           border: Border.all(
             color: dojoBorder,
           ),
@@ -847,8 +819,7 @@ class _LiveWalkCardState
         ),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius:
-              BorderRadius.circular(15),
+          borderRadius: BorderRadius.circular(15),
           border: Border.all(
             color: hovered
                 ? dojoBlue.withValues(
@@ -868,7 +839,7 @@ class _LiveWalkCardState
         ),
         child: LayoutBuilder(
           builder: (context, constraints) {
-            if (constraints.maxWidth < 700) {
+            if (constraints.maxWidth < 760) {
               return _mobile();
             }
 
@@ -885,54 +856,73 @@ class _LiveWalkCardState
 
   Widget _desktop() {
     return Row(
-      crossAxisAlignment:
-          CrossAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         SizedBox(
-          width: 145,
+          width: 150,
           child: _dateTime(),
         ),
 
-        const SizedBox(width: 16),
+        const SizedBox(width: 15),
 
         Expanded(
           flex: 2,
-          child: _personInfo(
+          child: _identityInfo(
+            label: 'Walk ID',
+            value: widget.walk.walkId.isEmpty
+                ? widget.walk.documentId
+                : widget.walk.walkId,
+            icon: Icons.confirmation_number_outlined,
+            color: dojoOrange,
+          ),
+        ),
+
+        Expanded(
+          flex: 2,
+          child: _identityInfo(
             label: 'Dog',
             value: widget.walk.dogName.isEmpty
                 ? 'Dog'
                 : widget.walk.dogName,
             icon: Icons.pets_rounded,
+            color: dojoBlue,
+            secondary:
+                widget.walk.dogBreed.isEmpty
+                    ? null
+                    : widget.walk.dogBreed,
           ),
         ),
 
         Expanded(
           flex: 2,
-          child: _personInfo(
+          child: _identityInfo(
             label: 'Owner',
             value: widget.walk.ownerName.isEmpty
                 ? '-'
                 : widget.walk.ownerName,
             icon: Icons.person_outline_rounded,
+            color: dojoBlue,
+            secondary:
+                widget.walk.ownerId.isEmpty
+                    ? null
+                    : widget.walk.ownerId,
           ),
         ),
 
         Expanded(
           flex: 2,
-          child: _personInfo(
+          child: _identityInfo(
             label: 'Walker',
             value: widget.walk.walkerName.isEmpty
                 ? '-'
                 : widget.walk.walkerName,
             icon: Icons.directions_walk_rounded,
+            color: dojoOrange,
+            secondary:
+                widget.walk.walkerId.isEmpty
+                    ? null
+                    : widget.walk.walkerId,
           ),
-        ),
-
-        const SizedBox(width: 12),
-
-        Expanded(
-          flex: 2,
-          child: _sessionInfo(),
         ),
 
         const SizedBox(width: 10),
@@ -941,7 +931,7 @@ class _LiveWalkCardState
           widget.walk.source,
         ),
 
-        const SizedBox(width: 10),
+        const SizedBox(width: 8),
 
         _statusBadge(
           widget.walk.status,
@@ -960,17 +950,15 @@ class _LiveWalkCardState
 
   Widget _mobile() {
     return Column(
-      crossAxisAlignment:
-          CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
               child: _dateTime(),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 7),
             _sourceBadge(
               widget.walk.source,
             ),
@@ -981,23 +969,39 @@ class _LiveWalkCardState
           ],
         ),
 
-        const SizedBox(height: 12),
+        const SizedBox(height: 13),
+
+        _identityInfo(
+          label: 'Walk ID',
+          value: widget.walk.walkId.isEmpty
+              ? widget.walk.documentId
+              : widget.walk.walkId,
+          icon: Icons.confirmation_number_outlined,
+          color: dojoOrange,
+        ),
+
+        const SizedBox(height: 10),
 
         Row(
           children: [
             Expanded(
-              child: _personInfo(
+              child: _identityInfo(
                 label: 'Dog',
                 value:
                     widget.walk.dogName.isEmpty
                         ? 'Dog'
                         : widget.walk.dogName,
                 icon: Icons.pets_rounded,
+                color: dojoBlue,
+                secondary:
+                    widget.walk.dogBreed.isEmpty
+                        ? null
+                        : widget.walk.dogBreed,
               ),
             ),
             const SizedBox(width: 10),
             Expanded(
-              child: _personInfo(
+              child: _identityInfo(
                 label: 'Owner',
                 value:
                     widget.walk.ownerName.isEmpty
@@ -1005,14 +1009,19 @@ class _LiveWalkCardState
                         : widget.walk.ownerName,
                 icon:
                     Icons.person_outline_rounded,
+                color: dojoBlue,
+                secondary:
+                    widget.walk.ownerId.isEmpty
+                        ? null
+                        : widget.walk.ownerId,
               ),
             ),
           ],
         ),
 
-        const SizedBox(height: 9),
+        const SizedBox(height: 10),
 
-        _personInfo(
+        _identityInfo(
           label: 'Walker',
           value:
               widget.walk.walkerName.isEmpty
@@ -1020,13 +1029,25 @@ class _LiveWalkCardState
                   : widget.walk.walkerName,
           icon:
               Icons.directions_walk_rounded,
+          color: dojoOrange,
+          secondary:
+              widget.walk.walkerId.isEmpty
+                  ? null
+                  : widget.walk.walkerId,
         ),
 
-        const SizedBox(height: 10),
+        if (widget.walk.walkerUid.isNotEmpty &&
+            widget.walk.walkerUid != '-') ...[
+          const SizedBox(height: 6),
+          _uidLine(
+            'Walker UID',
+            widget.walk.walkerUid,
+          ),
+        ],
+
+        const SizedBox(height: 12),
 
         Row(
-          crossAxisAlignment:
-              CrossAxisAlignment.center,
           children: [
             Expanded(
               child: _sessionInfo(),
@@ -1060,16 +1081,14 @@ class _LiveWalkCardState
     final localDate = date.toLocal();
 
     return Column(
-      crossAxisAlignment:
-          CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           DateFormat(
             'dd MMM yyyy',
           ).format(localDate),
           maxLines: 1,
-          overflow:
-              TextOverflow.ellipsis,
+          overflow: TextOverflow.ellipsis,
           style: const TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w900,
@@ -1102,13 +1121,15 @@ class _LiveWalkCardState
   }
 
   // ==========================================================
-  // PERSON INFO
+  // IDENTITY INFO
   // ==========================================================
 
-  Widget _personInfo({
+  Widget _identityInfo({
     required String label,
     required String value,
     required IconData icon,
+    required Color color,
+    String? secondary,
   }) {
     return Row(
       children: [
@@ -1116,17 +1137,21 @@ class _LiveWalkCardState
           width: 32,
           height: 32,
           decoration: BoxDecoration(
-            color: dojoBackground,
+            color: color.withValues(
+              alpha: 0.08,
+            ),
             borderRadius:
                 BorderRadius.circular(9),
             border: Border.all(
-              color: dojoBorder,
+              color: color.withValues(
+                alpha: 0.12,
+              ),
             ),
           ),
           child: Icon(
             icon,
             size: 16,
-            color: dojoBlue,
+            color: color,
           ),
         ),
         const SizedBox(width: 8),
@@ -1143,8 +1168,7 @@ class _LiveWalkCardState
                 style: const TextStyle(
                   fontSize: 9,
                   color: dojoGrey,
-                  fontWeight:
-                      FontWeight.w600,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
               const SizedBox(height: 2),
@@ -1156,10 +1180,24 @@ class _LiveWalkCardState
                 style: const TextStyle(
                   fontSize: 12,
                   color: dojoDark,
-                  fontWeight:
-                      FontWeight.w800,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
+              if (secondary != null &&
+                  secondary.isNotEmpty) ...[
+                const SizedBox(height: 1),
+                Text(
+                  secondary,
+                  maxLines: 1,
+                  overflow:
+                      TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 9,
+                    color: dojoGrey,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -1168,16 +1206,59 @@ class _LiveWalkCardState
   }
 
   // ==========================================================
+  // UID
+  // ==========================================================
+
+  Widget _uidLine(
+    String label,
+    String value,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.only(
+        left: 40,
+      ),
+      child: Row(
+        children: [
+          Text(
+            '$label: ',
+            style: const TextStyle(
+              fontSize: 9,
+              color: dojoGrey,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 9,
+                color: dojoDark,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================================
   // SESSION INFO
   // ==========================================================
 
   Widget _sessionInfo() {
+    final walkId = widget.walk.walkId.isEmpty
+        ? widget.walk.documentId
+        : widget.walk.walkId;
+
     return Column(
       crossAxisAlignment:
           CrossAxisAlignment.start,
       children: [
         const Text(
-          'Live Session ID',
+          'Request / Session ID',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
@@ -1188,7 +1269,7 @@ class _LiveWalkCardState
         ),
         const SizedBox(height: 3),
         Text(
-          widget.walk.documentId,
+          walkId,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(
@@ -1235,8 +1316,7 @@ class _LiveWalkCardState
         borderRadius:
             BorderRadius.circular(8),
         border: Border.all(
-          color:
-              color.withValues(
+          color: color.withValues(
             alpha: 0.16,
           ),
         ),
@@ -1340,8 +1420,7 @@ class _LiveWalkCardState
         borderRadius:
             BorderRadius.circular(8),
         border: Border.all(
-          color:
-              foreground.withValues(
+          color: foreground.withValues(
             alpha: 0.14,
           ),
         ),
@@ -1409,8 +1488,7 @@ class _LiveWalkCardState
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 11,
-                      fontWeight:
-                          FontWeight.w800,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ],
@@ -1568,32 +1646,44 @@ class _SummaryCardState
 
 class LiveWalkSessionData {
   final String documentId;
+
+  // Canonical identity.
+  final String walkId;
+  final String requestId;
   final String sessionId;
 
+  // Owner.
   final String ownerId;
+  final String ownerAuthUid;
   final String ownerName;
 
+  // Walker.
   final String walkerId;
   final String walkerUid;
   final String walkerName;
 
+  // Dog.
   final String dogName;
   final String dogBreed;
 
+  // Metrics.
   final double distanceKm;
   final int elapsedSeconds;
 
   final int peeCount;
   final int poopCount;
 
+  // Current location.
   final double? locationLat;
   final double? locationLng;
 
+  // Tracking.
   final List<Map<String, dynamic>>
       routeCoordinates;
 
   final List<Map<String, dynamic>> events;
 
+  // State.
   final String status;
   final String source;
 
@@ -1601,8 +1691,11 @@ class LiveWalkSessionData {
 
   const LiveWalkSessionData({
     required this.documentId,
+    required this.walkId,
+    required this.requestId,
     required this.sessionId,
     required this.ownerId,
+    required this.ownerAuthUid,
     required this.ownerName,
     required this.walkerId,
     required this.walkerUid,
@@ -1632,114 +1725,193 @@ class LiveWalkSessionData {
   ) {
     final location =
         _map(data['currentLocation']) ??
-            _map(data['location']);
+        _map(data['location']);
+
+    final canonicalSessionId =
+        _string(data, 'sessionId') ??
+        _string(data, 'requestId') ??
+        _string(data, 'walkId') ??
+        documentId;
+
+    final canonicalWalkId =
+        _string(data, 'walkId') ??
+        _string(data, 'requestId') ??
+        _string(data, 'sessionId') ??
+        documentId;
+
+    final canonicalRequestId =
+        _string(data, 'requestId') ??
+        _string(data, 'sessionId') ??
+        _string(data, 'walkId') ??
+        documentId;
 
     return LiveWalkSessionData(
       documentId: documentId,
 
-      sessionId:
-          _string(data, 'sessionId') ??
-              documentId,
+      // ======================================================
+      // CANONICAL WALK ID
+      // ======================================================
+
+      walkId: canonicalWalkId,
+
+      requestId: canonicalRequestId,
+
+      sessionId: canonicalSessionId,
+
+      // ======================================================
+      // OWNER
+      // ======================================================
 
       ownerId:
-          _string(data, 'ownerId') ?? '-',
+          _string(data, 'ownerId') ??
+          _string(data, 'ownerID') ??
+          '',
+
+      ownerAuthUid:
+          _string(data, 'ownerAuthUid') ??
+          _string(data, 'ownerUid') ??
+          _string(data, 'ownerUID') ??
+          '',
 
       ownerName:
           _string(data, 'ownerName') ??
-              _string(data, 'customerName') ??
-              _string(data, 'userName') ??
-              _string(data, 'clientName') ??
-              '',
+          _string(data, 'customerName') ??
+          _string(data, 'userName') ??
+          _string(data, 'clientName') ??
+          '',
+
+      // ======================================================
+      // WALKER
+      // ======================================================
 
       walkerId:
           _string(data, 'walkerId') ??
-              _string(data, 'walkerid') ??
-              '-',
+          _string(data, 'walkerid') ??
+          '',
 
+      // Canonical walker UID.
       walkerUid:
           _string(data, 'walkerUid') ??
-              _string(data, 'walkerUID') ??
-              _string(data, 'walkeruid') ??
-              '-',
+          _string(data, 'walkerUID') ??
+          _string(data, 'walkeruid') ??
+          '',
 
       walkerName:
           _string(data, 'walkerName') ??
-              _string(data, 'walkerFullName') ??
-              _string(data, 'walkerDisplayName') ??
-              '',
+          _string(data, 'walkerFullName') ??
+          _string(data, 'walkerDisplayName') ??
+          '',
+
+      // ======================================================
+      // DOG
+      // ======================================================
 
       dogName:
           _string(data, 'dogName') ??
-              _string(data, 'petName') ??
-              'Dog',
+          _string(data, 'petName') ??
+          'Dog',
 
       dogBreed:
-          _string(data, 'dogBreed') ?? '',
+          _string(data, 'dogBreed') ??
+          _string(data, 'petBreed') ??
+          '',
+
+      // ======================================================
+      // DISTANCE
+      // ======================================================
 
       distanceKm:
           _double(data['distanceKm']) ??
-              _double(data['distance']) ??
-              _double(data['totalDistanceKm']) ??
-              _double(data['totalDistance']) ??
-              0,
+          _double(data['distance']) ??
+          _double(data['totalDistanceKm']) ??
+          _double(data['totalDistance']) ??
+          0,
+
+      // ======================================================
+      // DURATION
+      // ======================================================
 
       elapsedSeconds:
           _int(data['elapsedSeconds']) ??
-              _int(data['durationSeconds']) ??
-              _int(data['totalSeconds']) ??
-              _durationMinutesToSeconds(
-                data['durationMinutes'],
-              ) ??
-              0,
+          _int(data['durationSeconds']) ??
+          _int(data['totalSeconds']) ??
+          _durationMinutesToSeconds(
+            data['durationMinutes'],
+          ) ??
+          0,
+
+      // ======================================================
+      // PEE
+      // ======================================================
 
       peeCount:
           _int(data['peeCount']) ??
-              _int(data['peecount']) ??
-              _int(data['pee']) ??
-              _int(data['pCount']) ??
-              _int(data['p']) ??
-              0,
+          _int(data['peecount']) ??
+          _int(data['pee']) ??
+          _int(data['pCount']) ??
+          _int(data['p']) ??
+          0,
+
+      // ======================================================
+      // POOP
+      // ======================================================
 
       poopCount:
           _int(data['poopCount']) ??
-              _int(data['poopcount']) ??
-              _int(data['poop']) ??
-              _int(data['pooCount']) ??
-              0,
+          _int(data['poopcount']) ??
+          _int(data['poop']) ??
+          _int(data['pooCount']) ??
+          0,
+
+      // ======================================================
+      // CURRENT LOCATION
+      // ======================================================
 
       locationLat:
           _double(location?['lat']) ??
-              _double(location?['latitude']) ??
-              _double(data['currentLat']),
+          _double(location?['latitude']) ??
+          _double(data['currentLat']),
 
       locationLng:
           _double(location?['lng']) ??
-              _double(location?['longitude']) ??
-              _double(data['currentLng']),
+          _double(location?['longitude']) ??
+          _double(data['currentLng']),
+
+      // ======================================================
+      // ROUTE
+      // ======================================================
 
       routeCoordinates:
           _list(data['routeCoordinates']).isNotEmpty
               ? _list(data['routeCoordinates'])
               : _list(data['route']),
 
+      // ======================================================
+      // EVENTS
+      // ======================================================
+
       events:
           _list(data['events']).isNotEmpty
               ? _list(data['events'])
               : _list(data['walkEvents']),
 
+      // ======================================================
+      // STATUS
+      // ======================================================
+
       status:
           _string(data, 'status') ??
-              _string(data, 'walkStatus') ??
-              'live',
+          _string(data, 'walkStatus') ??
+          'live',
 
       // ======================================================
       // SOURCE
-      // QR / INSTA
       // ======================================================
 
       source:
           _string(data, 'source') ??
-              '',
+          _string(data, 'walkSource') ??
+          '',
 
       // ======================================================
       // DATE/TIME
@@ -1947,7 +2119,9 @@ String _titleCase(String value) {
   return text
       .replaceAll('_', ' ')
       .split(' ')
-      .where((part) => part.isNotEmpty)
+      .where(
+        (part) => part.isNotEmpty,
+      )
       .map(
         (part) =>
             '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}',
