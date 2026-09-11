@@ -315,7 +315,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                               onTap: () => widget.onNavigate(5),
                             ),
                             _buildPremiumStatCard(
-                              title: 'Active Walks',
+                              title: 'Walk Requests',
                               value: '$activeCount',
                               subtitle: 'Currently running',
                               icon: Icons.directions_walk_outlined,
@@ -541,7 +541,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 onTap: () => widget.onNavigate(5),
               ),
               _quickActionButton(
-                title: 'Active Walks',
+                title: 'Walk Requests',
                 icon: Icons.directions_walk_outlined,
                 color: primaryOrange,
                 onTap: () => widget.onNavigate(2),
@@ -640,7 +640,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   // ============================================================
-  // ACTIVE WALKS PANEL
+  // WALK REQUESTS PANEL
   // ============================================================
 
   Widget _activeWalkPanel() {
@@ -649,18 +649,18 @@ class _DashboardScreenState extends State<DashboardScreen>
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return DataPanel(
-            title: 'Active Walks',
+            title: 'Walk Requests',
             icon: Icons.directions_walk_outlined,
             color: primaryOrange,
             child: const EmptyMessage(
-              text: 'Unable to load active walks.',
+              text: 'Unable to load walk requests.',
             ),
           );
         }
 
         if (snapshot.connectionState == ConnectionState.waiting) {
           return DataPanel(
-            title: 'Active Walks',
+            title: 'Walk Requests',
             icon: Icons.directions_walk_outlined,
             color: primaryOrange,
             child: const _PanelLoading(),
@@ -670,12 +670,12 @@ class _DashboardScreenState extends State<DashboardScreen>
         final docs = snapshot.data?.docs ?? [];
 
         return DataPanel(
-          title: 'Active Walks',
+          title: 'Walk Requests',
           icon: Icons.directions_walk_outlined,
           color: primaryOrange,
           child: docs.isEmpty
               ? const EmptyMessage(
-                  text: 'No active walks right now.',
+                  text: 'No walk requests right now.',
                 )
               : ListView.separated(
                   shrinkWrap: true,
@@ -771,7 +771,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                       walkerName ??
                           (walkerUid != null
                               ? 'Walker ${_shortId(walkerUid)}'
-                              : 'Active Walk'),
+                              : 'Walk Request'),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -836,7 +836,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   // ============================================================
-  // RECENT ACTIVITY PANEL
+  // WALK HISTORY PANEL
   // ============================================================
 
   Widget _recentActivityPanel() {
@@ -845,18 +845,18 @@ class _DashboardScreenState extends State<DashboardScreen>
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return DataPanel(
-            title: 'Recent Activity',
+            title: 'Walk History',
             icon: Icons.history_outlined,
             color: secondaryBlue,
             child: const EmptyMessage(
-              text: 'Unable to load recent activity.',
+              text: 'Unable to load walk history.',
             ),
           );
         }
 
         if (snapshot.connectionState == ConnectionState.waiting) {
           return DataPanel(
-            title: 'Recent Activity',
+            title: 'Walk History',
             icon: Icons.history_outlined,
             color: secondaryBlue,
             child: const _PanelLoading(),
@@ -868,12 +868,12 @@ class _DashboardScreenState extends State<DashboardScreen>
         );
 
         return DataPanel(
-          title: 'Recent Activity',
+          title: 'Walk History',
           icon: Icons.history_outlined,
           color: secondaryBlue,
           child: docs.isEmpty
               ? const EmptyMessage(
-                  text: 'No recent activity.',
+                  text: 'No walk history.',
                 )
               : ListView.separated(
                   shrinkWrap: true,
@@ -1306,7 +1306,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               ),
               const SizedBox(height: 18),
               DataPanel(
-                title: 'Active Walks',
+                title: 'Live Walks',
                 icon: Icons.directions_walk_outlined,
                 color: primaryOrange,
                 child: snapshot.hasError
@@ -1543,7 +1543,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   // ============================================================
-  // RECENT ACTIVITY TAB
+  // WALK HISTORY TAB
   // ============================================================
 
   Widget _recentActivityTab(bool isMobile) {
@@ -1558,13 +1558,13 @@ class _DashboardScreenState extends State<DashboardScreen>
           physics: const BouncingScrollPhysics(),
           padding: const EdgeInsets.only(bottom: 30),
           child: DataPanel(
-            title: 'Recent Activity',
+            title: 'Walk History',
             icon: Icons.history_outlined,
             color: secondaryBlue,
             child: snapshot.hasError
                 ? const EmptyMessage(
                     text:
-                        'Unable to load recent activity.',
+                        'Unable to load walk history.',
                   )
                 : snapshot.connectionState ==
                         ConnectionState.waiting
@@ -1572,7 +1572,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     : docs.isEmpty
                         ? const EmptyMessage(
                             text:
-                                'Recent platform activity will appear here.',
+                                'Walk history will appear here.',
                           )
                         : ListView.separated(
                             shrinkWrap: true,
