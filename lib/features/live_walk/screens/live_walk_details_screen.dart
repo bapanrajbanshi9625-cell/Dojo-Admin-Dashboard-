@@ -1,11 +1,9 @@
-// File:
-// lib/features/live_walk/screens/live_walk_details_screen.dart
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../walk_requests/services/walk_requests_service.dart';
 import '../services/live_walk_admin_service.dart';
 import '../services/live_walk_invoice_service.dart';
 import '../widgets/live_walk_invoice_screen.dart';
@@ -18,9 +16,14 @@ class LiveWalkDetailsScreen extends StatelessWidget {
     required this.sessionId,
   });
 
-  static const _orange = Color(0xFFFF6B13);
-  static const _background = Color(0xFFF5F8F7);
-  static const _text = Color(0xFF1C3136);
+  static const _orange = Color(0xFFD35435);
+  static const _blue = Color(0xFF2563EB);
+  static const _green = Color(0xFF16A34A);
+  static const _red = Color(0xFFDC2626);
+  static const _background = Color(0xFFF8FAFC);
+  static const _text = Color(0xFF0F172A);
+  static const _grey = Color(0xFF64748B);
+  static const _border = Color(0xFFE2E8F0);
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +32,9 @@ class LiveWalkDetailsScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.white,
         foregroundColor: _text,
+        surfaceTintColor: Colors.white,
         elevation: 0,
+        scrolledUnderElevation: 0.5,
         titleSpacing: 16,
         title: const Text(
           'Live Walk Details',
@@ -102,7 +107,7 @@ class _ErrorView extends StatelessWidget {
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: const Color(0xFFE0EBE9),
+              color: const Color(0xFFE2E8F0),
             ),
           ),
           child: Column(
@@ -117,7 +122,7 @@ class _ErrorView extends StatelessWidget {
                 ),
                 child: const Icon(
                   Icons.error_outline_rounded,
-                  color: Color(0xFFE45555),
+                  color: Color(0xFFDC2626),
                   size: 30,
                 ),
               ),
@@ -128,7 +133,7 @@ class _ErrorView extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFF1C3136),
+                  color: Color(0xFF0F172A),
                 ),
               ),
               const SizedBox(height: 8),
@@ -138,7 +143,7 @@ class _ErrorView extends StatelessWidget {
                 style: const TextStyle(
                   fontSize: 13,
                   height: 1.5,
-                  color: Color(0xFF667B7D),
+                  color: Color(0xFF64748B),
                 ),
               ),
               const SizedBox(height: 18),
@@ -512,21 +517,44 @@ class _Header extends StatelessWidget {
     required this.data,
   });
 
+  static const orange = Color(0xFFD35435);
+  static const blue = Color(0xFF2563EB);
+  static const green = Color(0xFF16A34A);
+  static const red = Color(0xFFDC2626);
+  static const dark = Color(0xFF0F172A);
+  static const grey = Color(0xFF64748B);
+
   @override
   Widget build(BuildContext context) {
-    final normalized = status.toLowerCase();
+    final normalized = status.trim().toLowerCase();
 
-    final active = normalized == 'active';
+    final notStarted = normalized.isEmpty ||
+        normalized == 'created' ||
+        normalized == 'accepted' ||
+        normalized == 'assigned' ||
+        normalized == 'ready' ||
+        normalized == 'pending';
 
-    final completed =
-        normalized == 'completed' ||
+    final active = normalized == 'active' ||
+        normalized == 'started' ||
+        normalized == 'in_progress' ||
+        normalized == 'in-progress' ||
+        normalized == 'live';
+
+    final completed = normalized == 'completed' ||
         normalized == 'complete';
 
-    final statusColor = active
-        ? Colors.green
-        : completed
-            ? Colors.blue
-            : Colors.red;
+    final cancelled = normalized == 'cancelled' ||
+        normalized == 'canceled' ||
+        normalized == 'rejected';
+
+    final statusColor = completed
+        ? green
+        : cancelled
+            ? red
+            : active
+                ? orange
+                : blue;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(
@@ -539,7 +567,7 @@ class _Header extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: const Color(0xFFE0EBE9),
+          color: const Color(0xFFE2E8F0),
         ),
       ),
       child: LayoutBuilder(
@@ -552,12 +580,14 @@ class _Header extends StatelessWidget {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFF3EA),
+                  color: orange.withValues(
+                    alpha: .10,
+                  ),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
                   Icons.directions_walk_rounded,
-                  color: Color(0xFFFF6B13),
+                  color: orange,
                   size: 23,
                 ),
               ),
@@ -570,6 +600,7 @@ class _Header extends StatelessWidget {
                     const Text(
                       'LIVE WALK',
                       style: TextStyle(
+                        color: dark,
                         fontSize: 16,
                         fontWeight: FontWeight.w900,
                         letterSpacing: .3,
@@ -581,7 +612,7 @@ class _Header extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        color: Color(0xFF667B7D),
+                        color: grey,
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                       ),
@@ -590,7 +621,11 @@ class _Header extends StatelessWidget {
                 ),
               ),
               _StatusBadge(
-                status: status,
+                status: status.isEmpty
+                    ? notStarted
+                        ? 'ready'
+                        : status
+                    : status,
                 color: statusColor,
               ),
             ],
@@ -604,12 +639,57 @@ class _Header extends StatelessWidget {
                 requestId: requestId,
                 data: data,
               ),
+              if (notStarted) ...[
+                const SizedBox(width: 6),
+                _HeaderActionButton(
+                  label: 'Start Walk',
+                  icon: Icons.play_arrow_rounded,
+                  color: green,
+                  filled: true,
+                  onTap: () {
+                    _confirmStart(
+                      context,
+                      sessionId,
+                      requestId,
+                    );
+                  },
+                ),
+                const SizedBox(width: 6),
+                _HeaderActionButton(
+                  label: 'Change Walker',
+                  icon: Icons.swap_horiz_rounded,
+                  color: blue,
+                  filled: false,
+                  onTap: () {
+                    _showChangeWalker(
+                      context,
+                      sessionId,
+                      requestId,
+                      data,
+                    );
+                  },
+                ),
+                const SizedBox(width: 6),
+                _HeaderActionButton(
+                  label: 'Cancel',
+                  icon: Icons.close_rounded,
+                  color: red,
+                  filled: false,
+                  onTap: () {
+                    _confirmCancel(
+                      context,
+                      sessionId,
+                      requestId,
+                    );
+                  },
+                ),
+              ],
               if (active) ...[
                 const SizedBox(width: 6),
                 _HeaderActionButton(
                   label: 'Complete',
                   icon: Icons.check_rounded,
-                  color: Colors.green,
+                  color: green,
                   filled: true,
                   onTap: () {
                     _confirmComplete(
@@ -621,9 +701,24 @@ class _Header extends StatelessWidget {
                 ),
                 const SizedBox(width: 6),
                 _HeaderActionButton(
+                  label: 'Change Walker',
+                  icon: Icons.swap_horiz_rounded,
+                  color: blue,
+                  filled: false,
+                  onTap: () {
+                    _showChangeWalker(
+                      context,
+                      sessionId,
+                      requestId,
+                      data,
+                    );
+                  },
+                ),
+                const SizedBox(width: 6),
+                _HeaderActionButton(
                   label: 'Cancel',
                   icon: Icons.close_rounded,
-                  color: Colors.red,
+                  color: red,
                   filled: false,
                   onTap: () {
                     _confirmCancel(
@@ -658,7 +753,13 @@ class _Header extends StatelessWidget {
                 child: identity,
               ),
               const SizedBox(width: 12),
-              actions,
+              Flexible(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  reverse: true,
+                  child: actions,
+                ),
+              ),
             ],
           );
         },
@@ -701,7 +802,7 @@ class _StatusBadge extends StatelessWidget {
           const SizedBox(width: 5),
           Text(
             status.isEmpty
-                ? 'UNKNOWN'
+                ? 'READY'
                 : status.toUpperCase(),
             style: TextStyle(
               color: color,
@@ -770,7 +871,7 @@ class _InvoiceButton extends StatelessWidget {
               Icon(
                 Icons.receipt_long_rounded,
                 size: 19,
-                color: Color(0xFFFF6B13),
+                color: Color(0xFFD35435),
               ),
               SizedBox(width: 10),
               Text('View Invoice'),
@@ -813,7 +914,7 @@ class _InvoiceButton extends StatelessWidget {
           color: const Color(0xFFFFF3EA),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: const Color(0xFFFF6B13).withValues(
+            color: const Color(0xFFD35435).withValues(
               alpha: .18,
             ),
           ),
@@ -824,13 +925,13 @@ class _InvoiceButton extends StatelessWidget {
             Icon(
               Icons.receipt_long_rounded,
               size: 17,
-              color: Color(0xFFFF6B13),
+              color: Color(0xFFD35435),
             ),
             SizedBox(width: 5),
             Text(
               'Invoice',
               style: TextStyle(
-                color: Color(0xFFFF6B13),
+                color: Color(0xFFD35435),
                 fontSize: 11,
                 fontWeight: FontWeight.w800,
               ),
@@ -839,7 +940,7 @@ class _InvoiceButton extends StatelessWidget {
             Icon(
               Icons.keyboard_arrow_down_rounded,
               size: 16,
-              color: Color(0xFFFF6B13),
+              color: Color(0xFFD35435),
             ),
           ],
         ),
@@ -1169,10 +1270,11 @@ class _Stat extends StatelessWidget {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
+        const SizedBox(height: 1),
         Icon(
           icon,
           size: 19,
-          color: const Color(0xFFFF6B13),
+          color: Color(0xFFD35435),
         ),
         const SizedBox(height: 4),
         FittedBox(
@@ -1180,6 +1282,7 @@ class _Stat extends StatelessWidget {
           child: Text(
             value,
             style: const TextStyle(
+              color: Color(0xFF0F172A),
               fontSize: 13,
               fontWeight: FontWeight.w900,
             ),
@@ -1189,7 +1292,7 @@ class _Stat extends StatelessWidget {
         Text(
           label,
           style: const TextStyle(
-            color: Color(0xFF667B7D),
+            color: Color(0xFF64748B),
             fontSize: 9,
             fontWeight: FontWeight.w600,
           ),
@@ -1241,6 +1344,7 @@ class _PersonCard extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
+              color: Color(0xFF0F172A),
               fontSize: 15,
               fontWeight: FontWeight.w800,
             ),
@@ -1302,7 +1406,7 @@ class _DogCard extends StatelessWidget {
             ),
             child: const Icon(
               Icons.pets_rounded,
-              color: Color(0xFFFF6B13),
+              color: Color(0xFFD35435),
             ),
           ),
           const SizedBox(width: 10),
@@ -1314,7 +1418,7 @@ class _DogCard extends StatelessWidget {
                 const Text(
                   'DOG',
                   style: TextStyle(
-                    color: Color(0xFF667B7D),
+                    color: Color(0xFF64748B),
                     fontSize: 9,
                     fontWeight: FontWeight.w800,
                     letterSpacing: .5,
@@ -1326,6 +1430,7 @@ class _DogCard extends StatelessWidget {
                       ? 'Not available'
                       : name,
                   style: const TextStyle(
+                    color: Color(0xFF0F172A),
                     fontWeight: FontWeight.w800,
                     fontSize: 14,
                   ),
@@ -1339,7 +1444,7 @@ class _DogCard extends StatelessWidget {
                 breed,
                 textAlign: TextAlign.right,
                 style: const TextStyle(
-                  color: Color(0xFF667B7D),
+                  color: Color(0xFF64748B),
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                 ),
@@ -1388,11 +1493,12 @@ class _CompactExpansionCard extends StatelessWidget {
         leading: Icon(
           icon,
           size: 20,
-          color: const Color(0xFFFF6B13),
+          color: const Color(0xFFD35435),
         ),
         title: Text(
           title,
           style: const TextStyle(
+            color: Color(0xFF0F172A),
             fontSize: 14,
             fontWeight: FontWeight.w800,
           ),
@@ -1501,7 +1607,7 @@ class _EventsCard extends StatelessWidget {
               child: Text(
                 'No events recorded.',
                 style: TextStyle(
-                  color: Color(0xFF667B7D),
+                  color: Color(0xFF64748B),
                   fontSize: 12,
                 ),
               ),
@@ -1518,15 +1624,19 @@ class _EventsCard extends StatelessWidget {
               ),
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: const Color(0xFFF5F8F7),
+                color: const Color(0xFFF8FAFC),
                 borderRadius:
                     BorderRadius.circular(10),
+                border: Border.all(
+                  color: const Color(0xFFE2E8F0),
+                ),
               ),
               child: Text(
                 event is Map
                     ? _formatMap(event)
                     : '${entry.key + 1}. ${event.toString()}',
                 style: const TextStyle(
+                  color: Color(0xFF0F172A),
                   fontSize: 11,
                 ),
               ),
@@ -1577,13 +1687,14 @@ class _CardTitle extends StatelessWidget {
       children: [
         Icon(
           icon,
-          color: const Color(0xFFFF6B13),
+          color: const Color(0xFFD35435),
           size: 19,
         ),
         const SizedBox(width: 7),
         Text(
           title,
           style: const TextStyle(
+            color: Color(0xFF0F172A),
             fontSize: 13,
             fontWeight: FontWeight.w900,
           ),
@@ -1615,7 +1726,7 @@ class _MiniValue extends StatelessWidget {
           Text(
             label,
             style: const TextStyle(
-              color: Color(0xFF91A2A3),
+              color: Color(0xFF94A3B8),
               fontSize: 9,
               fontWeight: FontWeight.w700,
             ),
@@ -1626,7 +1737,7 @@ class _MiniValue extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              color: Color(0xFF1C3136),
+              color: Color(0xFF0F172A),
               fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
@@ -1661,7 +1772,7 @@ class _InfoRow extends StatelessWidget {
             child: Text(
               label,
               style: const TextStyle(
-                color: Color(0xFF667B7D),
+                color: Color(0xFF64748B),
                 fontSize: 11,
               ),
             ),
@@ -1670,6 +1781,7 @@ class _InfoRow extends StatelessWidget {
             child: Text(
               value.isEmpty ? '—' : value,
               style: const TextStyle(
+                color: Color(0xFF0F172A),
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
               ),
@@ -1717,12 +1829,13 @@ class _NoMap extends StatelessWidget {
             Icon(
               Icons.location_off_rounded,
               size: 36,
-              color: Color(0xFF91A2A3),
+              color: Color(0xFF94A3B8),
             ),
             SizedBox(height: 7),
             Text(
               'Location unavailable',
               style: TextStyle(
+                color: Color(0xFF0F172A),
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -1734,7 +1847,90 @@ class _NoMap extends StatelessWidget {
 }
 
 /* -------------------------------------------------------------------------- */
-/* ADMIN ACTIONS                                                              */
+/* START WALK                                                                 */
+/* -------------------------------------------------------------------------- */
+
+Future<void> _confirmStart(
+  BuildContext context,
+  String sessionId,
+  String requestId,
+) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) {
+      return AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        title: const Text(
+          'Start Walk?',
+          style: TextStyle(
+            color: Color(0xFF0F172A),
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        content: const Text(
+          'This will mark the live walk as started and begin the active walk state.',
+          style: TextStyle(
+            color: Color(0xFF64748B),
+            height: 1.45,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(
+                dialogContext,
+                false,
+              );
+            },
+            child: const Text(
+              'Not Now',
+              style: TextStyle(
+                color: Color(0xFF64748B),
+              ),
+            ),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pop(
+                dialogContext,
+                true,
+              );
+            },
+            icon: const Icon(
+              Icons.play_arrow_rounded,
+              size: 18,
+            ),
+            label: const Text('Start Walk'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF16A34A),
+              foregroundColor: Colors.white,
+              elevation: 0,
+            ),
+          ),
+        ],
+      );
+    },
+  );
+
+  if (confirmed != true || !context.mounted) {
+    return;
+  }
+
+  await _runAdminAction(
+    context,
+    action: () {
+      return LiveWalkAdminService().startWalk(
+        sessionId: sessionId,
+        requestId: requestId,
+      );
+    },
+    successMessage: 'Walk started successfully.',
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* COMPLETE                                                                   */
 /* -------------------------------------------------------------------------- */
 
 Future<void> _confirmComplete(
@@ -1746,14 +1942,21 @@ Future<void> _confirmComplete(
     context: context,
     builder: (dialogContext) {
       return AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
         title: const Text(
           'Complete Walk?',
           style: TextStyle(
+            color: Color(0xFF0F172A),
             fontWeight: FontWeight.w800,
           ),
         ),
         content: const Text(
           'This will mark the live walk as completed and update the related walk request.',
+          style: TextStyle(
+            color: Color(0xFF64748B),
+            height: 1.45,
+          ),
         ),
         actions: [
           TextButton(
@@ -1763,7 +1966,12 @@ Future<void> _confirmComplete(
                 false,
               );
             },
-            child: const Text('No'),
+            child: const Text(
+              'No',
+              style: TextStyle(
+                color: Color(0xFF64748B),
+              ),
+            ),
           ),
           ElevatedButton.icon(
             onPressed: () {
@@ -1778,8 +1986,9 @@ Future<void> _confirmComplete(
             ),
             label: const Text('Complete'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
+              backgroundColor: const Color(0xFF16A34A),
               foregroundColor: Colors.white,
+              elevation: 0,
             ),
           ),
         ],
@@ -1803,6 +2012,10 @@ Future<void> _confirmComplete(
   );
 }
 
+/* -------------------------------------------------------------------------- */
+/* CANCEL                                                                     */
+/* -------------------------------------------------------------------------- */
+
 Future<void> _confirmCancel(
   BuildContext context,
   String sessionId,
@@ -1812,14 +2025,21 @@ Future<void> _confirmCancel(
     context: context,
     builder: (dialogContext) {
       return AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
         title: const Text(
           'Cancel Walk?',
           style: TextStyle(
+            color: Color(0xFF0F172A),
             fontWeight: FontWeight.w800,
           ),
         ),
         content: const Text(
           'This will cancel the live walk and update the related walk request.',
+          style: TextStyle(
+            color: Color(0xFF64748B),
+            height: 1.45,
+          ),
         ),
         actions: [
           TextButton(
@@ -1829,7 +2049,12 @@ Future<void> _confirmCancel(
                 false,
               );
             },
-            child: const Text('No'),
+            child: const Text(
+              'No',
+              style: TextStyle(
+                color: Color(0xFF64748B),
+              ),
+            ),
           ),
           ElevatedButton.icon(
             onPressed: () {
@@ -1844,8 +2069,9 @@ Future<void> _confirmCancel(
             ),
             label: const Text('Cancel Walk'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
+              backgroundColor: const Color(0xFFDC2626),
               foregroundColor: Colors.white,
+              elevation: 0,
             ),
           ),
         ],
@@ -1869,6 +2095,634 @@ Future<void> _confirmCancel(
   );
 }
 
+/* -------------------------------------------------------------------------- */
+/* CHANGE WALKER                                                              */
+/* -------------------------------------------------------------------------- */
+
+Future<void> _showChangeWalker(
+  BuildContext context,
+  String sessionId,
+  String requestId,
+  Map<String, dynamic> sessionData,
+) async {
+  try {
+    final service = WalkRequestsService();
+
+    final walkers = await service.getWalkers();
+
+    if (!context.mounted) {
+      return;
+    }
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return _ChangeWalkerDialog(
+          sessionId: sessionId,
+          requestId: requestId,
+          sessionData: sessionData,
+          walkers: walkers,
+        );
+      },
+    );
+  } catch (e) {
+    if (!context.mounted) {
+      return;
+    }
+
+    _showActionMessage(
+      context,
+      'Unable to load walkers: $e',
+      error: true,
+    );
+  }
+}
+
+class _ChangeWalkerDialog extends StatefulWidget {
+  final String sessionId;
+  final String requestId;
+  final Map<String, dynamic> sessionData;
+  final List<
+      QueryDocumentSnapshot<Map<String, dynamic>>> walkers;
+
+  const _ChangeWalkerDialog({
+    required this.sessionId,
+    required this.requestId,
+    required this.sessionData,
+    required this.walkers,
+  });
+
+  @override
+  State<_ChangeWalkerDialog> createState() =>
+      _ChangeWalkerDialogState();
+}
+
+class _ChangeWalkerDialogState
+    extends State<_ChangeWalkerDialog> {
+  String? selectedDocId;
+  bool saving = false;
+
+  static const orange = Color(0xFFD35435);
+  static const blue = Color(0xFF2563EB);
+  static const dark = Color(0xFF0F172A);
+  static const grey = Color(0xFF64748B);
+  static const background = Color(0xFFF8FAFC);
+  static const border = Color(0xFFE2E8F0);
+
+  String _value(
+    Map<String, dynamic> data,
+    String key,
+  ) {
+    final value = data[key];
+
+    return value == null
+        ? ''
+        : value.toString().trim();
+  }
+
+  String _currentWalkerId() {
+    return _value(
+      widget.sessionData,
+      'walkerId',
+    );
+  }
+
+  String _currentWalkerUid() {
+    return _value(
+      widget.sessionData,
+      'walkerUid',
+    );
+  }
+
+  Future<void> _change() async {
+    if (selectedDocId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Please select a walker.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    QueryDocumentSnapshot<Map<String, dynamic>> walker;
+
+    try {
+      walker = widget.walkers.firstWhere(
+        (doc) => doc.id == selectedDocId,
+      );
+    } catch (_) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Selected walker is no longer available.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final data = walker.data();
+
+    // Canonical walker UID.
+    //
+    // Existing walker records may contain authUid, but the
+    // canonical field written to walk_request/liveWalkSessions
+    // remains walkerUid.
+    final walkerUidValue = _value(
+      data,
+      'walkerUid',
+    );
+
+    final authUidValue = _value(
+      data,
+      'authUid',
+    );
+
+    final walkerUid = walkerUidValue.isNotEmpty
+        ? walkerUidValue
+        : authUidValue;
+
+    final walkerId = _value(
+      data,
+      'walkerId',
+    );
+
+    final nameValue = _value(
+      data,
+      'name',
+    );
+
+    final walkerName = nameValue.isNotEmpty
+        ? nameValue
+        : _value(
+            data,
+            'walkerName',
+          );
+
+    if (walkerUid.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Selected walker has no valid UID.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    if (walkerId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Selected walker has no Walker ID.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    if (walkerName.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Selected walker has no name.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    if (walkerUid == _currentWalkerUid()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'This walker is already assigned.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      saving = true;
+    });
+
+    try {
+      await LiveWalkAdminService().changeWalker(
+        sessionId: widget.sessionId,
+        requestId: widget.requestId,
+        walkerUid: walkerUid,
+        walkerId: walkerId,
+        walkerName: walkerName,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      Navigator.pop(context);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Walker changed successfully.',
+          ),
+          backgroundColor: Color(0xFF16A34A),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        saving = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Failed to change walker: $e',
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+          ),
+          backgroundColor: Color(0xFFDC2626),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final screenHeight = MediaQuery.sizeOf(context).height;
+
+    final dialogWidth = screenWidth < 600
+        ? screenWidth - 32
+        : 540.0;
+
+    final maxDialogHeight = screenHeight - 180;
+
+    final dialogHeight = maxDialogHeight.clamp(
+      300.0,
+      520.0,
+    );
+
+    return AlertDialog(
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.white,
+      insetPadding: const EdgeInsets.all(16),
+      titlePadding: const EdgeInsets.fromLTRB(
+        24,
+        22,
+        24,
+        8,
+      ),
+      contentPadding: const EdgeInsets.fromLTRB(
+        16,
+        8,
+        16,
+        8,
+      ),
+      title: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: blue.withValues(
+                alpha: .10,
+              ),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.swap_horiz_rounded,
+              color: blue,
+            ),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Text(
+              'Change Walker',
+              style: TextStyle(
+                color: dark,
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+      content: SizedBox(
+        width: dialogWidth,
+        height: dialogHeight.toDouble(),
+        child: widget.walkers.isEmpty
+            ? const Center(
+                child: Text(
+                  'No walkers found.',
+                  style: TextStyle(
+                    color: grey,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              )
+            : Scrollbar(
+                thumbVisibility: screenWidth >= 600,
+                child: ListView.separated(
+                  physics:
+                      const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 8,
+                    horizontal: 2,
+                  ),
+                  itemCount: widget.walkers.length,
+                  separatorBuilder: (_, __) =>
+                      const SizedBox(height: 8),
+                  itemBuilder: (context, index) {
+                    final doc = widget.walkers[index];
+                    final data = doc.data();
+
+                    final nameValue = _value(
+                      data,
+                      'name',
+                    );
+
+                    final name = nameValue.isNotEmpty
+                        ? nameValue
+                        : _value(
+                            data,
+                            'walkerName',
+                          );
+
+                    final walkerId = _value(
+                      data,
+                      'walkerId',
+                    );
+
+                    final walkerUidValue = _value(
+                      data,
+                      'walkerUid',
+                    );
+
+                    final authUidValue = _value(
+                      data,
+                      'authUid',
+                    );
+
+                    final walkerUid =
+                        walkerUidValue.isNotEmpty
+                            ? walkerUidValue
+                            : authUidValue;
+
+                    final selected =
+                        selectedDocId == doc.id;
+
+                    final current =
+                        walkerId.isNotEmpty &&
+                            walkerId ==
+                                _currentWalkerId();
+
+                    return Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius:
+                            BorderRadius.circular(14),
+                        onTap: saving || current
+                            ? null
+                            : () {
+                                setState(() {
+                                  selectedDocId = doc.id;
+                                });
+                              },
+                        child: AnimatedContainer(
+                          duration:
+                              const Duration(
+                            milliseconds: 180,
+                          ),
+                          padding:
+                              const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: selected
+                                ? blue.withValues(
+                                    alpha: .06,
+                                  )
+                                : Colors.white,
+                            borderRadius:
+                                BorderRadius.circular(14),
+                            border: Border.all(
+                              color: selected
+                                  ? blue
+                                  : border,
+                              width: selected
+                                  ? 1.4
+                                  : 1,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 42,
+                                height: 42,
+                                decoration:
+                                    BoxDecoration(
+                                  color: selected
+                                      ? blue.withValues(
+                                          alpha: .12,
+                                        )
+                                      : background,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.person_outline,
+                                  color: selected
+                                      ? blue
+                                      : grey,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment
+                                          .start,
+                                  children: [
+                                    Text(
+                                      name.isEmpty
+                                          ? 'Walker'
+                                          : name,
+                                      maxLines: 1,
+                                      overflow:
+                                          TextOverflow
+                                              .ellipsis,
+                                      style:
+                                          const TextStyle(
+                                        color: dark,
+                                        fontSize: 14,
+                                        fontWeight:
+                                            FontWeight.w700,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      walkerId.isEmpty
+                                          ? doc.id
+                                          : walkerId,
+                                      maxLines: 1,
+                                      overflow:
+                                          TextOverflow
+                                              .ellipsis,
+                                      style:
+                                          const TextStyle(
+                                        color: grey,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    if (walkerUid.isEmpty)
+                                      const Padding(
+                                        padding:
+                                            EdgeInsets.only(
+                                          top: 3,
+                                        ),
+                                        child: Text(
+                                          'UID unavailable',
+                                          style: TextStyle(
+                                            color:
+                                                Color(
+                                              0xFFDC2626,
+                                            ),
+                                            fontSize: 9,
+                                            fontWeight:
+                                                FontWeight
+                                                    .w600,
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              if (current)
+                                Container(
+                                  padding:
+                                      const EdgeInsets
+                                          .symmetric(
+                                    horizontal: 8,
+                                    vertical: 5,
+                                  ),
+                                  decoration:
+                                      BoxDecoration(
+                                    color:
+                                        const Color(
+                                      0xFF16A34A,
+                                    ).withValues(
+                                      alpha: .10,
+                                    ),
+                                    borderRadius:
+                                        BorderRadius
+                                            .circular(
+                                      20,
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    'CURRENT',
+                                    style: TextStyle(
+                                      color:
+                                          Color(
+                                        0xFF16A34A,
+                                      ),
+                                      fontSize: 8,
+                                      fontWeight:
+                                          FontWeight.w900,
+                                    ),
+                                  ),
+                                )
+                              else
+                                Radio<String>(
+                                  activeColor: blue,
+                                  value: doc.id,
+                                  groupValue:
+                                      selectedDocId,
+                                  onChanged:
+                                      saving
+                                          ? null
+                                          : (value) {
+                                              setState(() {
+                                                selectedDocId =
+                                                    value;
+                                              });
+                                            },
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+      ),
+      actionsPadding: const EdgeInsets.fromLTRB(
+        16,
+        8,
+        16,
+        16,
+      ),
+      actions: [
+        TextButton(
+          onPressed: saving
+              ? null
+              : () {
+                  Navigator.pop(context);
+                },
+          child: const Text(
+            'Cancel',
+            style: TextStyle(
+              color: grey,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(
+            backgroundColor: orange,
+            foregroundColor: Colors.white,
+            disabledBackgroundColor:
+                orange.withValues(
+              alpha: .45,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+          onPressed: saving ? null : _change,
+          child: saving
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                )
+              : const Text(
+                  'Change Walker',
+                ),
+        ),
+      ],
+    );
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* ADMIN ACTION RUNNER                                                        */
+/* -------------------------------------------------------------------------- */
+
 Future<void> _runAdminAction(
   BuildContext context, {
   required Future<void> Function() action,
@@ -1880,7 +2734,7 @@ Future<void> _runAdminAction(
     builder: (_) {
       return const Center(
         child: CircularProgressIndicator(
-          color: Color(0xFFFF6B13),
+          color: Color(0xFFD35435),
         ),
       );
     },
@@ -1898,7 +2752,8 @@ Future<void> _runAdminAction(
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(successMessage),
-        backgroundColor: Colors.green,
+        backgroundColor: const Color(0xFF16A34A),
+        behavior: SnackBarBehavior.floating,
       ),
     );
   } catch (e) {
@@ -1910,11 +2765,38 @@ Future<void> _runAdminAction(
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Action failed: $e'),
-        backgroundColor: Colors.red,
+        content: Text(
+          'Action failed: $e',
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
+        ),
+        backgroundColor: const Color(0xFFDC2626),
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }
+}
+
+void _showActionMessage(
+  BuildContext context,
+  String message, {
+  bool error = false,
+}) {
+  ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
+        ),
+        backgroundColor: error
+            ? const Color(0xFFDC2626)
+            : const Color(0xFF16A34A),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1960,7 +2842,7 @@ Future<void> _downloadInvoice(
         content: Text(
           'Invoice PDF is ready.',
         ),
-        backgroundColor: Colors.green,
+        backgroundColor: Color(0xFF16A34A),
       ),
     );
   } catch (e) {
@@ -1973,7 +2855,7 @@ Future<void> _downloadInvoice(
         content: Text(
           'Invoice PDF failed: $e',
         ),
-        backgroundColor: Colors.red,
+        backgroundColor: Color(0xFFDC2626),
       ),
     );
   }
@@ -2001,7 +2883,7 @@ Future<void> _shareInvoice(
         content: Text(
           'Invoice shared successfully.',
         ),
-        backgroundColor: Colors.green,
+        backgroundColor: Color(0xFF16A34A),
       ),
     );
   } catch (e) {
@@ -2014,7 +2896,7 @@ Future<void> _shareInvoice(
         content: Text(
           'Invoice sharing failed: $e',
         ),
-        backgroundColor: Colors.red,
+        backgroundColor: Color(0xFFDC2626),
       ),
     );
   }
