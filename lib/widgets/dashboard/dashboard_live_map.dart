@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 
@@ -12,120 +14,94 @@ import 'dashboard_components.dart';
 class DashboardLiveMap extends StatelessWidget {
   const DashboardLiveMap({
     super.key,
-    required this.activeWalksStream,
+    required this.liveWalksStream,
+    required this.acceptWalksStream,
   });
 
-  final Stream<QuerySnapshot<Map<String, dynamic>>> activeWalksStream;
+  final Stream<QuerySnapshot<Map<String, dynamic>>> liveWalksStream;
+  final Stream<QuerySnapshot<Map<String, dynamic>>> acceptWalksStream;
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: activeWalksStream,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+      stream: acceptWalksStream,
+      builder: (context, acceptSnapshot) {
+        if (acceptSnapshot.connectionState == ConnectionState.waiting) {
           return const _MapPreviewCard(
             child: _MapLoadingState(),
           );
         }
 
-        if (snapshot.hasError) {
+        if (acceptSnapshot.hasError) {
           return const _MapPreviewCard(
             child: _MapErrorState(),
           );
         }
 
-        final docs = snapshot.data?.docs ?? [];
+        return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: liveWalksStream,
+          builder: (context, liveSnapshot) {
+            if (liveSnapshot.connectionState == ConnectionState.waiting &&
+                !liveSnapshot.hasData) {
+              return const _MapPreviewCard(
+                child: _MapLoadingState(),
+              );
+            }
 
-        final walks = <_LiveWalkData>[];
+            if (liveSnapshot.hasError) {
+              return const _MapPreviewCard(
+                child: _MapErrorState(),
+              );
+            }
 
-        for (final doc in docs) {
-          final data = doc.data();
+            final walks = _buildUnifiedWalks(
+              acceptSnapshot.data?.docs ?? const [],
+              liveSnapshot.data?.docs ?? const [],
+            );
 
-          final walkerLocation = _readGeoPoint(
-            data,
-            const [
-              'walkerLocation',
-              'currentLocation',
-              'walker_location',
-              'current_location',
-            ],
-          );
+            return _MapPreviewCard(
+              child: Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(18),
+                    child: _MiniMap(
+                      walks: walks,
+                    ),
+                  ),
 
-          final ownerLocation = _readGeoPoint(
-            data,
-            const [
-              'ownerLocation',
-              'pickupLocation',
-              'location',
-              'owner_location',
-              'pickup_location',
-            ],
-          );
+                  Positioned(
+                    top: 14,
+                    left: 14,
+                    child: _MapStatusBadge(
+                      count: walks.length,
+                    ),
+                  ),
 
-          if (walkerLocation == null && ownerLocation == null) {
-            continue;
-          }
+                  Positioned(
+                    right: 14,
+                    bottom: 14,
+                    child: _OpenMapButton(
+                      enabled: walks.isNotEmpty,
+                      onTap: walks.isEmpty
+                          ? null
+                          : () {
+                              _openFullMap(
+                                context,
+                                liveWalksStream,
+                                acceptWalksStream,
+                              );
+                            },
+                    ),
+                  ),
 
-          walks.add(
-            _LiveWalkData(
-              walkId: doc.id,
-              walkerLocation: walkerLocation,
-              ownerLocation: ownerLocation,
-              walkerName: _readString(
-                data,
-                const ['walkerName', 'walker_name'],
+                  if (walks.isEmpty)
+                    const Positioned.fill(
+                      child: _MapEmptyOverlay(),
+                    ),
+                ],
               ),
-              ownerName: _readString(
-                data,
-                const ['ownerName', 'owner_name'],
-              ),
-            ),
-          );
-        }
-
-        return _MapPreviewCard(
-          child: Stack(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(18),
-                child: _MiniMap(
-                  walks: walks,
-                ),
-              ),
-
-              /// Top status
-              Positioned(
-                top: 14,
-                left: 14,
-                child: _MapStatusBadge(
-                  count: walks.length,
-                ),
-              ),
-
-              /// Map controls / open button
-              Positioned(
-                right: 14,
-                bottom: 14,
-                child: _OpenMapButton(
-                  enabled: walks.isNotEmpty,
-                  onTap: walks.isEmpty
-                      ? null
-                      : () {
-                          _openFullMap(
-                            context,
-                            walks,
-                          );
-                        },
-                ),
-              ),
-
-              /// Empty state overlay
-              if (walks.isEmpty)
-                const Positioned.fill(
-                  child: _MapEmptyOverlay(),
-                ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
@@ -133,9 +109,15 @@ class DashboardLiveMap extends StatelessWidget {
 
   void _openFullMap(
     BuildContext context,
-    List<_LiveWalkData> walks,
+    Stream<QuerySnapshot<Map<String, dynamic>>> liveStream,
+    Stream<QuerySnapshot<Map<String, dynamic>>> acceptStream,
   ) {
     final width = MediaQuery.sizeOf(context).width;
+
+    final map = _FullLiveMap(
+      liveWalksStream: liveStream,
+      acceptWalksStream: acceptStream,
+    );
 
     if (width >= 700) {
       showDialog<void>(
@@ -154,9 +136,7 @@ class DashboardLiveMap extends StatelessWidget {
                 maxWidth: 1100,
                 maxHeight: 800,
               ),
-              child: _FullLiveMap(
-                walks: walks,
-              ),
+              child: map,
             ),
           );
         },
@@ -173,14 +153,311 @@ class DashboardLiveMap extends StatelessWidget {
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(24),
               ),
-              child: _FullLiveMap(
-                walks: walks,
-              ),
+              child: map,
             ),
           );
         },
       );
     }
+  }
+
+  static List<_LiveWalkData> _buildUnifiedWalks(
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> requestDocs,
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> liveDocs,
+  ) {
+    final requests = <String, _RequestData>{};
+
+    for (final doc in requestDocs) {
+      final data = doc.data();
+
+      final requestId = _readString(
+        data,
+        const ['requestId', 'walkRequestId'],
+      ).isNotEmpty
+          ? _readString(
+              data,
+              const ['requestId', 'walkRequestId'],
+            )
+          : doc.id;
+
+      final status = _normaliseStatus(
+        _readString(
+          data,
+          const ['status'],
+        ),
+      );
+
+      final reached = data['reached'] == true;
+
+      requests[requestId] = _RequestData(
+        id: requestId,
+        data: data,
+        reached: reached,
+        terminal: _isTerminalStatus(status),
+      );
+    }
+
+    final liveSessions = <String, _LiveSessionData>{};
+
+    for (final doc in liveDocs) {
+      final data = doc.data();
+
+      if (_isTerminalLiveSession(data)) {
+        continue;
+      }
+
+      final requestId = _readString(
+        data,
+        const ['requestId', 'walkRequestId'],
+      );
+
+      final session = _LiveSessionData(
+        id: doc.id,
+        requestId: requestId,
+        data: data,
+      );
+
+      final key = requestId.isNotEmpty ? requestId : doc.id;
+
+      final previous = liveSessions[key];
+
+      if (previous == null ||
+          _timestampValue(data) >= _timestampValue(previous.data)) {
+        liveSessions[key] = session;
+      }
+    }
+
+    final result = <_LiveWalkData>[];
+    final addedLiveIds = <String>{};
+
+    // ------------------------------------------------------------
+    // 1. WALK REQUESTS BEFORE REACH
+    // ------------------------------------------------------------
+
+    for (final request in requests.values) {
+      if (request.terminal) {
+        continue;
+      }
+
+      // Once walker reaches pickup, request map data must disappear.
+      if (request.reached) {
+        continue;
+      }
+
+      final walkerLocation = _readGeoPoint(
+        request.data,
+        const [
+          'walkerLocation',
+          'walker_location',
+        ],
+      );
+
+      final ownerLocation = _readGeoPoint(
+        request.data,
+        const [
+          'ownerLocation',
+          'pickupLocation',
+          'location',
+          'owner_location',
+          'pickup_location',
+        ],
+      );
+
+      if (walkerLocation == null && ownerLocation == null) {
+        continue;
+      }
+
+      result.add(
+        _LiveWalkData(
+          walkId: request.id,
+          walkerLocation: walkerLocation,
+          ownerLocation: ownerLocation,
+          walkerName: _readString(
+            request.data,
+            const ['walkerName', 'walker_name'],
+          ),
+          ownerName: _readString(
+            request.data,
+            const ['ownerName', 'owner_name'],
+          ),
+        ),
+      );
+    }
+
+    // ------------------------------------------------------------
+    // 2. LIVE SESSIONS
+    // ------------------------------------------------------------
+
+    for (final session in liveSessions.values) {
+      final requestId = session.requestId;
+
+      final matchingRequest =
+          requestId.isNotEmpty ? requests[requestId] : null;
+
+      // If a request exists and walker has NOT reached pickup,
+      // the request is already representing this walk.
+      if (matchingRequest != null &&
+          !matchingRequest.reached &&
+          !matchingRequest.terminal) {
+        continue;
+      }
+
+      // If request is reached, only the live session is shown.
+      final walkerLocation = _readLiveWalkerLocation(
+        session.data,
+      );
+
+      final ownerLocation = _readGeoPoint(
+        session.data,
+        const [
+          'ownerLocation',
+          'pickupLocation',
+          'location',
+          'owner_location',
+          'pickup_location',
+        ],
+      );
+
+      if (walkerLocation == null && ownerLocation == null) {
+        continue;
+      }
+
+      result.add(
+        _LiveWalkData(
+          walkId: requestId.isNotEmpty ? requestId : session.id,
+          walkerLocation: walkerLocation,
+          ownerLocation: ownerLocation,
+          walkerName: _readString(
+            session.data,
+            const [
+              'walkerName',
+              'walker_name',
+            ],
+          ),
+          ownerName: _readString(
+            session.data,
+            const [
+              'ownerName',
+              'owner_name',
+            ],
+          ),
+        ),
+      );
+
+      addedLiveIds.add(
+        requestId.isNotEmpty ? requestId : session.id,
+      );
+    }
+
+    return result;
+  }
+
+  static bool _isTerminalLiveSession(
+    Map<String, dynamic> data,
+  ) {
+    final status = _normaliseStatus(
+      _readString(
+        data,
+        const ['status'],
+      ),
+    );
+
+    if (_isTerminalStatus(status)) {
+      return true;
+    }
+
+    if (data['walkEnded'] == true) {
+      return true;
+    }
+
+    if (data['trackingEnded'] == true) {
+      return true;
+    }
+
+    return false;
+  }
+
+  static bool _isTerminalStatus(String status) {
+    return const {
+      'completed',
+      'complete',
+      'cancelled',
+      'canceled',
+      'rejected',
+      'closed',
+      'finished',
+      'ended',
+    }.contains(status);
+  }
+
+  static String _normaliseStatus(String value) {
+    return value
+        .trim()
+        .toLowerCase()
+        .replaceAll('-', '_')
+        .replaceAll(' ', '_');
+  }
+
+  static GeoPoint? _readLiveWalkerLocation(
+    Map<String, dynamic> data,
+  ) {
+    final current = _readGeoPoint(
+      data,
+      const [
+        'currentLocation',
+        'current_location',
+      ],
+    );
+
+    if (current != null) {
+      return current;
+    }
+
+    final currentLat = _number(
+      data['currentLat'],
+    );
+
+    final currentLng = _number(
+      data['currentLng'],
+    );
+
+    if (currentLat != null && currentLng != null) {
+      return GeoPoint(
+        currentLat,
+        currentLng,
+      );
+    }
+
+    return _readGeoPoint(
+      data,
+      const [
+        'walkerLocation',
+        'walker_location',
+      ],
+    );
+  }
+
+  static int _timestampValue(
+    Map<String, dynamic> data,
+  ) {
+    final values = [
+      data['updatedAt'],
+      data['locationUpdatedAt'],
+      data['startedAt'],
+      data['createdAt'],
+    ];
+
+    for (final value in values) {
+      if (value is Timestamp) {
+        return value.millisecondsSinceEpoch;
+      }
+
+      if (value is DateTime) {
+        return value.millisecondsSinceEpoch;
+      }
+    }
+
+    return 0;
   }
 
   static String _readString(
@@ -270,6 +547,40 @@ class DashboardLiveMap extends StatelessWidget {
 
     return null;
   }
+}
+
+/// ===============================================================
+/// REQUEST DATA
+/// ===============================================================
+
+class _RequestData {
+  const _RequestData({
+    required this.id,
+    required this.data,
+    required this.reached,
+    required this.terminal,
+  });
+
+  final String id;
+  final Map<String, dynamic> data;
+  final bool reached;
+  final bool terminal;
+}
+
+/// ===============================================================
+/// LIVE SESSION DATA
+/// ===============================================================
+
+class _LiveSessionData {
+  const _LiveSessionData({
+    required this.id,
+    required this.requestId,
+    required this.data,
+  });
+
+  final String id;
+  final String requestId;
+  final Map<String, dynamic> data;
 }
 
 /// ===============================================================
@@ -447,7 +758,7 @@ class _MapEmptyOverlay extends StatelessWidget {
                 SizedBox(width: 9),
                 Flexible(
                   child: Text(
-                    'No active walk locations available',
+                    'No live walk locations available',
                     style: TextStyle(
                       color: dark,
                       fontSize: 12,
@@ -517,7 +828,7 @@ class _MapStatusBadge extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Text(
-            '$count active ${count == 1 ? 'walk' : 'walks'}',
+            '$count Live ${count == 1 ? 'Walk' : 'Walks'}',
             style: const TextStyle(
               color: dark,
               fontSize: 12,
@@ -666,10 +977,12 @@ class _MiniMap extends StatelessWidget {
 
 class _FullLiveMap extends StatefulWidget {
   const _FullLiveMap({
-    required this.walks,
+    required this.liveWalksStream,
+    required this.acceptWalksStream,
   });
 
-  final List<_LiveWalkData> walks;
+  final Stream<QuerySnapshot<Map<String, dynamic>>> liveWalksStream;
+  final Stream<QuerySnapshot<Map<String, dynamic>>> acceptWalksStream;
 
   @override
   State<_FullLiveMap> createState() => _FullLiveMapState();
@@ -680,22 +993,175 @@ class _FullLiveMapState extends State<_FullLiveMap> {
 
   final Map<String, List<LatLng>> _routes = {};
 
-  bool _loadingRoutes = true;
+  List<_LiveWalkData> _walks = [];
+
+  bool _loadingRoutes = false;
+  bool _nearbyOnly = false;
+
+  LatLng? _myLocation;
+
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
+      _liveSubscription;
+
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
+      _acceptSubscription;
+
+  QuerySnapshot<Map<String, dynamic>>? _liveSnapshot;
+  QuerySnapshot<Map<String, dynamic>>? _acceptSnapshot;
 
   @override
   void initState() {
     super.initState();
-    unawaited(_loadRoutes());
+
+    _listenToStreams();
   }
 
-  Future<void> _loadRoutes() async {
+  @override
+  void dispose() {
+    _liveSubscription?.cancel();
+    _acceptSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _listenToStreams() {
+    _acceptSubscription = widget.acceptWalksStream.listen(
+      (snapshot) {
+        if (!mounted) {
+          return;
+        }
+
+        _acceptSnapshot = snapshot;
+        _rebuildWalks();
+      },
+      onError: (_) {},
+    );
+
+    _liveSubscription = widget.liveWalksStream.listen(
+      (snapshot) {
+        if (!mounted) {
+          return;
+        }
+
+        _liveSnapshot = snapshot;
+        _rebuildWalks();
+      },
+      onError: (_) {},
+    );
+  }
+
+  void _rebuildWalks() {
+    final requestDocs = _acceptSnapshot?.docs ?? const [];
+    final liveDocs = _liveSnapshot?.docs ?? const [];
+
+    final allWalks = DashboardLiveMap._buildUnifiedWalks(
+      requestDocs,
+      liveDocs,
+    );
+
+    final filteredWalks = _nearbyOnly && _myLocation != null
+        ? _filterNearby(
+            allWalks,
+            _myLocation!,
+          )
+        : allWalks;
+
+    final changed = _walkListsChanged(
+      _walks,
+      filteredWalks,
+    );
+
+    setState(() {
+      _walks = filteredWalks;
+    });
+
+    if (changed) {
+      unawaited(
+        _reloadRoutes(
+          filteredWalks,
+        ),
+      );
+    }
+  }
+
+  bool _walkListsChanged(
+    List<_LiveWalkData> oldWalks,
+    List<_LiveWalkData> newWalks,
+  ) {
+    if (oldWalks.length != newWalks.length) {
+      return true;
+    }
+
+    for (var i = 0; i < oldWalks.length; i++) {
+      final oldWalk = oldWalks[i];
+      final newWalk = newWalks[i];
+
+      if (oldWalk.walkId != newWalk.walkId) {
+        return true;
+      }
+
+      if (!_sameGeoPoint(
+        oldWalk.walkerLocation,
+        newWalk.walkerLocation,
+      )) {
+        return true;
+      }
+
+      if (!_sameGeoPoint(
+        oldWalk.ownerLocation,
+        newWalk.ownerLocation,
+      )) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  bool _sameGeoPoint(
+    GeoPoint? a,
+    GeoPoint? b,
+  ) {
+    if (a == null && b == null) {
+      return true;
+    }
+
+    if (a == null || b == null) {
+      return false;
+    }
+
+    return a.latitude == b.latitude &&
+        a.longitude == b.longitude;
+  }
+
+  Future<void> _reloadRoutes(
+    List<_LiveWalkData> walks,
+  ) async {
+    final oldRoutes = Map<String, List<LatLng>>.from(
+      _routes,
+    );
+
+    _routes.clear();
+
+    if (mounted) {
+      setState(() {
+        _loadingRoutes = true;
+      });
+    }
+
     final routeTasks = <Future<void>>[];
 
-    for (final walk in widget.walks) {
+    for (final walk in walks) {
       final walker = walk.walkerLatLng;
       final owner = walk.ownerLatLng;
 
       if (walker == null || owner == null) {
+        continue;
+      }
+
+      final oldRoute = oldRoutes[walk.walkId];
+
+      if (oldRoute != null && oldRoute.isNotEmpty) {
+        _routes[walk.walkId] = oldRoute;
         continue;
       }
 
@@ -751,13 +1217,13 @@ class _FullLiveMapState extends State<_FullLiveMap> {
         return;
       }
 
-      final json = jsonDecode(response.body);
+      final decoded = jsonDecode(response.body);
 
-      if (json is! Map) {
+      if (decoded is! Map) {
         return;
       }
 
-      final routes = json['routes'];
+      final routes = decoded['routes'];
 
       if (routes is! List || routes.isEmpty) {
         return;
@@ -797,14 +1263,183 @@ class _FullLiveMapState extends State<_FullLiveMap> {
         });
       }
     } catch (_) {
-      // Route failure should not break the live map.
+      // Route failure must never break the live map.
     }
+  }
+
+  List<_LiveWalkData> _filterNearby(
+    List<_LiveWalkData> walks,
+    LatLng center,
+  ) {
+    const distance = Distance();
+
+    return walks.where((walk) {
+      final walker = walk.walkerLatLng;
+      final owner = walk.ownerLatLng;
+
+      if (walker != null) {
+        final meters = distance.as(
+          LengthUnit.Meter,
+          center,
+          walker,
+        );
+
+        if (meters <= 5000) {
+          return true;
+        }
+      }
+
+      if (owner != null) {
+        final meters = distance.as(
+          LengthUnit.Meter,
+          center,
+          owner,
+        );
+
+        if (meters <= 5000) {
+          return true;
+        }
+      }
+
+      return false;
+    }).toList();
+  }
+
+  Future<void> _useMyLocation() async {
+    try {
+      final serviceEnabled =
+          await Geolocator.isLocationServiceEnabled();
+
+      if (!serviceEnabled) {
+        if (!mounted) {
+          return;
+        }
+
+        _showLocationMessage(
+          'Location service is turned off.',
+        );
+        return;
+      }
+
+      var permission =
+          await Geolocator.checkPermission();
+
+      if (permission == LocationPermission.denied) {
+        permission =
+            await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied) {
+        if (!mounted) {
+          return;
+        }
+
+        _showLocationMessage(
+          'Location permission is required.',
+        );
+        return;
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        if (!mounted) {
+          return;
+        }
+
+        _showLocationMessage(
+          'Location permission is blocked. Enable it in settings.',
+        );
+        return;
+      }
+
+      final position =
+          await Geolocator.getCurrentPosition(
+        locationSettings:
+            const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      final location = LatLng(
+        position.latitude,
+        position.longitude,
+      );
+
+      setState(() {
+        _myLocation = location;
+        _nearbyOnly = true;
+      });
+
+      _rebuildWalks();
+
+      _mapController.move(
+        location,
+        12.5,
+      );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      _showLocationMessage(
+        'Unable to get your current location.',
+      );
+    }
+  }
+
+  void _showLocationMessage(
+    String message,
+  ) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+  }
+
+  void _showAllWalks() {
+    if (_nearbyOnly) {
+      setState(() {
+        _nearbyOnly = false;
+      });
+
+      _rebuildWalks();
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+
+      _fitAll();
+    });
+  }
+
+  void _handleMapGesture(
+    MapCamera camera,
+    bool hasGesture,
+  ) {
+    if (!hasGesture || !_nearbyOnly) {
+      return;
+    }
+
+    setState(() {
+      _nearbyOnly = false;
+    });
+
+    _rebuildWalks();
   }
 
   void _fitAll() {
     final points = <LatLng>[];
 
-    for (final walk in widget.walks) {
+    for (final walk in _walks) {
       if (walk.walkerLatLng != null) {
         points.add(
           walk.walkerLatLng!,
@@ -830,7 +1465,9 @@ class _FullLiveMapState extends State<_FullLiveMap> {
       return;
     }
 
-    final bounds = LatLngBounds.fromPoints(points);
+    final bounds = LatLngBounds.fromPoints(
+      points,
+    );
 
     _mapController.fitCamera(
       CameraFit.bounds(
@@ -843,6 +1480,8 @@ class _FullLiveMapState extends State<_FullLiveMap> {
 
   @override
   Widget build(BuildContext context) {
+    final displayWalks = _walks;
+
     return Material(
       color: Colors.white,
       child: Column(
@@ -854,22 +1493,29 @@ class _FullLiveMapState extends State<_FullLiveMap> {
                 FlutterMap(
                   mapController: _mapController,
                   options: MapOptions(
-                    initialCenter: _initialCenter(widget.walks),
+                    initialCenter: _initialCenter(
+                      displayWalks,
+                    ),
                     initialZoom: 11,
-                    interactionOptions: const InteractionOptions(
+                    interactionOptions:
+                        const InteractionOptions(
                       flags: InteractiveFlag.all,
                     ),
+                    onPositionChanged:
+                        _handleMapGesture,
                   ),
                   children: [
                     TileLayer(
                       urlTemplate:
                           'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      userAgentPackageName: 'com.doojowalker.app',
+                      userAgentPackageName:
+                          'com.doojowalker.app',
                     ),
 
                     if (_routes.isNotEmpty)
                       PolylineLayer(
-                        polylines: _routes.entries.map((entry) {
+                        polylines:
+                            _routes.entries.map((entry) {
                           return Polyline(
                             points: entry.value,
                             strokeWidth: 5,
@@ -880,9 +1526,22 @@ class _FullLiveMapState extends State<_FullLiveMap> {
 
                     MarkerLayer(
                       markers: _buildMarkers(
-                        widget.walks,
+                        displayWalks,
                       ),
                     ),
+
+                    if (_myLocation != null)
+                      MarkerLayer(
+                        markers: [
+                          Marker(
+                            point: _myLocation!,
+                            width: 34,
+                            height: 34,
+                            child:
+                                const _MyLocationMarker(),
+                          ),
+                        ],
+                      ),
 
                     RichAttributionWidget(
                       attributions: [
@@ -894,14 +1553,12 @@ class _FullLiveMapState extends State<_FullLiveMap> {
                   ],
                 ),
 
-                /// Legend
                 Positioned(
                   left: 16,
                   bottom: 16,
                   child: const _MapLegend(),
                 ),
 
-                /// Map controls
                 Positioned(
                   right: 16,
                   bottom: 16,
@@ -918,24 +1575,25 @@ class _FullLiveMapState extends State<_FullLiveMap> {
                         _mapController.camera.zoom - 1,
                       );
                     },
-                    onFitAll: _fitAll,
+                    onFitAll: _showAllWalks,
+                    onMyLocation: _useMyLocation,
+                    nearbyOnly: _nearbyOnly,
                   ),
                 ),
 
-                /// Route loading
                 if (_loadingRoutes)
-                  Positioned(
+                  const Positioned(
                     top: 16,
                     right: 16,
                     child: _RouteLoadingBadge(),
                   ),
 
-                /// Active count
                 Positioned(
                   top: 16,
                   left: 16,
-                  child: _FullMapActiveBadge(
-                    count: widget.walks.length,
+                  child: _FullMapLiveBadge(
+                    count: displayWalks.length,
+                    nearbyOnly: _nearbyOnly,
                   ),
                 ),
               ],
@@ -946,7 +1604,9 @@ class _FullLiveMapState extends State<_FullLiveMap> {
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(
+    BuildContext context,
+  ) {
     final width = MediaQuery.sizeOf(context).width;
     final compact = width < 600;
 
@@ -983,7 +1643,8 @@ class _FullLiveMapState extends State<_FullLiveMap> {
           const SizedBox(width: 11),
           const Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
               children: [
                 Text(
                   'Live Walk Map',
@@ -1038,15 +1699,17 @@ class _FullLiveMapState extends State<_FullLiveMap> {
 }
 
 /// ===============================================================
-/// FULL MAP ACTIVE BADGE
+/// FULL MAP LIVE BADGE
 /// ===============================================================
 
-class _FullMapActiveBadge extends StatelessWidget {
-  const _FullMapActiveBadge({
+class _FullMapLiveBadge extends StatelessWidget {
+  const _FullMapLiveBadge({
     required this.count,
+    required this.nearbyOnly,
   });
 
   final int count;
+  final bool nearbyOnly;
 
   @override
   Widget build(BuildContext context) {
@@ -1081,7 +1744,9 @@ class _FullMapActiveBadge extends StatelessWidget {
           ),
           const SizedBox(width: 7),
           Text(
-            '$count active',
+            nearbyOnly
+                ? '$count nearby'
+                : '$count Live ${count == 1 ? 'Walk' : 'Walks'}',
             style: const TextStyle(
               color: dark,
               fontSize: 12,
@@ -1103,11 +1768,15 @@ class _MapControls extends StatelessWidget {
     required this.onZoomIn,
     required this.onZoomOut,
     required this.onFitAll,
+    required this.onMyLocation,
+    required this.nearbyOnly,
   });
 
   final VoidCallback onZoomIn;
   final VoidCallback onZoomOut;
   final VoidCallback onFitAll;
+  final VoidCallback onMyLocation;
+  final bool nearbyOnly;
 
   @override
   Widget build(BuildContext context) {
@@ -1130,6 +1799,13 @@ class _MapControls extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           _MapControlButton(
+            tooltip: 'My location · nearby walks',
+            icon: Icons.my_location,
+            onTap: onMyLocation,
+            active: nearbyOnly,
+          ),
+          const SizedBox(height: 4),
+          _MapControlButton(
             tooltip: 'Zoom in',
             icon: Icons.add,
             onTap: onZoomIn,
@@ -1148,7 +1824,7 @@ class _MapControls extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           _MapControlButton(
-            tooltip: 'Fit all walks',
+            tooltip: 'Fit all live walks',
             icon: Icons.fit_screen,
             onTap: onFitAll,
           ),
@@ -1163,18 +1839,22 @@ class _MapControlButton extends StatelessWidget {
     required this.tooltip,
     required this.icon,
     required this.onTap,
+    this.active = false,
   });
 
   final String tooltip;
   final IconData icon;
   final VoidCallback onTap;
+  final bool active;
 
   @override
   Widget build(BuildContext context) {
     return Tooltip(
       message: tooltip,
       child: Material(
-        color: background,
+        color: active
+            ? blue.withValues(alpha: 0.10)
+            : background,
         borderRadius: BorderRadius.circular(9),
         child: InkWell(
           onTap: onTap,
@@ -1184,10 +1864,47 @@ class _MapControlButton extends StatelessWidget {
             height: 34,
             child: Icon(
               icon,
-              color: dark,
+              color: active ? blue : dark,
               size: 19,
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// ===============================================================
+/// MY LOCATION MARKER
+/// ===============================================================
+
+class _MyLocationMarker extends StatelessWidget {
+  const _MyLocationMarker();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        width: 24,
+        height: 24,
+        decoration: BoxDecoration(
+          color: blue,
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: Colors.white,
+            width: 3,
+          ),
+          boxShadow: [
+            BoxShadow(
+              blurRadius: 8,
+              color: blue.withValues(alpha: 0.35),
+            ),
+          ],
+        ),
+        child: const Icon(
+          Icons.my_location,
+          color: Colors.white,
+          size: 12,
         ),
       ),
     );
@@ -1256,7 +1973,8 @@ class _MapLegend extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final compact = MediaQuery.sizeOf(context).width < 600;
+    final compact =
+        MediaQuery.sizeOf(context).width < 600;
 
     return Container(
       padding: EdgeInsets.symmetric(
