@@ -251,6 +251,10 @@ class WalkHistoryCard extends StatelessWidget {
 
           const SizedBox(height: 14),
 
+          // ====================================================
+          // WALK COUNTS
+          // ====================================================
+
           Row(
             children: [
               _count(
@@ -264,8 +268,6 @@ class WalkHistoryCard extends StatelessWidget {
                 label: 'Poop',
                 value: walk.poopCount,
               ),
-              const SizedBox(width: 16),
-              _rating(),
               const Spacer(),
               TextButton.icon(
                 onPressed: onView,
@@ -282,13 +284,159 @@ class WalkHistoryCard extends StatelessWidget {
               ),
             ],
           ),
+
+          const SizedBox(height: 10),
+
+          // ====================================================
+          // REVIEWS
+          // ====================================================
+
+          _reviewsRow(),
         ],
       ),
     );
   }
 
+  // ==========================================================
+  // REVIEWS ROW
+  // ==========================================================
+
+  Widget _reviewsRow() {
+    return Row(
+      children: [
+        Expanded(
+          child: _reviewMini(
+            icon: Icons.person_outline,
+            title: 'Owner Review',
+            rating:
+                walk.ownerReviewRating,
+            submitted:
+                walk.ownerReviewSubmitted,
+            color: dojoOrange,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _reviewMini(
+            icon: Icons.badge_outlined,
+            title: 'Walker Review',
+            rating:
+                walk.walkerReviewRating,
+            submitted:
+                walk.walkerReviewSubmitted,
+            color: dojoBlue,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ==========================================================
+  // REVIEW MINI
+  // ==========================================================
+
+  Widget _reviewMini({
+    required IconData icon,
+    required String title,
+    required int rating,
+    required bool submitted,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 10,
+        vertical: 9,
+      ),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F9FA),
+        borderRadius:
+            BorderRadius.circular(10),
+        border: Border.all(
+          color: dojoBorder,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 17,
+            color: color,
+          ),
+          const SizedBox(width: 7),
+          Expanded(
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow:
+                      TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 9,
+                    color: dojoGrey,
+                    fontWeight:
+                        FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.star,
+                      size: 14,
+                      color: Colors.amber,
+                    ),
+                    const SizedBox(width: 3),
+                    Text(
+                      rating > 0
+                          ? '$rating/5'
+                          : '-',
+                      style:
+                          const TextStyle(
+                        fontSize: 10,
+                        color: dojoDark,
+                        fontWeight:
+                            FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        submitted
+                            ? 'Submitted'
+                            : 'Not submitted',
+                        maxLines: 1,
+                        overflow:
+                            TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 9,
+                          color: submitted
+                              ? dojoGreen
+                              : dojoGrey,
+                          fontWeight:
+                              FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================================
+  // DOG IMAGE
+  // ==========================================================
+
   Widget _dogImage() {
-    final image = walk.dogPhoto.trim();
+    final image =
+        walk.dogPhoto.trim();
 
     if (image.isEmpty) {
       return Container(
@@ -331,14 +479,20 @@ class WalkHistoryCard extends StatelessWidget {
     );
   }
 
+  // ==========================================================
+  // STATUS
+  // ==========================================================
+
   Widget _statusBadge(Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(
+      padding:
+          const EdgeInsets.symmetric(
         horizontal: 9,
         vertical: 5,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
+        color:
+            color.withValues(alpha: 0.10),
         borderRadius:
             BorderRadius.circular(20),
       ),
@@ -353,12 +507,17 @@ class WalkHistoryCard extends StatelessWidget {
     );
   }
 
+  // ==========================================================
+  // INFO
+  // ==========================================================
+
   Widget _info(
     IconData icon,
     String value,
   ) {
     return Row(
-      mainAxisSize: MainAxisSize.min,
+      mainAxisSize:
+          MainAxisSize.min,
       children: [
         Icon(
           icon,
@@ -371,12 +530,17 @@ class WalkHistoryCard extends StatelessWidget {
           style: const TextStyle(
             fontSize: 10,
             color: dojoGrey,
-            fontWeight: FontWeight.w600,
+            fontWeight:
+                FontWeight.w600,
           ),
         ),
       ],
     );
   }
+
+  // ==========================================================
+  // PERSON
+  // ==========================================================
 
   Widget _personInfo({
     required IconData icon,
@@ -384,9 +548,11 @@ class WalkHistoryCard extends StatelessWidget {
     required String value,
   }) {
     return Container(
-      padding: const EdgeInsets.all(10),
+      padding:
+          const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F9FA),
+        color:
+            const Color(0xFFF8F9FA),
         borderRadius:
             BorderRadius.circular(10),
       ),
@@ -405,18 +571,22 @@ class WalkHistoryCard extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: const TextStyle(
+                  style:
+                      const TextStyle(
                     fontSize: 9,
                     color: dojoGrey,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  value.isEmpty ? '-' : value,
+                  value.isEmpty
+                      ? '-'
+                      : value,
                   maxLines: 1,
                   overflow:
                       TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style:
+                      const TextStyle(
                     fontSize: 11,
                     fontWeight:
                         FontWeight.w800,
@@ -431,13 +601,18 @@ class WalkHistoryCard extends StatelessWidget {
     );
   }
 
+  // ==========================================================
+  // COUNT
+  // ==========================================================
+
   Widget _count({
     required IconData icon,
     required String label,
     required int value,
   }) {
     return Row(
-      mainAxisSize: MainAxisSize.min,
+      mainAxisSize:
+          MainAxisSize.min,
       children: [
         Icon(
           icon,
@@ -447,32 +622,12 @@ class WalkHistoryCard extends StatelessWidget {
         const SizedBox(width: 4),
         Text(
           '$label $value',
-          style: const TextStyle(
+          style:
+              const TextStyle(
             fontSize: 10,
-            fontWeight: FontWeight.w700,
+            fontWeight:
+                FontWeight.w700,
             color: dojoGrey,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _rating() {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Icon(
-          Icons.star,
-          size: 16,
-          color: Colors.amber,
-        ),
-        const SizedBox(width: 4),
-        Text(
-          formatRating(walk.rating),
-          style: const TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.w800,
-            color: dojoDark,
           ),
         ),
       ],
@@ -493,7 +648,8 @@ class WalkHistoryEmpty extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(
+      padding:
+          const EdgeInsets.symmetric(
         horizontal: 20,
         vertical: 55,
       ),
@@ -517,14 +673,16 @@ class WalkHistoryEmpty extends StatelessWidget {
             'No completed walks found',
             style: TextStyle(
               fontSize: 15,
-              fontWeight: FontWeight.w800,
+              fontWeight:
+                  FontWeight.w800,
               color: dojoDark,
             ),
           ),
           SizedBox(height: 5),
           Text(
             'Completed walks will appear here.',
-            textAlign: TextAlign.center,
+            textAlign:
+                TextAlign.center,
             style: TextStyle(
               fontSize: 11,
               color: dojoGrey,
