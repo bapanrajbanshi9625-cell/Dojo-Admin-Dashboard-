@@ -14,8 +14,7 @@ class WalkHistoryScreen extends StatefulWidget {
       _WalkHistoryScreenState();
 }
 
-class _WalkHistoryScreenState
-    extends State<WalkHistoryScreen> {
+class _WalkHistoryScreenState extends State<WalkHistoryScreen> {
   final FirebaseFirestore _firestore =
       FirebaseFirestore.instance;
 
@@ -29,111 +28,146 @@ class _WalkHistoryScreenState
   // ==========================================================
 
   Stream<QuerySnapshot<Map<String, dynamic>>>
-    get historyStream {
-  return _firestore
-      .collection('walk_history')
-      .where(
-        'status',
-        isEqualTo: 'Completed',
-      )
-      .snapshots();
-}
+      get historyStream {
+    // IMPORTANT:
+    // Do NOT filter with:
+    // where('status', isEqualTo: 'Completed')
+    //
+    // Firestore string comparison is case-sensitive.
+    // Our database uses "completed".
+    //
+    // Fetch the complete walk_history collection and normalize
+    // status on the client side.
+    return _firestore
+        .collection('walk_history')
+        .snapshots();
+  }
 
-@override
-void dispose() {
-  searchController.dispose();
-  super.dispose();
-}
+  @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
+  }
 
   // ==========================================================
   // BUILD
   // ==========================================================
 
   @override
-Widget build(BuildContext context) {
-  return StreamBuilder<
-      QuerySnapshot<Map<String, dynamic>>>(
-    stream: historyStream,
-    builder: (
-      context,
-      snapshot,
-    ) {
-      if (snapshot.hasError) {
-        return _error(
-          snapshot.error.toString(),
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: historyStream,
+      builder: (
+        context,
+        snapshot,
+      ) {
+        if (snapshot.hasError) {
+          return _error(
+            snapshot.error.toString(),
+          );
+        }
+
+        if (snapshot.connectionState ==
+            ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(
+              color: dojoOrange,
+            ),
+          );
+        }
+
+        final histories = _parseHistory(
+          snapshot.data?.docs ?? [],
         );
-      }
 
-      if (snapshot.connectionState ==
-          ConnectionState.waiting) {
-        return const Center(
-          child: CircularProgressIndicator(
-            color: dojoOrange,
-          ),
+        histories.sort(
+          (a, b) {
+            final aDate =
+                a.completedAt ?? a.startedAt;
+            final bDate =
+                b.completedAt ?? b.startedAt;
+
+            if (aDate == null && bDate == null) {
+              return 0;
+            }
+
+            if (aDate == null) {
+              return 1;
+            }
+
+            if (bDate == null) {
+              return -1;
+            }
+
+            return bDate.compareTo(aDate);
+          },
         );
-      }
 
-      final histories = _parseHistory(
-        snapshot.data?.docs ?? [],
-      );
+        // Only completed walks belong in Walk History.
+        final completedHistories =
+            histories.where(
+          (walk) =>
+              walk.status.trim().toLowerCase() ==
+              'completed',
+        ).toList();
 
-      histories.sort(
-        (a, b) => b.createdAt.compareTo(
-          a.createdAt,
-        ),
-      );
+        final filtered =
+            _filterHistory(completedHistories);
 
-      final filtered =
-          _filterHistory(histories);
-
-      return _content(
-        histories,
-        filtered,
-      );
-    },
-  );
-}
+        return _content(
+          completedHistories,
+          filtered,
+        );
+      },
+    );
+  }
 
   // ==========================================================
   // PARSE
   // ==========================================================
 
   List<WalkHistoryData> _parseHistory(
-  List<QueryDocumentSnapshot<
-          Map<String, dynamic>>>
-      docs,
-) {
-  return docs
-      .map(
-        (doc) => WalkHistoryData.fromFirestore(
-          doc.id,
-          doc.data(),
-        ),
-      )
-      .toList();
+    List<QueryDocumentSnapshot<
+            Map<String, dynamic>>>
+        docs,
+  ) {
+    return docs
+        .map(
+          (doc) => WalkHistoryData.fromFirestore(
+            doc.id,
+            doc.data(),
+          ),
+        )
+        .toList();
   }
-  
+
   // ==========================================================
   // CONTENT
   // ==========================================================
 
   Widget _content(
-  List<WalkHistoryData> histories,
-  List<WalkHistoryData> filtered,
-) {
+    List<WalkHistoryData> histories,
+    List<WalkHistoryData> filtered,
+  ) {
     final totalDistance =
         histories.fold<double>(
       0,
       (sum, walk) => sum + walk.distanceKm,
     );
 
-    final averageRating = histories.isEmpty
+    final ratedWalks = histories
+        .where(
+          (walk) => walk.rating > 0,
+        )
+        .toList();
+
+    final averageRating = ratedWalks.isEmpty
         ? 0.0
-        : histories.fold<int>(
+        : ratedWalks.fold<int>(
               0,
               (sum, walk) => sum + walk.rating,
             ) /
-            histories.length;
+            ratedWalks.length;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -160,8 +194,15 @@ Widget build(BuildContext context) {
 
           const SizedBox(height: 20),
 
+          // ====================================================
+          // SUMMARY
+          // ====================================================
+
           LayoutBuilder(
-            builder: (context, constraints) {
+            builder: (
+              context,
+              constraints,
+            ) {
               final columns =
                   constraints.maxWidth >= 1100
                       ? 4
@@ -241,7 +282,8 @@ Widget build(BuildContext context) {
                                   searchController
                                       .clear();
                                   setState(
-                                      () {});
+                                    () {},
+                                  );
                                 },
                                 icon:
                                     const Icon(
@@ -275,6 +317,10 @@ Widget build(BuildContext context) {
 
           const SizedBox(height: 20),
 
+          // ====================================================
+          // LIST HEADER
+          // ====================================================
+
           Row(
             children: [
               const Expanded(
@@ -299,6 +345,10 @@ Widget build(BuildContext context) {
           ),
 
           const SizedBox(height: 10),
+
+          // ====================================================
+          // LIST
+          // ====================================================
 
           if (filtered.isEmpty)
             const WalkHistoryEmpty()
@@ -328,7 +378,7 @@ Widget build(BuildContext context) {
   }
 
   // ==========================================================
-  // FILTER
+  // FILTER BUTTON
   // ==========================================================
 
   Widget _filter(String title) {
@@ -375,6 +425,10 @@ Widget build(BuildContext context) {
       ),
     );
   }
+
+  // ==========================================================
+  // LOCAL FILTER
+  // ==========================================================
 
   List<WalkHistoryData> _filterHistory(
     List<WalkHistoryData> walks,
@@ -442,8 +496,11 @@ Widget build(BuildContext context) {
               const SizedBox(width: 9),
               Expanded(
                 child: Text(
-                  walk.walkId,
-                  style: const TextStyle(
+                  walk.walkId.isNotEmpty
+                      ? walk.walkId
+                      : walk.id,
+                  style:
+                      const TextStyle(
                     fontWeight:
                         FontWeight.w800,
                   ),
@@ -451,7 +508,8 @@ Widget build(BuildContext context) {
               ),
             ],
           ),
-          content: SingleChildScrollView(
+          content:
+              SingleChildScrollView(
             child: Column(
               crossAxisAlignment:
                   CrossAxisAlignment.start,
@@ -556,6 +614,10 @@ Widget build(BuildContext context) {
     );
   }
 
+  // ==========================================================
+  // SECTION
+  // ==========================================================
+
   Widget _section(
     String title,
     List<Widget> children,
@@ -585,6 +647,10 @@ Widget build(BuildContext context) {
     );
   }
 
+  // ==========================================================
+  // ROW
+  // ==========================================================
+
   Widget _row(
     String title,
     String value,
@@ -602,7 +668,8 @@ Widget build(BuildContext context) {
             width: 85,
             child: Text(
               title,
-              style: const TextStyle(
+              style:
+                  const TextStyle(
                 color: dojoGrey,
                 fontSize: 11,
               ),
@@ -610,8 +677,11 @@ Widget build(BuildContext context) {
           ),
           Expanded(
             child: Text(
-              value.isEmpty ? '-' : value,
-              style: const TextStyle(
+              value.isEmpty
+                  ? '-'
+                  : value,
+              style:
+                  const TextStyle(
                 fontSize: 11,
                 fontWeight:
                     FontWeight.w700,
@@ -627,10 +697,13 @@ Widget build(BuildContext context) {
   // ERROR
   // ==========================================================
 
-  Widget _error(String error) {
+  Widget _error(
+    String error,
+  ) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding:
+            const EdgeInsets.all(24),
         child: Column(
           mainAxisSize:
               MainAxisSize.min,
@@ -640,7 +713,9 @@ Widget build(BuildContext context) {
               size: 45,
               color: dojoOrange,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(
+              height: 12,
+            ),
             const Text(
               'Unable to load walk data',
               style: TextStyle(
@@ -649,12 +724,15 @@ Widget build(BuildContext context) {
                     FontWeight.w800,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(
+              height: 8,
+            ),
             Text(
               error,
               textAlign:
                   TextAlign.center,
-              style: const TextStyle(
+              style:
+                  const TextStyle(
                 color: dojoGrey,
                 fontSize: 11,
               ),
