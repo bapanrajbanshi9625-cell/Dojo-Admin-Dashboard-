@@ -29,15 +29,13 @@ class _WalkHistoryScreenState extends State<WalkHistoryScreen> {
 
   Stream<QuerySnapshot<Map<String, dynamic>>>
       get historyStream {
-    // IMPORTANT:
-    // Do NOT filter with:
-    // where('status', isEqualTo: 'Completed')
+    // Do not filter status in Firestore.
     //
     // Firestore string comparison is case-sensitive.
-    // Our database uses "completed".
+    // Completed walks may contain:
+    // "completed"
     //
-    // Fetch the complete walk_history collection and normalize
-    // status on the client side.
+    // We normalize the status locally below.
     return _firestore
         .collection('walk_history')
         .snapshots();
@@ -112,7 +110,9 @@ class _WalkHistoryScreenState extends State<WalkHistoryScreen> {
         ).toList();
 
         final filtered =
-            _filterHistory(completedHistories);
+            _filterHistory(
+          completedHistories,
+        );
 
         return _content(
           completedHistories,
@@ -157,7 +157,8 @@ class _WalkHistoryScreenState extends State<WalkHistoryScreen> {
 
     final ratedWalks = histories
         .where(
-          (walk) => walk.rating > 0,
+          (walk) =>
+              _effectiveRating(walk) > 0,
         )
         .toList();
 
@@ -165,7 +166,8 @@ class _WalkHistoryScreenState extends State<WalkHistoryScreen> {
         ? 0.0
         : ratedWalks.fold<int>(
               0,
-              (sum, walk) => sum + walk.rating,
+              (sum, walk) =>
+                  sum + _effectiveRating(walk),
             ) /
             ratedWalks.length;
 
@@ -378,6 +380,24 @@ class _WalkHistoryScreenState extends State<WalkHistoryScreen> {
   }
 
   // ==========================================================
+  // EFFECTIVE RATING
+  // ==========================================================
+
+  int _effectiveRating(
+    WalkHistoryData walk,
+  ) {
+    if (walk.ownerReviewRating > 0) {
+      return walk.ownerReviewRating;
+    }
+
+    if (walk.walkerReviewRating > 0) {
+      return walk.walkerReviewRating;
+    }
+
+    return walk.rating;
+  }
+
+  // ==========================================================
   // FILTER BUTTON
   // ==========================================================
 
@@ -465,12 +485,15 @@ class _WalkHistoryScreenState extends State<WalkHistoryScreen> {
               .toLowerCase()
               .contains(query);
 
+      final filterRating =
+          _effectiveRating(walk);
+
       final filterMatch =
           selectedFilter == 'All' ||
           (selectedFilter == 'Rated' &&
-              walk.rating > 0) ||
+              filterRating > 0) ||
           (selectedFilter == 'Unrated' &&
-              walk.rating == 0);
+              filterRating == 0);
 
       return searchMatch && filterMatch;
     }).toList();
@@ -573,7 +596,7 @@ class _WalkHistoryScreenState extends State<WalkHistoryScreen> {
                     ),
                     _row(
                       'Duration',
-                      '${walk.durationMinutes} min',
+                      '${walk.durationMinutes.toStringAsFixed(1)} min',
                     ),
                     _row(
                       'Distance',
@@ -587,13 +610,49 @@ class _WalkHistoryScreenState extends State<WalkHistoryScreen> {
                       'Poop',
                       '${walk.poopCount}',
                     ),
-                    _row(
-                      'Rating',
-                      walk.rating > 0
-                          ? '${walk.rating}/5'
-                          : '-',
-                    ),
                   ],
+                ),
+
+                // ==================================================
+                // OWNER REVIEW
+                // Owner -> Walker
+                // ==================================================
+
+                _reviewSection(
+                  title: 'Owner Review',
+                  subtitle:
+                      'Owner → Walker',
+                  rating:
+                      walk.ownerReviewRating,
+                  note:
+                      walk.ownerReviewNote,
+                  submitted:
+                      walk.ownerReviewSubmitted,
+                  reviewedAt:
+                      walk.ownerReviewedAt,
+                  accent:
+                      dojoOrange,
+                ),
+
+                // ==================================================
+                // WALKER REVIEW
+                // Walker -> Owner
+                // ==================================================
+
+                _reviewSection(
+                  title: 'Walker Review',
+                  subtitle:
+                      'Walker → Owner',
+                  rating:
+                      walk.walkerReviewRating,
+                  note:
+                      walk.walkerReviewNote,
+                  submitted:
+                      walk.walkerReviewSubmitted,
+                  reviewedAt:
+                      walk.walkerReviewedAt,
+                  accent:
+                      dojoBlue,
                 ),
               ],
             ),
@@ -612,6 +671,235 @@ class _WalkHistoryScreenState extends State<WalkHistoryScreen> {
         );
       },
     );
+  }
+
+  // ==========================================================
+  // REVIEW SECTION
+  // ==========================================================
+
+  Widget _reviewSection({
+    required String title,
+    required String subtitle,
+    required int rating,
+    required String note,
+    required bool submitted,
+    required DateTime? reviewedAt,
+    required Color accent,
+  }) {
+    final hasReview =
+        submitted ||
+        rating > 0 ||
+        note.trim().isNotEmpty;
+
+    return Padding(
+      padding:
+          const EdgeInsets.only(
+        bottom: 14,
+      ),
+      child: Container(
+        width: double.infinity,
+        padding:
+            const EdgeInsets.all(13),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius:
+              BorderRadius.circular(13),
+          border: Border.all(
+            color: dojoBorder,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment:
+              CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.rate_review_outlined,
+                  size: 18,
+                  color: accent,
+                ),
+                const SizedBox(width: 7),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style:
+                            TextStyle(
+                          color: accent,
+                          fontSize: 13,
+                          fontWeight:
+                              FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style:
+                            const TextStyle(
+                          color: dojoGrey,
+                          fontSize: 10,
+                          fontWeight:
+                              FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: submitted
+                        ? dojoGreen
+                            .withValues(alpha: 0.10)
+                        : dojoGrey
+                            .withValues(alpha: 0.10),
+                    borderRadius:
+                        BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    submitted
+                        ? 'Submitted'
+                        : 'Not Submitted',
+                    style: TextStyle(
+                      color: submitted
+                          ? dojoGreen
+                          : dojoGrey,
+                      fontSize: 10,
+                      fontWeight:
+                          FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 11),
+
+            // Rating
+            Row(
+              children: [
+                const SizedBox(
+                  width: 85,
+                  child: Text(
+                    'Rating',
+                    style: TextStyle(
+                      color: dojoGrey,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+                if (rating > 0)
+                  Row(
+                    children: List.generate(
+                      5,
+                      (index) {
+                        return Icon(
+                          index < rating
+                              ? Icons.star
+                              : Icons.star_border,
+                          size: 17,
+                          color:
+                              index < rating
+                                  ? Colors.amber
+                                  : dojoBorder,
+                        );
+                      },
+                    ),
+                  )
+                else
+                  const Text(
+                    '-',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight:
+                          FontWeight.w700,
+                    ),
+                  ),
+              ],
+            ),
+
+            const SizedBox(height: 8),
+
+            // Note
+            _row(
+              'Review',
+              note,
+            ),
+
+            // Reviewed At
+            if (reviewedAt != null)
+              _row(
+                'Reviewed At',
+                _formatReviewDate(
+                  reviewedAt,
+                ),
+              ),
+
+            if (!hasReview)
+              const Padding(
+                padding:
+                    EdgeInsets.only(
+                  top: 3,
+                ),
+                child: Text(
+                  'No review submitted for this walk.',
+                  style: TextStyle(
+                    color: dojoGrey,
+                    fontSize: 11,
+                    fontStyle:
+                        FontStyle.italic,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ==========================================================
+  // REVIEW DATE
+  // ==========================================================
+
+  String _formatReviewDate(
+    DateTime date,
+  ) {
+    final day =
+        date.day.toString().padLeft(
+              2,
+              '0',
+            );
+
+    final month =
+        date.month.toString().padLeft(
+              2,
+              '0',
+            );
+
+    final year =
+        date.year.toString();
+
+    final hour =
+        date.hour.toString().padLeft(
+              2,
+              '0',
+            );
+
+    final minute =
+        date.minute.toString().padLeft(
+              2,
+              '0',
+            );
+
+    return '$day/$month/$year $hour:$minute';
   }
 
   // ==========================================================
