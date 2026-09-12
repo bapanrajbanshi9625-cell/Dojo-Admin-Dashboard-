@@ -556,6 +556,160 @@ class _Header extends StatelessWidget {
                 ? orange
                 : blue;
 
+    final identity = Row(
+      children: [
+        Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            color: orange.withValues(alpha: .10),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Icon(
+            Icons.directions_walk_rounded,
+            color: orange,
+            size: 23,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'LIVE WALK',
+                style: TextStyle(
+                  color: dark,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: .3,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                'Session • ${_shortId(sessionId)}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: grey,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+        _StatusBadge(
+          status: status.isEmpty
+              ? 'READY'
+              : status,
+          color: statusColor,
+        ),
+      ],
+    );
+
+    final actions = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _InvoiceButton(
+          sessionId: sessionId,
+          requestId: requestId,
+          data: data,
+        ),
+        if (notStarted) ...[
+          const SizedBox(width: 6),
+          _HeaderActionButton(
+            label: 'Start Walk',
+            icon: Icons.play_arrow_rounded,
+            color: green,
+            filled: true,
+            onTap: () {
+              _confirmStart(
+                context,
+                sessionId,
+                requestId,
+              );
+            },
+          ),
+          const SizedBox(width: 6),
+          _HeaderActionButton(
+            label: 'Change Walker',
+            icon: Icons.swap_horiz_rounded,
+            color: blue,
+            filled: false,
+            onTap: () {
+              _showChangeWalker(
+                context,
+                sessionId,
+                requestId,
+                data,
+              );
+            },
+          ),
+          const SizedBox(width: 6),
+          _HeaderActionButton(
+            label: 'Cancel',
+            icon: Icons.close_rounded,
+            color: red,
+            filled: false,
+            onTap: () {
+              _confirmCancel(
+                context,
+                sessionId,
+                requestId,
+              );
+            },
+          ),
+        ],
+        if (active) ...[
+          const SizedBox(width: 6),
+          _HeaderActionButton(
+            label: 'Complete',
+            icon: Icons.check_rounded,
+            color: green,
+            filled: true,
+            onTap: () {
+              _confirmComplete(
+                context,
+                sessionId,
+                requestId,
+              );
+            },
+          ),
+          const SizedBox(width: 6),
+          _HeaderActionButton(
+            label: 'Change Walker',
+            icon: Icons.swap_horiz_rounded,
+            color: blue,
+            filled: false,
+            onTap: () {
+              _showChangeWalker(
+                context,
+                sessionId,
+                requestId,
+                data,
+              );
+            },
+          ),
+          const SizedBox(width: 6),
+          _HeaderActionButton(
+            label: 'Cancel',
+            icon: Icons.close_rounded,
+            color: red,
+            filled: false,
+            onTap: () {
+              _confirmCancel(
+                context,
+                sessionId,
+                requestId,
+              );
+            },
+          ),
+        ],
+      ],
+    );
+
     return Container(
       padding: const EdgeInsets.fromLTRB(
         14,
@@ -573,164 +727,6 @@ class _Header extends StatelessWidget {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final compact = constraints.maxWidth < 620;
-
-          final identity = Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: orange.withValues(
-                    alpha: .10,
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.directions_walk_rounded,
-                  color: orange,
-                  size: 23,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'LIVE WALK',
-                      style: TextStyle(
-                        color: dark,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: .3,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      'Session • ${_shortId(sessionId)}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: grey,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              _StatusBadge(
-                status: status.isEmpty
-                    ? notStarted
-                        ? 'ready'
-                        : status
-                    : status,
-                color: statusColor,
-              ),
-            ],
-          );
-
-          final actions = Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _InvoiceButton(
-                sessionId: sessionId,
-                requestId: requestId,
-                data: data,
-              ),
-              if (notStarted) ...[
-                const SizedBox(width: 6),
-                _HeaderActionButton(
-                  label: 'Start Walk',
-                  icon: Icons.play_arrow_rounded,
-                  color: green,
-                  filled: true,
-                  onTap: () {
-                    _confirmStart(
-                      context,
-                      sessionId,
-                      requestId,
-                    );
-                  },
-                ),
-                const SizedBox(width: 6),
-                _HeaderActionButton(
-                  label: 'Change Walker',
-                  icon: Icons.swap_horiz_rounded,
-                  color: blue,
-                  filled: false,
-                  onTap: () {
-                    _showChangeWalker(
-                      context,
-                      sessionId,
-                      requestId,
-                      data,
-                    );
-                  },
-                ),
-                const SizedBox(width: 6),
-                _HeaderActionButton(
-                  label: 'Cancel',
-                  icon: Icons.close_rounded,
-                  color: red,
-                  filled: false,
-                  onTap: () {
-                    _confirmCancel(
-                      context,
-                      sessionId,
-                      requestId,
-                    );
-                  },
-                ),
-              ],
-              if (active) ...[
-                const SizedBox(width: 6),
-                _HeaderActionButton(
-                  label: 'Complete',
-                  icon: Icons.check_rounded,
-                  color: green,
-                  filled: true,
-                  onTap: () {
-                    _confirmComplete(
-                      context,
-                      sessionId,
-                      requestId,
-                    );
-                  },
-                ),
-                const SizedBox(width: 6),
-                _HeaderActionButton(
-                  label: 'Change Walker',
-                  icon: Icons.swap_horiz_rounded,
-                  color: blue,
-                  filled: false,
-                  onTap: () {
-                    _showChangeWalker(
-                      context,
-                      sessionId,
-                      requestId,
-                      data,
-                    );
-                  },
-                ),
-                const SizedBox(width: 6),
-                _HeaderActionButton(
-                  label: 'Cancel',
-                  icon: Icons.close_rounded,
-                  color: red,
-                  filled: false,
-                  onTap: () {
-                    _confirmCancel(
-                      context,
-                      sessionId,
-                      requestId,
-                    );
-                  },
-                ),
-              ],
-            ],
-          );
 
           if (compact) {
             return Column(
@@ -801,9 +797,7 @@ class _StatusBadge extends StatelessWidget {
           ),
           const SizedBox(width: 5),
           Text(
-            status.isEmpty
-                ? 'READY'
-                : status.toUpperCase(),
+            status.toUpperCase(),
             style: TextStyle(
               color: color,
               fontSize: 9,
@@ -1051,7 +1045,7 @@ class _MapCard extends StatelessWidget {
         startLocation;
 
     if (center == null) {
-      return const _NoMap();
+      return _NoMap();
     }
 
     final markers = <Marker>[];
@@ -1119,38 +1113,135 @@ class _MapCard extends StatelessWidget {
     }
 
     return Container(
-      height: 300,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
       ),
-      child: FlutterMap(
-        options: MapOptions(
-          initialCenter: center,
-          initialZoom: 15,
-        ),
+      child: Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
-          TileLayer(
-            urlTemplate:
-                'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-            userAgentPackageName: 'com.dojo.admin',
-          ),
-          if (routePoints.length >= 2)
-            PolylineLayer(
-              polylines: [
-                Polyline(
-                  points: routePoints,
-                  strokeWidth: 4.5,
-                  color: Colors.blue,
+          const Padding(
+            padding: EdgeInsets.fromLTRB(
+              14,
+              13,
+              14,
+              10,
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.map_rounded,
+                  size: 19,
+                  color: Color(0xFFD35435),
+                ),
+                SizedBox(width: 7),
+                Text(
+                  'LIVE WALK MAP',
+                  style: TextStyle(
+                    color: Color(0xFF0F172A),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: .3,
+                  ),
                 ),
               ],
             ),
-          MarkerLayer(
-            markers: markers,
+          ),
+          SizedBox(
+            height: 280,
+            child: FlutterMap(
+              options: MapOptions(
+                initialCenter: center,
+                initialZoom: 15,
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate:
+                      'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.dojo.admin',
+                ),
+                if (routePoints.length >= 2)
+                  PolylineLayer(
+                    polylines: [
+                      Polyline(
+                        points: routePoints,
+                        strokeWidth: 4.5,
+                        color: Colors.blue,
+                      ),
+                    ],
+                  ),
+                MarkerLayer(
+                  markers: markers,
+                ),
+              ],
+            ),
+          ),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(
+              14,
+              9,
+              14,
+              11,
+            ),
+            child: Row(
+              children: [
+                _MapLegendDot(
+                  color: Colors.orange,
+                  label: 'Start',
+                ),
+                SizedBox(width: 16),
+                _MapLegendDot(
+                  color: Colors.blue,
+                  label: 'Route',
+                ),
+                SizedBox(width: 16),
+                _MapLegendDot(
+                  color: Colors.green,
+                  label: 'Walker',
+                ),
+              ],
+            ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _MapLegendDot extends StatelessWidget {
+  final Color color;
+  final String label;
+
+  const _MapLegendDot({
+    required this.color,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 7,
+          height: 7,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 5),
+        Text(
+          label,
+          style: const TextStyle(
+            color: Color(0xFF64748B),
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -1270,11 +1361,10 @@ class _Stat extends StatelessWidget {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        const SizedBox(height: 1),
         Icon(
           icon,
           size: 19,
-          color: Color(0xFFD35435),
+          color: const Color(0xFFD35435),
         ),
         const SizedBox(height: 4),
         FittedBox(
@@ -2225,11 +2315,6 @@ class _ChangeWalkerDialogState
 
     final data = walker.data();
 
-    // Canonical walker UID.
-    //
-    // Existing walker records may contain authUid, but the
-    // canonical field written to walk_request/liveWalkSessions
-    // remains walkerUid.
     final walkerUidValue = _value(
       data,
       'walkerUid',
@@ -2349,7 +2434,7 @@ class _ChangeWalkerDialogState
             maxLines: 3,
             overflow: TextOverflow.ellipsis,
           ),
-          backgroundColor: Color(0xFFDC2626),
+          backgroundColor: const Color(0xFFDC2626),
         ),
       );
     }
@@ -2855,7 +2940,7 @@ Future<void> _downloadInvoice(
         content: Text(
           'Invoice PDF failed: $e',
         ),
-        backgroundColor: Color(0xFFDC2626),
+        backgroundColor: const Color(0xFFDC2626),
       ),
     );
   }
@@ -2896,7 +2981,7 @@ Future<void> _shareInvoice(
         content: Text(
           'Invoice sharing failed: $e',
         ),
-        backgroundColor: Color(0xFFDC2626),
+        backgroundColor: const Color(0xFFDC2626),
       ),
     );
   }
