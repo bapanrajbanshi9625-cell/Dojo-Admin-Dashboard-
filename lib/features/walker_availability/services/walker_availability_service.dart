@@ -9,36 +9,34 @@ class WalkerAvailabilityService {
 
   final FirebaseFirestore _firestore;
 
-  /// Main walker collection.
-  ///
-  /// Walker profile/availability data is expected here.
-  /// If your project already uses a different canonical walker
-  /// collection, change only this constant.
   static const String walkersCollection = 'walkers';
+  static const String dailyAvailabilityCollection =
+      'daily_walk_availability';
 
-  /// Realtime stream of all walkers.
+  // ============================================================
+  // ALL WALKERS
+  // Source: walkers
+  // Walker ID = walkers.uid
+  // ============================================================
+
   Stream<List<WalkerAvailabilityModel>> watchAllWalkers() {
     return _firestore
         .collection(walkersCollection)
         .snapshots()
-        .map((snapshot) {
-      return snapshot.docs
-          .map(
-            WalkerAvailabilityModel.fromFirestore,
-          )
-          .where(
-            (walker) => walker.walkerId.isNotEmpty,
-          )
-          .toList();
-    });
+        .asyncMap(_buildWalkerAvailabilityList);
   }
 
-  /// Insta Walk availability.
-  ///
-  /// A walker appears only when:
-  /// - Online
-  /// - Searching for Insta Walk
-  /// - No active/accepted walk
+  // ============================================================
+  // INSTA WALK
+  //
+  // Only show:
+  // - Online
+  // - Searching for Insta Walk
+  // - No active/accepted walk
+  //
+  // Source: walkers
+  // ============================================================
+
   Stream<List<WalkerAvailabilityModel>>
       watchInstaWalkAvailability() {
     return watchAllWalkers().map((walkers) {
@@ -60,34 +58,135 @@ class WalkerAvailabilityService {
     });
   }
 
-  /// Daily Walk availability.
-  ///
-  /// Every walker having at least one booked slot is returned.
-  ///
-  /// No day-of-week is added or displayed by this service.
+  // ============================================================
+  // DAILY WALK
+  //
+  // Walker details:
+  //   walkers.uid
+  //
+  // Daily slots:
+  //   daily_walk_availability.walkerId
+  //
+  // Only isActive == true slots are included.
+  // ============================================================
+
   Stream<List<WalkerAvailabilityModel>>
       watchDailyWalkAvailability() {
-    return watchAllWalkers().map((walkers) {
-      final available = walkers
-          .where(
-            (walker) =>
-                walker.hasDailyWalkAvailability,
-          )
-          .toList();
-
-      available.sort(
-        (a, b) => a.walkerName
-            .toLowerCase()
-            .compareTo(
-              b.walkerName.toLowerCase(),
-            ),
-      );
-
-      return available;
-    });
+    return _firestore
+        .collection(walkersCollection)
+        .snapshots()
+        .asyncMap(_buildWalkerAvailabilityList);
   }
 
-  /// Realtime single walker.
+  // ============================================================
+  // BUILD WALKER LIST
+  // ============================================================
+
+  Future<List<WalkerAvailabilityModel>>
+      _buildWalkerAvailabilityList(
+    QuerySnapshot<Map<String, dynamic>> walkerSnapshot,
+  ) async {
+    if (walkerSnapshot.docs.isEmpty) {
+      return const [];
+    }
+
+    // ----------------------------------------------------------
+    // Fetch active Daily Walk availability records.
+    // ----------------------------------------------------------
+
+    final dailySnapshot = await _firestore
+        .collection(dailyAvailabilityCollection)
+        .where(
+          'isActive',
+          isEqualTo: true,
+        )
+        .get();
+
+    // ----------------------------------------------------------
+    // Group Daily Walk slots by walkerId.
+    //
+    // daily_walk_availability.walkerId
+    //                  ↓
+    //              walkers.uid
+    // ----------------------------------------------------------
+
+    final Map<String, List<String>> slotsByWalker =
+        <String, List<String>>{};
+
+    for (final doc in dailySnapshot.docs) {
+      final data = doc.data();
+
+      final walkerId = _stringValue(
+        data['walkerId'],
+      );
+
+      if (walkerId.isEmpty) {
+        continue;
+      }
+
+      final startTime = _stringValue(
+        data['startTime'],
+      );
+
+      final endTime = _stringValue(
+        data['endTime'],
+      );
+
+      if (startTime.isEmpty && endTime.isEmpty) {
+        continue;
+      }
+
+      final slot = _formatSlot(
+        startTime,
+        endTime,
+      );
+
+      if (slot.isEmpty) {
+        continue;
+      }
+
+      slotsByWalker
+          .putIfAbsent(
+            walkerId,
+            () => <String>[],
+          )
+          .add(slot);
+    }
+
+    // ----------------------------------------------------------
+    // Build final WalkerAvailabilityModel list.
+    // ----------------------------------------------------------
+
+    final result = <WalkerAvailabilityModel>[];
+
+    for (final doc in walkerSnapshot.docs) {
+      final walker =
+          WalkerAvailabilityModel.fromFirestore(doc);
+
+      if (walker.walkerId.isEmpty) {
+        continue;
+      }
+
+      final dailySlots =
+          slotsByWalker[walker.walkerId] ??
+              const <String>[];
+
+      result.add(
+        walker.copyWith(
+          dailyWalkSlots: _sortSlots(
+            dailySlots,
+          ),
+        ),
+      );
+    }
+
+    return result;
+  }
+
+  // ============================================================
+  // WATCH ONE WALKER
+  // ============================================================
+
   Stream<WalkerAvailabilityModel?>
       watchWalker(String walkerId) {
     return _firestore
@@ -98,18 +197,28 @@ class WalkerAvailabilityService {
         )
         .limit(1)
         .snapshots()
-        .map((snapshot) {
+        .asyncMap((snapshot) async {
       if (snapshot.docs.isEmpty) {
         return null;
       }
 
-      return WalkerAvailabilityModel.fromFirestore(
-        snapshot.docs.first,
+      final walkers =
+          await _buildWalkerAvailabilityList(
+        snapshot,
       );
+
+      if (walkers.isEmpty) {
+        return null;
+      }
+
+      return walkers.first;
     });
   }
 
-  /// Get a single walker once.
+  // ============================================================
+  // GET ONE WALKER
+  // ============================================================
+
   Future<WalkerAvailabilityModel?> getWalker(
     String walkerId,
   ) async {
@@ -126,52 +235,64 @@ class WalkerAvailabilityService {
       return null;
     }
 
-    return WalkerAvailabilityModel.fromFirestore(
-      snapshot.docs.first,
+    final walkers =
+        await _buildWalkerAvailabilityList(
+      snapshot,
     );
-  }
 
-  /// Search a walker by UID.
-  Future<List<WalkerAvailabilityModel>>
-      searchWalkers(String query) async {
-    final normalizedQuery = query.trim().toLowerCase();
-
-    if (normalizedQuery.isEmpty) {
-      return getAllWalkers();
+    if (walkers.isEmpty) {
+      return null;
     }
 
-    final walkers = await getAllWalkers();
-
-    return walkers.where((walker) {
-      final id = walker.walkerId.toLowerCase();
-      final name = walker.walkerName.toLowerCase();
-
-      return id.contains(normalizedQuery) ||
-          name.contains(normalizedQuery);
-    }).toList();
+    return walkers.first;
   }
 
-  /// One-time fetch of all walkers.
+  // ============================================================
+  // GET ALL WALKERS
+  // ============================================================
+
   Future<List<WalkerAvailabilityModel>>
       getAllWalkers() async {
     final snapshot = await _firestore
         .collection(walkersCollection)
         .get();
 
-    return snapshot.docs
-        .map(
-          WalkerAvailabilityModel.fromFirestore,
-        )
-        .where(
-          (walker) => walker.walkerId.isNotEmpty,
-        )
-        .toList();
+    return _buildWalkerAvailabilityList(
+      snapshot,
+    );
   }
 
-  /// Format slots for compact Admin display.
-  ///
-  /// Example:
-  /// 07:00–08:00 AM, 10:00–11:00 AM
+  // ============================================================
+  // SEARCH WALKERS
+  // ============================================================
+
+  Future<List<WalkerAvailabilityModel>>
+      searchWalkers(String query) async {
+    final normalizedQuery =
+        query.trim().toLowerCase();
+
+    final walkers = await getAllWalkers();
+
+    if (normalizedQuery.isEmpty) {
+      return walkers;
+    }
+
+    return walkers.where((walker) {
+      final id =
+          walker.walkerId.toLowerCase();
+
+      final name =
+          walker.walkerName.toLowerCase();
+
+      return id.contains(normalizedQuery) ||
+          name.contains(normalizedQuery);
+    }).toList();
+  }
+
+  // ============================================================
+  // FORMAT SLOTS
+  // ============================================================
+
   String formatSlots(
     List<String> slots,
   ) {
@@ -179,33 +300,106 @@ class WalkerAvailabilityService {
       return 'No booked slots';
     }
 
-    return slots
-        .map(_formatSlot)
-        .where(
-          (slot) => slot.isNotEmpty,
-        )
+    return _sortSlots(slots)
         .join(', ');
   }
 
-  String _formatSlot(String slot) {
-    final value = slot.trim();
+  String _formatSlot(
+    String startTime,
+    String endTime,
+  ) {
+    final start = startTime.trim();
+    final end = endTime.trim();
 
-    if (value.isEmpty) {
+    if (start.isEmpty && end.isEmpty) {
       return '';
     }
 
-    // Already formatted by the walker app.
-    if (value.contains('–')) {
-      return value;
+    if (start.isEmpty) {
+      return end;
     }
 
-    if (value.contains(' - ')) {
-      return value.replaceAll(
-        ' - ',
-        '–',
-      );
+    if (end.isEmpty) {
+      return start;
     }
 
-    return value;
+    return '$start–$end';
+  }
+
+  // ============================================================
+  // SORT TIME SLOTS
+  // ============================================================
+
+  List<String> _sortSlots(
+    List<String> slots,
+  ) {
+    final cleaned = slots
+        .map(
+          (slot) => slot.trim(),
+        )
+        .where(
+          (slot) => slot.isNotEmpty,
+        )
+        .toSet()
+        .toList();
+
+    cleaned.sort(
+      (a, b) => _timeSortValue(a)
+          .compareTo(
+            _timeSortValue(b),
+          ),
+    );
+
+    return cleaned;
+  }
+
+  int _timeSortValue(String slot) {
+    final start = slot.split('–').first.trim();
+
+    final match = RegExp(
+      r'^(\d{1,2}):(\d{2})\s*(AM|PM)$',
+      caseSensitive: false,
+    ).firstMatch(start);
+
+    if (match == null) {
+      return 999999;
+    }
+
+    var hour = int.tryParse(
+          match.group(1)!,
+        ) ??
+        0;
+
+    final minute = int.tryParse(
+          match.group(2)!,
+        ) ??
+        0;
+
+    final period =
+        match.group(3)!.toUpperCase();
+
+    if (period == 'AM') {
+      if (hour == 12) {
+        hour = 0;
+      }
+    } else {
+      if (hour != 12) {
+        hour += 12;
+      }
+    }
+
+    return hour * 60 + minute;
+  }
+
+  // ============================================================
+  // HELPERS
+  // ============================================================
+
+  static String _stringValue(dynamic value) {
+    if (value == null) {
+      return '';
+    }
+
+    return value.toString().trim();
   }
 }
