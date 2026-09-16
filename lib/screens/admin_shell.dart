@@ -16,6 +16,7 @@ import 'admins_screen.dart' as admins;
 import 'activity_logs_screen.dart';
 import 'settings_screen.dart';
 
+import '../features/walker_availability/screens/walker_availability_screen.dart';
 import '../features/live_walk/screens/live_walk_screen.dart';
 import '../features/walk_history/screens/walk_history_screen.dart';
 import '../features/walk_requests/screens/walk_requests_screen.dart';
