@@ -7,30 +7,37 @@ class AvailabilityTabs extends StatelessWidget {
     required this.onChanged,
   });
 
+  static const Color primaryOrange = Color(0xFFD35435);
+  static const Color secondaryBlue = Color(0xFF3F6FA5);
+
   final int selectedIndex;
   final ValueChanged<int> onChanged;
 
   @override
   Widget build(BuildContext context) {
     return Container(
+      width: double.infinity,
       color: Colors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Row(
-        children: [
-          _Tab(
-            title: 'Insta Walk',
-            icon: Icons.flash_on_rounded,
-            selected: selectedIndex == 0,
-            onTap: () => onChanged(0),
-          ),
-          const SizedBox(width: 8),
-          _Tab(
-            title: 'Daily Walk',
-            icon: Icons.schedule_rounded,
-            selected: selectedIndex == 1,
-            onTap: () => onChanged(1),
-          ),
-        ],
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Row(
+          children: [
+            _Tab(
+              title: 'Insta Walk',
+              icon: Icons.flash_on_rounded,
+              selected: selectedIndex == 0,
+              onTap: () => onChanged(0),
+            ),
+            const SizedBox(width: 4),
+            _Tab(
+              title: 'Daily Walk',
+              icon: Icons.schedule_rounded,
+              selected: selectedIndex == 1,
+              onTap: () => onChanged(1),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -44,6 +51,9 @@ class _Tab extends StatelessWidget {
     required this.onTap,
   });
 
+  static const Color primaryOrange = Color(0xFFD35435);
+  static const Color secondaryBlue = Color(0xFF3F6FA5);
+
   final String title;
   final IconData icon;
   final bool selected;
@@ -51,51 +61,61 @@ class _Tab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 13,
-        ),
-        decoration: BoxDecoration(
-          color: selected
-              ? const Color(0xFFFFF1E8)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-          border: Border(
-            bottom: BorderSide(
-              color: selected
-                  ? const Color(0xFFD35435)
-                  : Colors.transparent,
-              width: 2,
-            ),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          padding: const EdgeInsets.fromLTRB(
+            15,
+            12,
+            15,
+            10,
           ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 18,
-              color: selected
-                  ? const Color(0xFFD35435)
-                  : const Color(0xFF6B7280),
+          decoration: BoxDecoration(
+            color: selected
+                ? const Color(0xFFFFF6F2)
+                : Colors.transparent,
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(8),
             ),
-            const SizedBox(width: 7),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight:
-                    selected ? FontWeight.w700 : FontWeight.w500,
+            border: Border(
+              bottom: BorderSide(
                 color: selected
-                    ? const Color(0xFFD35435)
-                    : const Color(0xFF4B5563),
+                    ? primaryOrange
+                    : Colors.transparent,
+                width: 2,
               ),
             ),
-          ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 18,
+                color: selected
+                    ? primaryOrange
+                    : secondaryBlue,
+              ),
+              const SizedBox(width: 7),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: selected
+                      ? FontWeight.w700
+                      : FontWeight.w500,
+                  color: selected
+                      ? primaryOrange
+                      : const Color(0xFF4B5563),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
