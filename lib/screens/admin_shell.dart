@@ -305,7 +305,7 @@ class _AdminShellState extends State<AdminShell> {
         return const WalkRequestsScreen();
 
       case 2:
-        return const _WalkerAvailabilityPlaceholder();
+        return const WalkerAvailabilityScreen();
 
       case 3:
         return const LiveWalkScreen();
@@ -1782,61 +1782,5 @@ class _AdminShellState extends State<AdminShell> {
         sidebarCollapsed = false;
       });
     }
-  }
-}
-
-// =============================================================
-// WALKER AVAILABILITY TEMPORARY SCREEN
-// =============================================================
-// This keeps the AdminShell compile-safe until the actual
-// Walker Availability screen is added.
-// =============================================================
-
-class _WalkerAvailabilityPlaceholder extends StatelessWidget {
-  const _WalkerAvailabilityPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      height: double.infinity,
-      decoration: BoxDecoration(
-        color: dojoCard,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: dojoBorder,
-        ),
-      ),
-      child: const Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.schedule_outlined,
-              size: 46,
-              color: dojoOrange,
-            ),
-            SizedBox(height: 14),
-            Text(
-              'Walker Availability',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                color: dojoDark,
-              ),
-            ),
-            SizedBox(height: 6),
-            Text(
-              'Insta Walk and Daily Walk availability',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 12,
-                color: dojoGrey,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
