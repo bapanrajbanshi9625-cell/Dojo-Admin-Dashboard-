@@ -71,70 +71,109 @@ class AdminMenuItem {
 // =============================================================
 
 const List<AdminMenuItem> adminMenuItems = [
+  // 0
   AdminMenuItem(
     title: 'Dashboard',
     icon: Icons.dashboard_outlined,
   ),
-  AdminMenuItem(
-    title: 'Live Walk Sessions',
-    icon: Icons.directions_walk_outlined,
-  ),
+
+  // 1
   AdminMenuItem(
     title: 'Walk Requests',
     icon: Icons.assignment_outlined,
   ),
+
+  // 2
+  AdminMenuItem(
+    title: 'Walker Availability',
+    icon: Icons.schedule_outlined,
+  ),
+
+  // 3
+  AdminMenuItem(
+    title: 'Live Walks',
+    icon: Icons.directions_walk_outlined,
+  ),
+
+  // 4
   AdminMenuItem(
     title: 'Walk History',
     icon: Icons.history_outlined,
   ),
+
+  // 5
   AdminMenuItem(
     title: 'Owners',
     icon: Icons.people_outline,
   ),
+
+  // 6
   AdminMenuItem(
     title: 'Walkers',
     icon: Icons.badge_outlined,
   ),
+
+  // 7
   AdminMenuItem(
     title: 'Pets',
     icon: Icons.pets_outlined,
   ),
+
+  // 8
   AdminMenuItem(
     title: 'Finance',
     icon: Icons.analytics_outlined,
   ),
+
+  // 9
   AdminMenuItem(
     title: 'Payments',
     icon: Icons.payments_outlined,
   ),
+
+  // 10
   AdminMenuItem(
     title: 'Payouts',
     icon: Icons.account_balance_wallet_outlined,
   ),
+
+  // 11
   AdminMenuItem(
     title: 'Reviews',
     icon: Icons.star_outline,
   ),
+
+  // 12
   AdminMenuItem(
     title: 'Complaints',
     icon: Icons.report_problem_outlined,
   ),
+
+  // 13
   AdminMenuItem(
     title: 'Support',
     icon: Icons.support_agent_outlined,
   ),
+
+  // 14
   AdminMenuItem(
     title: 'Notifications',
     icon: Icons.notifications_none_outlined,
   ),
+
+  // 15
   AdminMenuItem(
     title: 'Admins',
     icon: Icons.admin_panel_settings_outlined,
   ),
+
+  // 16
   AdminMenuItem(
     title: 'Activity Logs',
     icon: Icons.receipt_long_outlined,
   ),
+
+  // 17
   AdminMenuItem(
     title: 'Settings',
     icon: Icons.settings_outlined,
@@ -262,51 +301,54 @@ class _AdminShellState extends State<AdminShell> {
         );
 
       case 1:
-        return const LiveWalkScreen();
-
-      case 2:
         return const WalkRequestsScreen();
 
+      case 2:
+        return const _WalkerAvailabilityPlaceholder();
+
       case 3:
-        return const WalkHistoryScreen();
+        return const LiveWalkScreen();
 
       case 4:
-        return const OwnersScreen();
+        return const WalkHistoryScreen();
 
       case 5:
-        return const WalkersScreen();
+        return const OwnersScreen();
 
       case 6:
-        return const PetsScreen();
+        return const WalkersScreen();
 
       case 7:
-        return const FinanceScreen();
+        return const PetsScreen();
 
       case 8:
-        return const PaymentsScreen();
+        return const FinanceScreen();
 
       case 9:
-        return const PayoutsScreen();
+        return const PaymentsScreen();
 
       case 10:
-        return const ReviewsScreen();
+        return const PayoutsScreen();
 
       case 11:
-        return const complaints.ComplaintsScreen();
+        return const ReviewsScreen();
 
       case 12:
-        return const SupportScreen();
+        return const complaints.ComplaintsScreen();
 
       case 13:
-        return const NotificationsScreen();
+        return const SupportScreen();
 
       case 14:
-        return const admins.AdminsScreen();
+        return const NotificationsScreen();
 
       case 15:
-        return const ActivityLogsScreen();
+        return const admins.AdminsScreen();
 
       case 16:
+        return const ActivityLogsScreen();
+
+      case 17:
         return const SettingsScreen();
 
       default:
@@ -408,38 +450,39 @@ class _AdminShellState extends State<AdminShell> {
                     _sectionLabel('OVERVIEW'),
 
                   _desktopMenuItem(0),
-                  _desktopMenuItem(1),
 
                   if (!sidebarCollapsed)
                     _sectionLabel('OPERATIONS'),
 
+                  _desktopMenuItem(1),
                   _desktopMenuItem(2),
                   _desktopMenuItem(3),
                   _desktopMenuItem(4),
                   _desktopMenuItem(5),
                   _desktopMenuItem(6),
+                  _desktopMenuItem(7),
 
                   if (!sidebarCollapsed)
                     _sectionLabel('FINANCE'),
 
-                  _desktopMenuItem(7),
                   _desktopMenuItem(8),
                   _desktopMenuItem(9),
+                  _desktopMenuItem(10),
 
                   if (!sidebarCollapsed)
                     _sectionLabel('TRUST & SAFETY'),
 
-                  _desktopMenuItem(10),
                   _desktopMenuItem(11),
                   _desktopMenuItem(12),
+                  _desktopMenuItem(13),
 
                   if (!sidebarCollapsed)
                     _sectionLabel('SYSTEM'),
 
-                  _desktopMenuItem(13),
                   _desktopMenuItem(14),
                   _desktopMenuItem(15),
                   _desktopMenuItem(16),
+                  _desktopMenuItem(17),
                 ],
               ),
             ),
@@ -874,7 +917,7 @@ class _AdminShellState extends State<AdminShell> {
       child: InkWell(
         borderRadius: BorderRadius.circular(11),
         onTap: () {
-          selectPage(13);
+          selectPage(14);
         },
         child: Container(
           width: 40,
@@ -976,8 +1019,6 @@ class _AdminShellState extends State<AdminShell> {
   // ===========================================================
   // MOBILE LAYOUT
   // ===========================================================
-  // ONLY MOBILE MENU BEHAVIOR IS CHANGED
-  // ===========================================================
 
   Widget mobileLayout() {
     final double screenWidth =
@@ -993,10 +1034,6 @@ class _AdminShellState extends State<AdminShell> {
       body: SafeArea(
         child: Stack(
           children: [
-            // =================================================
-            // MOBILE MAIN CONTENT
-            // =================================================
-
             Column(
               children: [
                 _mobileTopBar(),
@@ -1009,10 +1046,6 @@ class _AdminShellState extends State<AdminShell> {
                 ),
               ],
             ),
-
-            // =================================================
-            // MOBILE DRAWER
-            // =================================================
 
             if (menuOpen) ...[
               Positioned.fill(
@@ -1107,42 +1140,43 @@ class _AdminShellState extends State<AdminShell> {
                               ),
 
                               _mobileMenuItem(0),
-                              _mobileMenuItem(1),
 
                               _mobileSection(
                                 'OPERATIONS',
                               ),
 
+                              _mobileMenuItem(1),
                               _mobileMenuItem(2),
                               _mobileMenuItem(3),
                               _mobileMenuItem(4),
                               _mobileMenuItem(5),
                               _mobileMenuItem(6),
+                              _mobileMenuItem(7),
 
                               _mobileSection(
                                 'FINANCE',
                               ),
 
-                              _mobileMenuItem(7),
                               _mobileMenuItem(8),
                               _mobileMenuItem(9),
+                              _mobileMenuItem(10),
 
                               _mobileSection(
                                 'TRUST & SAFETY',
                               ),
 
-                              _mobileMenuItem(10),
                               _mobileMenuItem(11),
                               _mobileMenuItem(12),
+                              _mobileMenuItem(13),
 
                               _mobileSection(
                                 'SYSTEM',
                               ),
 
-                              _mobileMenuItem(13),
                               _mobileMenuItem(14),
                               _mobileMenuItem(15),
                               _mobileMenuItem(16),
+                              _mobileMenuItem(17),
 
                               const SizedBox(height: 14),
 
@@ -1281,7 +1315,7 @@ class _AdminShellState extends State<AdminShell> {
     return IconButton(
       tooltip: 'Notifications',
       onPressed: () {
-        selectPage(13);
+        selectPage(14);
       },
       icon: Stack(
         clipBehavior: Clip.none,
@@ -1577,7 +1611,7 @@ class _AdminShellState extends State<AdminShell> {
                   ),
                   onTap: () {
                     Navigator.pop(context);
-                    selectPage(16);
+                    selectPage(17);
                   },
                 ),
 
@@ -1747,5 +1781,61 @@ class _AdminShellState extends State<AdminShell> {
         sidebarCollapsed = false;
       });
     }
+  }
+}
+
+// =============================================================
+// WALKER AVAILABILITY TEMPORARY SCREEN
+// =============================================================
+// This keeps the AdminShell compile-safe until the actual
+// Walker Availability screen is added.
+// =============================================================
+
+class _WalkerAvailabilityPlaceholder extends StatelessWidget {
+  const _WalkerAvailabilityPlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      decoration: BoxDecoration(
+        color: dojoCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: dojoBorder,
+        ),
+      ),
+      child: const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.schedule_outlined,
+              size: 46,
+              color: dojoOrange,
+            ),
+            SizedBox(height: 14),
+            Text(
+              'Walker Availability',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: dojoDark,
+              ),
+            ),
+            SizedBox(height: 6),
+            Text(
+              'Insta Walk and Daily Walk availability',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12,
+                color: dojoGrey,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
