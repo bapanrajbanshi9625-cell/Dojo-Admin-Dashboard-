@@ -72,109 +72,74 @@ class AdminMenuItem {
 // =============================================================
 
 const List<AdminMenuItem> adminMenuItems = [
-  // 0
   AdminMenuItem(
     title: 'Dashboard',
     icon: Icons.dashboard_outlined,
   ),
-
-  // 1
   AdminMenuItem(
     title: 'Walk Requests',
     icon: Icons.assignment_outlined,
   ),
-
-  // 2
   AdminMenuItem(
     title: 'Walker Availability',
     icon: Icons.schedule_outlined,
   ),
-
-  // 3
   AdminMenuItem(
     title: 'Live Walks',
     icon: Icons.directions_walk_outlined,
   ),
-
-  // 4
   AdminMenuItem(
     title: 'Walk History',
     icon: Icons.history_outlined,
   ),
-
-  // 5
   AdminMenuItem(
     title: 'Owners',
     icon: Icons.people_outline,
   ),
-
-  // 6
   AdminMenuItem(
     title: 'Walkers',
     icon: Icons.badge_outlined,
   ),
-
-  // 7
   AdminMenuItem(
     title: 'Pets',
     icon: Icons.pets_outlined,
   ),
-
-  // 8
   AdminMenuItem(
     title: 'Finance',
     icon: Icons.analytics_outlined,
   ),
-
-  // 9
   AdminMenuItem(
     title: 'Payments',
     icon: Icons.payments_outlined,
   ),
-
-  // 10
   AdminMenuItem(
     title: 'Payouts',
     icon: Icons.account_balance_wallet_outlined,
   ),
-
-  // 11
   AdminMenuItem(
     title: 'Reviews',
     icon: Icons.star_outline,
   ),
-
-  // 12
   AdminMenuItem(
     title: 'Complaints',
     icon: Icons.report_problem_outlined,
   ),
-
-  // 13
   AdminMenuItem(
     title: 'Support',
     icon: Icons.support_agent_outlined,
   ),
-
-  // 14
   AdminMenuItem(
     title: 'Notifications',
     icon: Icons.notifications_none_outlined,
   ),
-
-  // 15
   AdminMenuItem(
     title: 'Admins',
     icon: Icons.admin_panel_settings_outlined,
   ),
-
-  // 16
   AdminMenuItem(
     title: 'Activity Logs',
     icon: Icons.receipt_long_outlined,
   ),
-
-  // 17
   AdminMenuItem(
     title: 'Settings',
     icon: Icons.settings_outlined,
@@ -304,6 +269,9 @@ class _AdminShellState extends State<AdminShell> {
       case 1:
         return const WalkRequestsScreen();
 
+      // ======================================================
+      // ACTUAL WALKER AVAILABILITY SCREEN
+      // ======================================================
       case 2:
         return const WalkerAvailabilityScreen();
 
@@ -382,8 +350,6 @@ class _AdminShellState extends State<AdminShell> {
   // ===========================================================
   // DESKTOP LAYOUT
   // ===========================================================
-  // DO NOT CHANGE THIS SECTION
-  // ===========================================================
 
   Widget desktopLayout() {
     final double sidebarWidth =
@@ -436,11 +402,8 @@ class _AdminShellState extends State<AdminShell> {
         child: Column(
           children: [
             const SizedBox(height: 18),
-
             _desktopBrand(),
-
             const SizedBox(height: 22),
-
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.symmetric(
@@ -487,7 +450,6 @@ class _AdminShellState extends State<AdminShell> {
                 ],
               ),
             ),
-
             _sidebarBottomProfile(),
           ],
         ),
@@ -534,8 +496,7 @@ class _AdminShellState extends State<AdminShell> {
           if (!sidebarCollapsed) ...[
             const SizedBox(width: 11),
             const Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'DOJO',
@@ -639,8 +600,7 @@ class _AdminShellState extends State<AdminShell> {
                       child: Text(
                         item.title,
                         maxLines: 1,
-                        overflow:
-                            TextOverflow.ellipsis,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 12.5,
                           fontWeight: active
@@ -656,8 +616,7 @@ class _AdminShellState extends State<AdminShell> {
                       Container(
                         width: 5,
                         height: 5,
-                        decoration:
-                            const BoxDecoration(
+                        decoration: const BoxDecoration(
                           color: dojoOrange,
                           shape: BoxShape.circle,
                         ),
@@ -708,12 +667,10 @@ class _AdminShellState extends State<AdminShell> {
                       Text(
                         adminName,
                         maxLines: 1,
-                        overflow:
-                            TextOverflow.ellipsis,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontSize: 12,
-                          fontWeight:
-                              FontWeight.w800,
+                          fontWeight: FontWeight.w800,
                           color: dojoDark,
                         ),
                       ),
@@ -721,8 +678,7 @@ class _AdminShellState extends State<AdminShell> {
                       Text(
                         adminRole,
                         maxLines: 1,
-                        overflow:
-                            TextOverflow.ellipsis,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontSize: 10,
                           color: dojoGrey,
@@ -808,17 +764,13 @@ class _AdminShellState extends State<AdminShell> {
               size: 23,
             ),
           ),
-
           const SizedBox(width: 8),
-
           Container(
             width: 1,
             height: 28,
             color: dojoBorder,
           ),
-
           const SizedBox(width: 18),
-
           Column(
             mainAxisAlignment:
                 MainAxisAlignment.center,
@@ -843,17 +795,11 @@ class _AdminShellState extends State<AdminShell> {
               ),
             ],
           ),
-
           const Spacer(),
-
           _desktopSearch(),
-
           const SizedBox(width: 10),
-
           _notificationButton(),
-
           const SizedBox(width: 8),
-
           _desktopProfileButton(),
         ],
       ),
@@ -944,8 +890,7 @@ class _AdminShellState extends State<AdminShell> {
                 child: Container(
                   width: 7,
                   height: 7,
-                  decoration:
-                      const BoxDecoration(
+                  decoration: const BoxDecoration(
                     color: dojoOrange,
                     shape: BoxShape.circle,
                   ),
@@ -988,15 +933,13 @@ class _AdminShellState extends State<AdminShell> {
               ),
               const SizedBox(width: 8),
               ConstrainedBox(
-                constraints:
-                    const BoxConstraints(
+                constraints: const BoxConstraints(
                   maxWidth: 115,
                 ),
                 child: Text(
                   adminName,
                   maxLines: 1,
-                  overflow:
-                      TextOverflow.ellipsis,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w700,
@@ -1038,7 +981,6 @@ class _AdminShellState extends State<AdminShell> {
             Column(
               children: [
                 _mobileTopBar(),
-
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.all(16),
@@ -1047,7 +989,6 @@ class _AdminShellState extends State<AdminShell> {
                 ),
               ],
             ),
-
             if (menuOpen) ...[
               Positioned.fill(
                 child: GestureDetector(
@@ -1060,7 +1001,6 @@ class _AdminShellState extends State<AdminShell> {
                   ),
                 ),
               ),
-
               Positioned(
                 left: 0,
                 top: 0,
@@ -1070,31 +1010,23 @@ class _AdminShellState extends State<AdminShell> {
                   color: Colors.white,
                   elevation: 20,
                   child: ClipRRect(
-                    borderRadius:
-                        const BorderRadius.only(
+                    borderRadius: const BorderRadius.only(
                       topRight: Radius.circular(24),
-                      bottomRight:
-                          Radius.circular(24),
+                      bottomRight: Radius.circular(24),
                     ),
                     child: Column(
                       children: [
                         const SizedBox(height: 10),
-
                         Container(
                           width: 42,
                           height: 4,
-                          decoration:
-                              BoxDecoration(
+                          decoration: BoxDecoration(
                             color: dojoBorder,
                             borderRadius:
-                                BorderRadius.circular(
-                              10,
-                            ),
+                                BorderRadius.circular(10),
                           ),
                         ),
-
                         const SizedBox(height: 16),
-
                         Padding(
                           padding:
                               const EdgeInsets.symmetric(
@@ -1123,9 +1055,7 @@ class _AdminShellState extends State<AdminShell> {
                             ],
                           ),
                         ),
-
                         const SizedBox(height: 6),
-
                         Expanded(
                           child: ListView(
                             padding:
@@ -1136,16 +1066,10 @@ class _AdminShellState extends State<AdminShell> {
                               20,
                             ),
                             children: [
-                              _mobileSection(
-                                'OVERVIEW',
-                              ),
-
+                              _mobileSection('OVERVIEW'),
                               _mobileMenuItem(0),
 
-                              _mobileSection(
-                                'OPERATIONS',
-                              ),
-
+                              _mobileSection('OPERATIONS'),
                               _mobileMenuItem(1),
                               _mobileMenuItem(2),
                               _mobileMenuItem(3),
@@ -1154,33 +1078,23 @@ class _AdminShellState extends State<AdminShell> {
                               _mobileMenuItem(6),
                               _mobileMenuItem(7),
 
-                              _mobileSection(
-                                'FINANCE',
-                              ),
-
+                              _mobileSection('FINANCE'),
                               _mobileMenuItem(8),
                               _mobileMenuItem(9),
                               _mobileMenuItem(10),
 
-                              _mobileSection(
-                                'TRUST & SAFETY',
-                              ),
-
+                              _mobileSection('TRUST & SAFETY'),
                               _mobileMenuItem(11),
                               _mobileMenuItem(12),
                               _mobileMenuItem(13),
 
-                              _mobileSection(
-                                'SYSTEM',
-                              ),
-
+                              _mobileSection('SYSTEM'),
                               _mobileMenuItem(14),
                               _mobileMenuItem(15),
                               _mobileMenuItem(16),
                               _mobileMenuItem(17),
 
                               const SizedBox(height: 14),
-
                               _mobileAccountCard(),
                             ],
                           ),
@@ -1220,8 +1134,7 @@ class _AdminShellState extends State<AdminShell> {
           Material(
             color: Colors.transparent,
             child: InkWell(
-              borderRadius:
-                  BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(10),
               onTap: toggleMenu,
               child: Container(
                 width: 40,
@@ -1242,16 +1155,13 @@ class _AdminShellState extends State<AdminShell> {
               ),
             ),
           ),
-
           const SizedBox(width: 10),
-
           Container(
             width: 36,
             height: 36,
             decoration: BoxDecoration(
               color: dojoOrange,
-              borderRadius:
-                  BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(10),
             ),
             child: const Icon(
               Icons.pets_rounded,
@@ -1259,9 +1169,7 @@ class _AdminShellState extends State<AdminShell> {
               size: 20,
             ),
           ),
-
           const SizedBox(width: 10),
-
           Expanded(
             child: Column(
               mainAxisAlignment:
@@ -1272,8 +1180,7 @@ class _AdminShellState extends State<AdminShell> {
                 Text(
                   pageTitle,
                   maxLines: 1,
-                  overflow:
-                      TextOverflow.ellipsis,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
@@ -1292,11 +1199,8 @@ class _AdminShellState extends State<AdminShell> {
               ],
             ),
           ),
-
           _mobileNotificationButton(),
-
           const SizedBox(width: 4),
-
           GestureDetector(
             onTap: _showProfileMenu,
             child: _avatar(
@@ -1332,8 +1236,7 @@ class _AdminShellState extends State<AdminShell> {
             child: Container(
               width: 7,
               height: 7,
-              decoration:
-                  const BoxDecoration(
+              decoration: const BoxDecoration(
                 color: dojoOrange,
                 shape: BoxShape.circle,
               ),
@@ -1457,8 +1360,7 @@ class _AdminShellState extends State<AdminShell> {
                 Text(
                   adminName,
                   maxLines: 1,
-                  overflow:
-                      TextOverflow.ellipsis,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w800,
@@ -1529,9 +1431,7 @@ class _AdminShellState extends State<AdminShell> {
                         BorderRadius.circular(10),
                   ),
                 ),
-
                 const SizedBox(height: 18),
-
                 Row(
                   children: [
                     _avatar(
@@ -1581,15 +1481,11 @@ class _AdminShellState extends State<AdminShell> {
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 18),
-
                 const Divider(
                   color: dojoDivider,
                 ),
-
                 const SizedBox(height: 6),
-
                 ListTile(
                   shape: RoundedRectangleBorder(
                     borderRadius:
@@ -1615,7 +1511,6 @@ class _AdminShellState extends State<AdminShell> {
                     selectPage(17);
                   },
                 ),
-
                 ListTile(
                   shape: RoundedRectangleBorder(
                     borderRadius:
